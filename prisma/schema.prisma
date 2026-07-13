@@ -1,0 +1,668 @@
+// O'quv markaz platformasi — ma'lumotlar bazasi sxemasi
+// Diqqat: enum qiymatlari api-contract.md dagi qiymatlar bilan aynan bir xil.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- ENUM'lar (api-contract.md, 3-bo'lim) ----------
+
+enum Role {
+  super_admin
+  admin
+  teacher
+  student
+  parent
+}
+
+enum AttendanceState {
+  present
+  absent
+  late
+}
+
+enum PaymentState {
+  paid
+  unpaid
+  partial
+}
+
+// Hozircha faqat manual; kelajakda payme | click qo'shiladi (backend-prompt.md, 8-band)
+enum PaymentMethod {
+  manual
+}
+
+enum TestType {
+  ielts
+  multilevel
+}
+
+enum TestSection {
+  listening
+  reading
+  writing
+  speaking
+}
+
+enum QuestionType {
+  multiple_choice
+  short_answer
+  essay
+  speaking_prompt
+}
+
+enum AttemptStatus {
+  in_progress
+  grading
+  completed
+}
+
+enum NotificationType {
+  points
+  payment_reminder
+  test_result
+  attendance
+  /// Admin yuborgan ommaviy e'lon (broadcast)
+  announcement
+  /// Oylik o'yinga qo'shilgani haqida xabar
+  game
+}
+
+enum PurchaseStatus {
+  pending_confirmation
+  purchased
+}
+
+// ---------- Foydalanuvchilar ----------
+
+model User {
+  id             String   @id @default(uuid())
+  name           String
+  phone          String   @unique
+  email          String?  @unique
+  passwordHash   String
+  role           Role
+  isActive       Boolean  @default(true)
+  /// Telegram bot bilan bog'langan chat (bir chat — bitta foydalanuvchi)
+  telegramChatId String?  @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  studentProfile StudentProfile?
+  parentLinks    ParentStudent[] @relation("ParentLinks")
+  teachingGroups Group[]         @relation("GroupTeacher")
+  refreshTokens  RefreshToken[]
+  notifications  Notification[]
+  articles       Article[]
+  videoPurchases VideoPurchase[]
+  mockPurchases  MockPurchase[]
+  telegramTokens TelegramLinkToken[]
+
+  @@index([role])
+}
+
+/// Telegramni ulash uchun bir martalik, muddati cheklangan token.
+/// Sayt uni yaratadi -> foydalanuvchi t.me/bot?start=<token> ni bosadi ->
+/// bot chat.id ni oladi va aynan shu foydalanuvchiga biriktiradi.
+model TelegramLinkToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// StudentProfile kaliti = User.id — API dagi studentId har doim user id degani
+model StudentProfile {
+  userId        String   @id
+  isApproved    Boolean  @default(false) // "Tasdiqlangan o'quv markaz o'quvchisi"
+  groupId       String?
+  currentPoints Int      @default(0)
+  linkCode      String   @unique // ota-ona farzandini shu kod bilan bog'laydi
+  createdAt     DateTime @default(now())
+
+  // --- Oylik o'yin tizimi ---
+  /// currentPoints qaysi oyga tegishli ("YYYY-MM"). Oy o'zgarsa ball qayta boshlanadi.
+  pointsPeriod  String?
+  /// Shu oyda chegara ballga yetib o'yinga qo'shilganmi (oy oxirigacha "yopishqoq")
+  gameQualified Boolean   @default(false)
+  qualifiedAt   DateTime?
+
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group         Group?                 @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  parents       ParentStudent[]
+  attendance    Attendance[]
+  payments      Payment[]
+  pointsLog     PointsLog[]
+  attempts      TestAttempt[]
+  pointsArchive MonthlyPointsArchive[]
+  mockAttempts  MockAttempt[]
+
+  @@index([groupId])
+}
+
+/// Har oy oxirida (yoki yangi oy boshlanganda) saqlanadigan ball tarixi.
+/// currentPoints keyingi oyga o'tmaydi — o'rniga shu yerga arxivlanadi.
+model MonthlyPointsArchive {
+  id        String   @id @default(uuid())
+  studentId String
+  year      Int
+  month     Int // 1..12
+  points    Int
+  qualified Boolean  @default(false) // o'sha oyda o'yinga qo'shilgan edimi
+  createdAt DateTime @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([studentId, year, month])
+  @@index([year, month])
+}
+
+model ParentStudent {
+  parentUserId String
+  studentId    String
+  createdAt    DateTime @default(now())
+
+  parent  User           @relation("ParentLinks", fields: [parentUserId], references: [id], onDelete: Cascade)
+  student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@id([parentUserId, studentId])
+}
+
+// ---------- Guruhlar ----------
+
+model Group {
+  id        String   @id @default(uuid())
+  name      String
+  teacherId String?
+  schedule  Json? // [{day:"mon", startTime:"14:00", endTime:"16:00"}]
+  createdAt DateTime @default(now())
+
+  teacher    User?            @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  students   StudentProfile[]
+  attendance Attendance[]
+}
+
+// ---------- Davomat ----------
+
+model Attendance {
+  id         String          @id @default(uuid())
+  studentId  String
+  groupId    String
+  date       DateTime        @db.Date
+  state      AttendanceState
+  markedById String
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  group   Group          @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, groupId, date])
+  @@index([groupId, date])
+}
+
+// ---------- To'lovlar (hammasi qo'lda, admin belgilaydi) ----------
+
+model Payment {
+  id         String        @id @default(uuid())
+  studentId  String
+  month      Int // 1..12
+  year       Int
+  state      PaymentState
+  amount     Int           @default(0) // so'mda
+  method     PaymentMethod @default(manual)
+  note       String?
+  markedById String?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([studentId, month, year])
+  @@index([year, month])
+}
+
+// ---------- Ball (reyting) tizimi ----------
+
+model PointsLog {
+  id        String   @id @default(uuid())
+  studentId String
+  change    Int
+  reason    String
+  byUserId  String? // null = tizim (masalan boshlang'ich ball)
+  createdAt DateTime @default(now())
+
+  student StudentProfile @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@index([studentId, createdAt])
+}
+
+// ---------- Testlar ----------
+
+model Test {
+  id                    String   @id @default(uuid())
+  type                  TestType
+  title                 String
+  level                 String? // masalan "B2", "Academic"
+  isDemo                Boolean  @default(false) // mehmonlar ko'ra oladigan demo test
+  isActive              Boolean  @default(true)
+  durationMinutes       Int?
+  sectionQuestionCounts Json? // {"listening":10,"reading":10} — random tanlab olinadigan savollar soni
+  createdAt             DateTime @default(now())
+
+  questions Question[]
+  attempts  TestAttempt[]
+}
+
+model Question {
+  id            String       @id @default(uuid())
+  testId        String
+  section       TestSection
+  type          QuestionType
+  prompt        String
+  options       Json? // string[] — multiple_choice uchun
+  correctAnswer String? // avtomatik baholanadiganlar uchun; variantlar "|" bilan ajratiladi
+  maxScore      Int          @default(1)
+  createdAt     DateTime     @default(now())
+
+  test    Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  answers Answer[]
+
+  @@index([testId, section])
+}
+
+model TestAttempt {
+  id             String        @id @default(uuid())
+  studentId      String
+  testId         String
+  status         AttemptStatus @default(in_progress)
+  questionOrder  Json // string[] — shu urinish uchun random tanlangan savollar tartibi
+  autoScore      Float?
+  manualScore    Float?
+  totalScore     Float?
+  antiCheatCount Int           @default(0)
+  startedAt      DateTime      @default(now())
+  finishedAt     DateTime?
+
+  student     StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  test        Test             @relation(fields: [testId], references: [id], onDelete: Cascade)
+  answers     Answer[]
+  cheatEvents AntiCheatEvent[]
+
+  @@index([studentId])
+  @@index([status])
+}
+
+model AntiCheatEvent {
+  id        String   @id @default(uuid())
+  attemptId String
+  event     String // masalan "tab_switch"
+  createdAt DateTime @default(now())
+
+  attempt TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  attemptId  String
+  questionId String
+  answer     String
+  score      Float?
+  isGraded   Boolean  @default(false)
+  gradedById String? // Writing/Speaking uchun baholagan o'qituvchi
+  comment    String?
+  updatedAt  DateTime @updatedAt
+
+  attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+}
+
+// ---------- Video darslar ----------
+
+model VideoLesson {
+  id                String   @id @default(uuid())
+  title             String
+  description       String?
+  price             Int      @default(0) // so'mda; 0 = bepul
+  isFreeForApproved Boolean  @default(true) // tasdiqlangan o'quvchiga bepulmi
+  fileKey           String // storage ichidagi nisbiy yo'l
+  mimeType          String?
+  thumbnailKey      String?
+  createdAt         DateTime @default(now())
+
+  purchases VideoPurchase[]
+}
+
+model VideoPurchase {
+  id            String         @id @default(uuid())
+  userId        String
+  videoId       String
+  status        PurchaseStatus @default(pending_confirmation)
+  method        PaymentMethod  @default(manual)
+  confirmedById String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video VideoLesson @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, videoId])
+}
+
+// ---------- Maqolalar / yangiliklar ----------
+
+model Article {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+  category  String
+  tags      String[]
+  authorId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([category])
+}
+
+// ---------- Sayt o'qituvchilari (marketing kartochkalari) ----------
+
+/// Rasmiy saytda "professional o'qituvchilar" kartalarida ko'rsatiladigan profil.
+/// DIQQAT: bu login akkaunti (Role.teacher) EMAS — admin qo'lda boshqaradigan
+/// marketing ma'lumoti. GET /teachers ochiq (sayt uni o'qiydi); o'zgartirish admin huquqida.
+model Teacher {
+  id              String   @id @default(uuid())
+  name            String
+  /// Yo'nalish / mutaxassislik — masalan "Academic IELTS", "Speaking"
+  specialty       String
+  /// Yutuq yoki sertifikat — masalan "IELTS 8.5" (kartadagi nishon)
+  achievement     String?
+  /// Qisqacha ma'lumot (ixtiyoriy)
+  bio             String?
+  /// Ish tajribasi (yil)
+  experienceYears Int?
+  /// Yuklangan rasm kaliti (storage ichida) — /teachers/:id/photo orqali beriladi
+  photoKey        String?
+  /// Ijtimoiy tarmoq / Telegram havolasi (ixtiyoriy)
+  socialUrl       String?
+  /// Saytdagi ko'rinish tartibi (kichik son — oldinroq chiqadi)
+  sortOrder       Int      @default(0)
+  /// Saytda ko'rsatilsinmi (yashirish uchun false)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
+// ---------- Bildirishnomalar ----------
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  text      String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+}
+
+// ---------- Audit log (faqat Super Admin ko'radi) ----------
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  action    String // masalan "payment.set", "points.adjust", "user.deactivate"
+  entity    String
+  entityId  String?
+  oldValue  Json?
+  newValue  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity, createdAt])
+  @@index([userId])
+}
+
+// ---------- Sozlamalar (Super Admin panelida o'zgartiriladi) ----------
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+// =====================================================================
+//  REAL MOCK EXAM tizimi (src/mock/) — mustaqil, kuchli IELTS/Multilevel
+//  mock imtihon backendi. Mavjud Test/Question/TestAttempt modellariga
+//  TEGMAYDI; o'ziga xos Mock* jadvallaridan foydalanadi. Endpointlar: /v1/mock
+// =====================================================================
+
+enum MockExamType {
+  ielts_academic
+  ielts_general
+  multilevel
+}
+
+enum MockSkill {
+  listening
+  reading
+  writing
+  speaking
+}
+
+/// Real IELTS savol turlari. Auto-baholanadi: listening/reading bo'limlaridagi
+/// hammasi (javob kaliti bo'yicha). Qo'lda: writing/speaking bo'limlari.
+enum MockQuestionType {
+  multiple_choice
+  multi_select
+  true_false_notgiven
+  yes_no_notgiven
+  matching
+  matching_headings
+  sentence_completion
+  note_completion
+  summary_completion
+  table_completion
+  short_answer
+  map_labelling
+  essay_task1
+  essay_task2
+  speaking_task
+}
+
+enum MockAttemptStatus {
+  in_progress
+  grading
+  completed
+}
+
+/// Imtihon rejimi: practice — vaqtsiz mashq; timed — vaqtli (ekran full, taymer)
+enum MockAttemptMode {
+  practice
+  timed
+}
+
+/// Bitta mock imtihon (IELTS Academic/General yoki Multilevel).
+model MockExam {
+  id          String       @id @default(uuid())
+  type        MockExamType
+  title       String
+  description String?
+  level       String? // masalan "Academic", "B1-C1"
+  isPublished Boolean      @default(false)
+  isDemo      Boolean      @default(false) // mehmonlar/ota-ona ko'radigan demo
+  // --- Pullik kirish (video modeli kabi; oddiy userlar sotib olib ishlatadi) ---
+  price             Int      @default(0) // so'mda; 0 = bepul
+  isFreeForApproved Boolean  @default(true) // tasdiqlangan markaz o'quvchisiga bepulmi
+  createdById       String? // yaratgan admin/teacher (User.id)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  sections  MockSection[]
+  attempts  MockAttempt[]
+  purchases MockPurchase[]
+
+  @@index([type])
+}
+
+/// Mock imtihonni sotib olish (video xaridi kabi: qo'lda tasdiqlanadi)
+model MockPurchase {
+  id            String         @id @default(uuid())
+  userId        String
+  examId        String
+  status        PurchaseStatus @default(pending_confirmation)
+  method        PaymentMethod  @default(manual)
+  amount        Int            @default(0)
+  confirmedById String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam MockExam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, examId])
+  @@index([status])
+}
+
+/// Imtihon bo'limi (Listening/Reading/Writing/Speaking) — bo'lim vaqti shu yerda.
+model MockSection {
+  id              String    @id @default(uuid())
+  examId          String
+  skill           MockSkill
+  title           String?
+  sortOrder       Int       @default(0)
+  durationMinutes Int? // bo'lim vaqti (IELTS: L~30, R~60, W~60)
+  instructions    String?
+
+  exam   MockExam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  groups MockQuestionGroup[]
+
+  @@unique([examId, skill])
+  @@index([examId, sortOrder])
+}
+
+/// Savollar bloki: umumiy ko'rsatma + matn/audio/rasm bilan birlashtirilgan
+/// savollar to'plami. Masalan "Questions 1-5: Complete the notes below".
+model MockQuestionGroup {
+  id           String   @id @default(uuid())
+  sectionId    String
+  sortOrder    Int      @default(0)
+  title        String?
+  instructions String? // "Complete the notes. Write ONE WORD ONLY."
+  passageText  String? // Reading matni / Listening transkripti
+  audioKey     String? // Listening audio (storage kaliti)
+  imageKey     String? // Map/diagram labelling uchun rasm
+  createdAt    DateTime @default(now())
+
+  section   MockSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  questions MockQuestion[]
+
+  @@index([sectionId, sortOrder])
+}
+
+model MockQuestion {
+  id             String           @id @default(uuid())
+  groupId        String
+  number         Int // imtihondagi savol raqami (1..40)
+  sortOrder      Int              @default(0)
+  type           MockQuestionType
+  prompt         String
+  options        Json? // multiple_choice/matching uchun: string[]
+  correctAnswers Json? // string[] — qabul qilinadigan to'g'ri javoblar (auto-baholash)
+  points         Int              @default(1)
+  wordLimit      Int? // "NO MORE THAN X WORDS" cheklovi (ixtiyoriy)
+  createdAt      DateTime         @default(now())
+
+  group   MockQuestionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  answers MockAnswer[]
+
+  @@index([groupId, sortOrder])
+}
+
+model MockAttempt {
+  id             String            @id @default(uuid())
+  examId         String
+  studentId      String
+  status         MockAttemptStatus @default(in_progress)
+  startedAt      DateTime          @default(now())
+  submittedAt    DateTime?
+  finishedAt     DateTime?
+  rawScores      Json? // {"listening":{"score":32,"max":40},...}
+  sectionBands   Json? // {"listening":7,"reading":6.5,...}
+  overallBand    Float? // IELTS umumiy band (0-9)
+  cefrLevel      String? // Multilevel uchun CEFR (A1..C1)
+  antiCheatCount Int               @default(0)
+  mode           MockAttemptMode   @default(practice) // practice=vaqtsiz, timed=vaqtli
+  deadlineAt     DateTime? // timed rejimda tugash vaqti (startedAt + davomiylik)
+  annotations    Json? // o'quvchining highlight/eslatmalari (frontend uchun saqlanadi)
+
+  exam        MockExam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  answers     MockAnswer[]
+  cheatEvents MockCheatEvent[]
+
+  @@index([studentId])
+  @@index([status])
+  @@index([examId])
+}
+
+model MockAnswer {
+  id         String   @id @default(uuid())
+  attemptId  String
+  questionId String
+  response   String   @default("") // o'quvchi javobi (matn)
+  audioKey   String? // Speaking javobi — yuklangan audio (storage kaliti)
+  isCorrect  Boolean? // auto-baholangan savollar uchun
+  score      Float?
+  isGraded   Boolean  @default(false)
+  gradedById String? // writing/speaking ni baholagan o'qituvchi (User.id)
+  feedback   String?
+  updatedAt  DateTime @updatedAt
+
+  attempt  MockAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question MockQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}
+
+model MockCheatEvent {
+  id        String   @id @default(uuid())
+  attemptId String
+  event     String
+  createdAt DateTime @default(now())
+
+  attempt MockAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
+}
