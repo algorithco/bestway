@@ -1,0 +1,290 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api-client";
+import type {
+  CreateMockExamInput,
+  CreateMockSectionInput,
+  MockAttemptDetail,
+  MockAttemptStatus,
+  MockAttemptSummary,
+  MockExamDetail,
+  MockExamListItem,
+  MockExamType,
+  MockGroupInput,
+  MockPurchaseItem,
+  MockQuestionInput,
+  PurchaseStatus,
+  StartMockResult,
+  UpdateMockExamInput,
+} from "@/lib/types";
+
+/* ── Exams ─────────────────────────────────────────────────────────────── */
+
+export function useMockExams(type?: MockExamType) {
+  return useQuery({
+    queryKey: ["mock-exams", type ?? "all"],
+    queryFn: () => api.get<MockExamListItem[]>("/mock/exams", { type }),
+  });
+}
+
+export function useMockExam(id: string) {
+  return useQuery({
+    queryKey: ["mock-exam", id],
+    queryFn: () => api.get<MockExamDetail>(`/mock/exams/${id}`),
+    enabled: !!id,
+  });
+}
+
+export function useCreateMockExam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateMockExamInput) => api.post<MockExamDetail>("/mock/exams", input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
+  });
+}
+
+export function useUpdateMockExam(id: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateMockExamInput) => api.patch<MockExamDetail>(`/mock/exams/${id}`, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-exam", id] });
+      qc.invalidateQueries({ queryKey: ["mock-exams"] });
+    },
+  });
+}
+
+export function useDeleteMockExam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/mock/exams/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
+  });
+}
+
+/* ── Access / purchase ─────────────────────────────────────────────────── */
+
+export function usePurchaseMock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (examId: string) =>
+      api.post<{ status: PurchaseStatus; amount: number }>(`/mock/exams/${examId}/purchase`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
+  });
+}
+
+export function useMockPurchases(status?: PurchaseStatus) {
+  return useQuery({
+    queryKey: ["mock-purchases", status ?? "all"],
+    queryFn: () => api.get<MockPurchaseItem[]>("/mock/purchases", { status }),
+  });
+}
+
+export function useConfirmMockPurchase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { examId: string; userId: string }) =>
+      api.post(`/mock/exams/${v.examId}/confirm-purchase`, { userId: v.userId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-purchases"] });
+      qc.invalidateQueries({ queryKey: ["mock-exams"] });
+    },
+  });
+}
+
+/* ── Attempts (student) ────────────────────────────────────────────────── */
+
+export function useStartMock() {
+  return useMutation({
+    mutationFn: (v: { examId: string; mode?: "practice" | "timed" }) =>
+      api.post<StartMockResult>(`/mock/exams/${v.examId}/start`, { mode: v.mode ?? "practice" }),
+  });
+}
+
+export function useMyMockAttempts(status?: MockAttemptStatus) {
+  return useQuery({
+    queryKey: ["mock-attempts-mine", status ?? "all"],
+    queryFn: () => api.get<MockAttemptSummary[]>("/mock/attempts/mine", { status }),
+  });
+}
+
+export function useMockAttempts(status?: MockAttemptStatus) {
+  return useQuery({
+    queryKey: ["mock-attempts", status ?? "all"],
+    queryFn: () => api.get<MockAttemptSummary[]>("/mock/attempts", { status }),
+  });
+}
+
+export function useMockAttempt(attemptId: string) {
+  return useQuery({
+    queryKey: ["mock-attempt", attemptId],
+    queryFn: () => api.get<MockAttemptDetail>(`/mock/attempts/${attemptId}`),
+    enabled: !!attemptId,
+  });
+}
+
+/** Bitta yoki bir nechta javobni saqlash (upsert) */
+export function useSaveMockAnswer(attemptId: string) {
+  return useMutation({
+    mutationFn: (v: { questionId: string; response: string }) =>
+      api.post(`/mock/attempts/${attemptId}/answer`, v),
+  });
+}
+
+export function useBulkMockAnswers(attemptId: string) {
+  return useMutation({
+    mutationFn: (answers: { questionId: string; response: string }[]) =>
+      api.post<{ saved: number }>(`/mock/attempts/${attemptId}/answers`, { answers }),
+  });
+}
+
+export function useFlagMockCheat(attemptId: string) {
+  return useMutation({
+    mutationFn: (event: string) => api.post(`/mock/attempts/${attemptId}/flag-cheat`, { event }),
+  });
+}
+
+export function useSaveMockAnnotations(attemptId: string) {
+  return useMutation({
+    mutationFn: (annotations: unknown[]) =>
+      api.put(`/mock/attempts/${attemptId}/annotations`, { annotations }),
+  });
+}
+
+export function useSubmitMock(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ status: MockAttemptStatus }>(`/mock/attempts/${attemptId}/submit`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] });
+      qc.invalidateQueries({ queryKey: ["mock-attempts-mine"] });
+    },
+  });
+}
+
+/** Speaking audio javobini yuklash (multipart) */
+export function useUploadMockSpeaking(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { questionId: string; form: FormData }) =>
+      api.post<{ saved: boolean; audioUrl: string }>(
+        `/mock/attempts/${attemptId}/speaking/${v.questionId}`,
+        v.form,
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] }),
+  });
+}
+
+/* ── Grading (staff) ───────────────────────────────────────────────────── */
+
+export function useGradeMock(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { questionId: string; score: number; feedback?: string }) =>
+      api.post<{ saved: boolean; status: MockAttemptStatus }>(
+        `/mock/attempts/${attemptId}/grade`,
+        v,
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] });
+      qc.invalidateQueries({ queryKey: ["mock-attempts"] });
+    },
+  });
+}
+
+/* ── Authoring: sections / groups / questions / media ──────────────────── */
+
+export function useCreateMockSection(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateMockSectionInput) => api.post(`/mock/exams/${examId}/sections`, input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+export function useDeleteMockSection(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sectionId: string) => api.delete(`/mock/sections/${sectionId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+export function useCreateMockGroup(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { sectionId: string; input?: MockGroupInput }) =>
+      api.post(`/mock/sections/${v.sectionId}/groups`, v.input ?? {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+export function useUpdateMockGroup(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { groupId: string; input: MockGroupInput }) =>
+      api.patch(`/mock/groups/${v.groupId}`, v.input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+export function useDeleteMockGroup(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (groupId: string) => api.delete(`/mock/groups/${groupId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+/** Blokka savol(lar) qo'shish */
+export function useAddMockQuestions(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { groupId: string; questions: MockQuestionInput[] }) =>
+      api.post(`/mock/groups/${v.groupId}/questions`, { questions: v.questions }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+/** Yopishtirilgan matn + javob kaliti → savollar import */
+export function useImportMockQuestions(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { groupId: string; text: string; answers?: Record<string, string>; points?: number }) =>
+      api.post<{ added: number }>(`/mock/groups/${v.groupId}/questions/import`, {
+        text: v.text,
+        answers: v.answers,
+        points: v.points,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+export function useUpdateMockQuestion(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { questionId: string; input: Partial<MockQuestionInput> }) =>
+      api.patch(`/mock/questions/${v.questionId}`, v.input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+export function useDeleteMockQuestion(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (questionId: string) => api.delete(`/mock/questions/${questionId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+/** Blokka audio/rasm yuklash (multipart) */
+export function useSetMockGroupMedia(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { groupId: string; form: FormData }) =>
+      api.post(`/mock/groups/${v.groupId}/media`, v.form),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}

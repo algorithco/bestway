@@ -1,0 +1,642 @@
+@import "tailwindcss";
+
+/* next-themes `class` strategiyasi bilan ishlaydi (prefers-color-scheme emas) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * BESTWAY EC — dizayn tokenlari
+ *
+ * Tamoyil: fon neytral, rang faqat ma'no tashiganda ishlatiladi.
+ * Brend yashili (to'q) holat yashilidan (yorqin) ataylab to'qroq —
+ * shunda "Saqlash" tugmasi "to'landi" belgisi bilan chalkashmaydi.
+ */
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f9fafb;
+  --surface: #ffffff;
+  --surface-hover: #f9fafb;
+
+  --fg: #111827;
+  --fg-muted: #6b7280;
+  --fg-subtle: #9ca3af;
+
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+
+  /* Brend ranglari logotipdan olingan: to'q yashil "B", lime qanot, to'q sariq, sariq quyosh */
+  --brand: #128139;
+  --brand-hover: #0d6a2d;
+  --brand-fg: #ffffff;
+  --brand-subtle: #ddf3e2;
+  --brand-subtle-fg: #0c5024;
+
+  --accent: #74bd3a; /* lime qanot */
+  --accent-fg: #14330a;
+  --accent-subtle: #eaf6d8;
+
+  --orange: #f2901c; /* pastki qanot */
+  --orange-fg: #ffffff;
+  --orange-subtle: #fdebd3;
+
+  --highlight: #ffc62e; /* quyosh yoyi */
+
+  /* Holat ranglari — jadval kataklari, belgilar, badge'lar */
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+  --success-border: #86efac;
+
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --danger-border: #fca5a5;
+
+  --warning: #b45309;
+  --warning-bg: #fef3c7;
+  --warning-border: #fcd34d;
+
+  --info: #0369a1;
+  --info-bg: #e0f2fe;
+  --info-border: #7dd3fc;
+}
+
+.dark {
+  --bg: #0b0c0e;
+  --bg-subtle: #101215;
+  --surface: #131518;
+  --surface-hover: #1a1d21;
+
+  --fg: #e8eaed;
+  --fg-muted: #9ba1a9;
+  --fg-subtle: #6b7280;
+
+  --border: #272b31;
+  --border-strong: #3a3f47;
+
+  /* Qorong'ida to'q yashil o'qilmaydi — yorug'roq olinadi, matn esa qoraytiriladi */
+  --brand: #38c765;
+  --brand-hover: #2ba552;
+  --brand-fg: #04240f;
+  --brand-subtle: #123a1f;
+  --brand-subtle-fg: #8ef0ac;
+
+  --accent: #97d95c;
+  --accent-fg: #0f2b05;
+  --accent-subtle: #1d2f11;
+
+  --orange: #f79a35;
+  --orange-fg: #241100;
+  --orange-subtle: #3a2408;
+
+  --highlight: #ffd24d;
+
+  --success: #4ade80;
+  --success-bg: #14532d;
+  --success-border: #166534;
+
+  --danger: #f87171;
+  --danger-bg: #601b1b;
+  --danger-border: #991b1b;
+
+  --warning: #fbbf24;
+  --warning-bg: #5c2c07;
+  --warning-border: #92400e;
+
+  --info: #38bdf8;
+  --info-bg: #0c4a6e;
+  --info-border: #075985;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-surface: var(--surface);
+  --color-surface-hover: var(--surface-hover);
+
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-subtle: var(--brand-subtle);
+  --color-brand-subtle-fg: var(--brand-subtle-fg);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-subtle: var(--accent-subtle);
+
+  --color-orange: var(--orange);
+  --color-orange-fg: var(--orange-fg);
+  --color-orange-subtle: var(--orange-subtle);
+
+  --color-highlight: var(--highlight);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-control: 8px;
+  --radius-card: 12px;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Raqamlar ustunda tik turishi uchun (jadval, summa, ball) */
+  table,
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--brand-subtle);
+    color: var(--brand-subtle-fg);
+  }
+}
+
+/* Radix qatlamlari uchun animatsiyalar — tashqi paketsiz.
+   Radix elementga data-state="open|closed" qo'yadi, biz shunga ulanamiz. */
+@keyframes bw-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes bw-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes bw-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes bw-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+/* Dialog markazda turadi — translate(-50%,-50%) animatsiya davomida saqlanishi shart */
+@keyframes bw-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes bw-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+}
+
+@layer utilities {
+  .anim-fade[data-state="open"] {
+    animation: bw-fade-in 150ms ease-out;
+  }
+  .anim-fade[data-state="closed"] {
+    animation: bw-fade-out 120ms ease-in;
+  }
+
+  .anim-pop[data-state="open"] {
+    animation: bw-pop-in 140ms ease-out;
+  }
+  .anim-pop[data-state="closed"] {
+    animation: bw-pop-out 110ms ease-in;
+  }
+
+  .anim-dialog[data-state="open"] {
+    animation: bw-dialog-in 160ms ease-out;
+  }
+  .anim-dialog[data-state="closed"] {
+    animation: bw-dialog-out 120ms ease-in;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .anim-fade,
+    .anim-pop,
+    .anim-dialog {
+      animation: none !important;
+    }
+  }
+}
+
+/* ── Marketing sayti animatsiyalari ──────────────────────────────────────── */
+@keyframes bw-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bw-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(1.5deg);
+  }
+}
+
+@keyframes bw-float-slow {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(18px);
+  }
+}
+
+@keyframes bw-gradient-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes bw-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@layer utilities {
+  /* Scroll-reveal: JS ko'rinishga kelganda .is-visible qo'shadi */
+  .reveal {
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .reveal.is-visible {
+    animation: bw-reveal-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .anim-float {
+    animation: bw-float 7s ease-in-out infinite;
+  }
+  .anim-float-slow {
+    animation: bw-float-slow 9s ease-in-out infinite;
+  }
+
+  .anim-gradient {
+    background-size: 200% 200%;
+    animation: bw-gradient-pan 12s ease infinite;
+  }
+
+  .marquee-track {
+    animation: bw-marquee 30s linear infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal.is-visible,
+    .anim-float,
+    .anim-float-slow,
+    .anim-gradient,
+    .marquee-track {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Excel-simon jadvalda birinchi ustun scroll qilganda ham ko'rinib turadi */
+  .sticky-col {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+
+  /* Mobil qurilmada pastki menyu tizim "home indicator"iga tegmasin */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Kengaytirilgan dizayn tizimi — animatsiyalar, 3D, chuqurlik, gradientlar
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Logotip jonlanishi (hero/kirish sahifalarida) ───────────────────────── */
+@keyframes bw-sun-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.09); opacity: 0.9; }
+}
+@keyframes bw-wing-flap {
+  0%, 100% { transform: scaleY(1); }
+  50% { transform: scaleY(0.86); }
+}
+
+@layer utilities {
+  .bw-mark-animated .bw-mark-sun,
+  .bw-mark-animated .bw-mark-wing {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+  .bw-mark-animated .bw-mark-sun {
+    animation: bw-sun-pulse 3.6s ease-in-out infinite;
+  }
+  .bw-mark-animated .bw-mark-wing {
+    animation: bw-wing-flap 4.2s ease-in-out infinite;
+  }
+}
+
+/* ── 3D egilish (tilt) — sichqoncha kuzatib boradigan kartalar ────────────── */
+@layer utilities {
+  .perspective {
+    perspective: 1000px;
+  }
+  /* JS `--tilt-x` / `--tilt-y` (deg) o'rnatadi; xclass transformni qo'llaydi */
+  .tilt-3d {
+    transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg))
+      translateZ(0);
+    transform-style: preserve-3d;
+    transition:
+      transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.18s ease;
+    will-change: transform;
+  }
+  /* 3D sirt ustidan "ko'tarilib" turadigan ichki qatlam */
+  .tilt-layer {
+    transform: translateZ(38px);
+    transform-style: preserve-3d;
+  }
+  .tilt-glare {
+    background: radial-gradient(
+      circle at var(--glare-x, 50%) var(--glare-y, 0%),
+      rgba(255, 255, 255, 0.28),
+      transparent 45%
+    );
+    opacity: var(--glare-o, 0);
+    transition: opacity 0.2s ease;
+  }
+}
+
+/* ── Chuqurlik (elevation) — qorong'i mavzuda ham ko'rinadigan soyalar ─────── */
+@layer utilities {
+  .elevated {
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.06),
+      0 10px 28px -10px rgba(16, 24, 40, 0.16);
+  }
+  .elevated-lg {
+    box-shadow:
+      0 2px 4px rgba(16, 24, 40, 0.06),
+      0 24px 48px -16px rgba(16, 24, 40, 0.24);
+  }
+  .dark .elevated {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.5),
+      0 12px 32px -12px rgba(0, 0, 0, 0.7);
+  }
+  .dark .elevated-lg {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.5),
+      0 28px 60px -18px rgba(0, 0, 0, 0.8);
+  }
+  /* Umumiy karta "ko'tarilishi" — hoverda yuqoriga suriladi + soya.
+     Soya to'g'ridan-to'g'ri shu yerda (Tailwind v4'da custom utility'ning
+     `hover:` varianti ishlamaydi, shuning uchun o'zimiz yozamiz). */
+  .lift {
+    transition:
+      transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .lift:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.06),
+      0 12px 30px -10px rgba(16, 24, 40, 0.18);
+  }
+  .dark .lift:hover {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.5),
+      0 14px 34px -12px rgba(0, 0, 0, 0.7);
+  }
+
+  /* Ko'tarilmasdan (transformsiz) faqat hoverda soya — 3D tilt kartalar uchun */
+  .hover-elevate {
+    transition:
+      box-shadow 0.25s ease,
+      border-color 0.25s ease;
+  }
+  .hover-elevate:hover {
+    box-shadow:
+      0 1px 2px rgba(16, 24, 40, 0.06),
+      0 12px 30px -10px rgba(16, 24, 40, 0.18);
+  }
+  .dark .hover-elevate:hover {
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.5),
+      0 14px 34px -12px rgba(0, 0, 0, 0.7);
+  }
+}
+
+/* ── Nur o'tishi (shine) va yaltirash (shimmer) ──────────────────────────── */
+@keyframes bw-shine {
+  100% {
+    transform: translateX(230%) skewX(-16deg);
+  }
+}
+@keyframes bw-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes bw-glow {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes bw-spin-slow {
+  to { transform: rotate(360deg); }
+}
+@keyframes bw-scale-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@layer utilities {
+  /* Hoverda ustidan yorug'lik chizig'i o'tadigan konteyner */
+  .shine {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .shine::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 45%;
+    height: 100%;
+    transform: translateX(-160%) skewX(-16deg);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.35),
+      transparent
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+  .shine:hover::before {
+    animation: bw-shine 0.85s ease-out;
+  }
+
+  /* Yuklanish skeletlari uchun yaltirash */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.12),
+      transparent
+    );
+    animation: bw-shimmer 1.6s infinite;
+  }
+
+  .anim-glow {
+    animation: bw-glow 3s ease-in-out infinite;
+  }
+  .anim-spin-slow {
+    animation: bw-spin-slow 18s linear infinite;
+  }
+  .anim-scale-in {
+    animation: bw-scale-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+}
+
+/* ── Gradientlar, to'r fonlar, gradient chegara ──────────────────────────── */
+@layer utilities {
+  .text-gradient-brand {
+    background-image: linear-gradient(120deg, var(--brand), var(--accent) 70%, var(--highlight));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Nozik nuqtali/chiziqli to'r foni (hero, bo'sh holatlar) */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+  .bg-dots {
+    background-image: radial-gradient(var(--border-strong) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Gradient chegarali karta — ichki fon + tashqi gradient halqa */
+  .ring-gradient {
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      linear-gradient(120deg, var(--brand), var(--accent), var(--orange)) border-box;
+    border: 1.5px solid transparent;
+  }
+}
+
+/* Harakatni kamaytirish so'ralganda — hammasi tinch */
+@media (prefers-reduced-motion: reduce) {
+  .bw-mark-animated .bw-mark-sun,
+  .bw-mark-animated .bw-mark-wing,
+  .anim-glow,
+  .anim-spin-slow,
+  .anim-scale-in,
+  .shimmer::after,
+  .shine:hover::before {
+    animation: none !important;
+  }
+  .lift,
+  .tilt-3d {
+    transition: none !important;
+  }
+  .lift:hover {
+    transform: none !important;
+  }
+}

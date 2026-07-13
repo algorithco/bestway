@@ -1,0 +1,109 @@
+import createIntlMiddleware from "next-intl/middleware";
+import { NextRequest, NextResponse } from "next/server";
+import { locales, routing, type Locale } from "@/i18n/routing";
+import { COOKIE } from "@/lib/config";
+import type { Role } from "@/lib/types";
+
+// Next.js 16: "middleware" -> "proxy" (funksionallik o'zgarmagan)
+const intlProxy = createIntlMiddleware(routing);
+
+/**
+ * Login talab qiladigan bo'limlar.
+ *
+ * Diqqat: bu faqat foydalanuvchini keraksiz sahifadan qaytarish uchun (UX).
+ * Haqiqiy himoya backendda — har bir endpoint JWT imzosini va rolni tekshiradi.
+ * Cookie'ni qo'lda o'zgartirgan odam bu yerdan o'tsa ham, backend uni to'xtatadi.
+ */
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/attendance",
+  "/payments",
+  "/students",
+  "/staff",
+  "/groups",
+  "/points",
+  "/articles",
+  "/notifications",
+  "/settings",
+  "/audit",
+  "/profile",
+  "/my",
+  "/children",
+  "/tests",
+  "/mock",
+  "/videos",
+];
+
+/** Login qilgan foydalanuvchi bu sahifalarga qaytmasligi kerak */
+const AUTH_PAGES = ["/login", "/register"];
+
+/** Prefiks -> ruxsat etilgan rollar (backend controllerlardagi @Roles bilan bir xil) */
+const ROUTE_ROLES: [string, Role[]][] = [
+  ["/attendance", ["teacher", "admin", "super_admin"]],
+  ["/payments", ["admin", "super_admin"]],
+  ["/students", ["admin", "super_admin"]],
+  ["/staff", ["admin", "super_admin"]],
+  ["/groups", ["teacher", "admin", "super_admin"]],
+  ["/articles", ["admin", "super_admin"]],
+  ["/tests", ["student", "teacher", "admin", "super_admin"]],
+  ["/mock", ["student", "teacher", "admin", "super_admin"]],
+  ["/settings", ["super_admin"]],
+  ["/audit", ["super_admin"]],
+  ["/my", ["student", "parent"]],
+  ["/children", ["parent"]],
+];
+
+/** "/ru/dashboard" -> { locale: "ru", path: "/dashboard" } */
+function splitLocale(pathname: string): { locale: Locale; path: string } {
+  const segment = pathname.split("/")[1];
+  if (locales.includes(segment as Locale)) {
+    const rest = pathname.slice(segment.length + 1);
+    return { locale: segment as Locale, path: rest || "/" };
+  }
+  return { locale: routing.defaultLocale, path: pathname };
+}
+
+/** Til prefiksini qaytadan qo'shadi (default til uchun prefiks yo'q — localePrefix: "as-needed") */
+function withLocale(locale: Locale, path: string): string {
+  return locale === routing.defaultLocale ? path : `/${locale}${path}`;
+}
+
+function matches(path: string, prefixes: string[]): boolean {
+  return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
+}
+
+export default function proxy(req: NextRequest) {
+  const { locale, path } = splitLocale(req.nextUrl.pathname);
+  const role = req.cookies.get(COOKIE.role)?.value as Role | undefined;
+
+  if (matches(path, PROTECTED_PREFIXES) && !role) {
+    const url = req.nextUrl.clone();
+    url.pathname = withLocale(locale, "/login");
+    url.searchParams.set("next", req.nextUrl.pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (matches(path, AUTH_PAGES) && role) {
+    const url = req.nextUrl.clone();
+    url.pathname = withLocale(locale, "/dashboard");
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
+  if (role) {
+    const rule = ROUTE_ROLES.find(([prefix]) => matches(path, [prefix]));
+    if (rule && !rule[1].includes(role)) {
+      const url = req.nextUrl.clone();
+      url.pathname = withLocale(locale, "/dashboard");
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return intlProxy(req);
+}
+
+export const config = {
+  // API route'lari, statik fayllar va fayl kengaytmasi borlar chetlab o'tiladi
+  matcher: ["/((?!api|_next|_vercel|.*\\..*).*)"],
+};
