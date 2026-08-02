@@ -1,0 +1,93 @@
+import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'crypto';
+import * as fs from 'fs';
+import { diskStorage } from 'multer';
+import * as path from 'path';
+import { AppException } from '../common/app.exception';
+
+/**
+ * Lokal disk saqlash qatlami.
+ * Kelajakda S3/Bunny Stream'ga o'tishda faqat shu servis almashtiriladi
+ * (backend-prompt.md, 10-band: almashtiriladigan qatlam sifatida loyihalangan).
+ */
+@Injectable()
+export class StorageService implements OnModuleInit {
+  private readonly baseDir: string;
+
+  constructor(config: ConfigService) {
+    this.baseDir = path.resolve(config.get<string>('STORAGE_DIR') ?? './storage');
+  }
+
+  onModuleInit() {
+    for (const dir of ['videos', 'thumbnails', 'teachers']) {
+      fs.mkdirSync(path.join(this.baseDir, dir), { recursive: true });
+    }
+  }
+
+  resolve(key: string): string {
+    const abs = path.resolve(this.baseDir, key);
+    if (!abs.startsWith(this.baseDir)) {
+      throw new AppException('INVALID_FILE_KEY', "Fayl manzili noto'g'ri", 400);
+    }
+    return abs;
+  }
+
+  exists(key: string): boolean {
+    return fs.existsSync(this.resolve(key));
+  }
+
+  stat(key: string): fs.Stats {
+    return fs.statSync(this.resolve(key));
+  }
+
+  createReadStream(key: string, opts?: { start: number; end: number }): fs.ReadStream {
+    return fs.createReadStream(this.resolve(key), opts);
+  }
+
+  delete(key: string): void {
+    try {
+      fs.unlinkSync(this.resolve(key));
+    } catch {
+      // fayl allaqachon yo'q bo'lsa ham davom etamiz
+    }
+  }
+}
+
+/** Multer sozlamalari — fayllar to'g'ridan-to'g'ri diskka yoziladi (xotira band bo'lmaydi) */
+export function videoMulterOptions() {
+  return {
+    storage: diskStorage({
+      destination: (
+        _req: unknown,
+        file: Express.Multer.File,
+        cb: (error: Error | null, destination: string) => void,
+      ) => {
+        const base = path.resolve(process.env.STORAGE_DIR ?? './storage');
+        const sub = file.fieldname === 'thumbnail' ? 'thumbnails' : 'videos';
+        const dir = path.join(base, sub);
+        fs.mkdirSync(dir, { recursive: true });
+        cb(null, dir);
+      },
+      filename: (
+        _req: unknown,
+        file: Express.Multer.File,
+        cb: (error: Error | null, filename: string) => void,
+      ) => cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
+    }),
+    limits: { fileSize: parseInt(process.env.MAX_UPLOAD_MB ?? '500', 10) * 1024 * 1024 },
+    fileFilter: (
+      _req: unknown,
+      file: Express.Multer.File,
+      cb: (error: Error | null, acceptFile: boolean) => void,
+    ) => {
+      if (file.fieldname === 'file' && !file.mimetype.startsWith('video/')) {
+        return cb(new AppException('INVALID_FILE_TYPE', 'Video fayl yuklang (mp4 va h.k.)', 400), false);
+      }
+      if (file.fieldname === 'thumbnail' && !file.mimetype.startsWith('image/')) {
+        return cb(new AppException('INVALID_FILE_TYPE', "Muqova rasm fayli bo'lishi kerak", 400), false);
+      }
+      cb(null, true);
+    },
+  };
+}

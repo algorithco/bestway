@@ -1,0 +1,21 @@
+# --- Dependencies & build ---
+node_modules/
+dist/
+*.tsbuildinfo
+
+# --- Secrets & runtime data (never commit) ---
+.env
+.env.local
+.env.*.local
+storage/
+backups/
+*.log
+
+# --- Editor / OS ---
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# --- Internal build spec (not part of the product; kept locally only) ---
+backend-prompt.md
