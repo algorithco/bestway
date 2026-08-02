@@ -1,0 +1,24 @@
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tile" x1="6" y1="3" x2="42" y2="46" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#17a44b"/>
+      <stop offset="0.55" stop-color="#3aa544"/>
+      <stop offset="1" stop-color="#7cc23f"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.38" r="0.75">
+      <stop stop-color="#fff4cc"/>
+      <stop offset="0.5" stop-color="#ffc62e"/>
+      <stop offset="1" stop-color="#f59516"/>
+    </radialGradient>
+  </defs>
+  <rect x="1.5" y="1.5" width="45" height="45" rx="13" fill="url(#tile)"/>
+  <path d="M14.5 1.5H33.5C40.4 1.5 46.5 7.6 46.5 14.5V17.5C46.5 10.6 40.4 5 33.5 5H14.5C7.6 5 1.5 11.6 1.5 18.5V14.5C1.5 7.6 7.6 1.5 14.5 1.5Z" fill="#ffffff" opacity="0.20"/>
+  <circle cx="24" cy="15" r="6.2" fill="url(#sun)"/>
+  <g stroke="#ffd94f" stroke-width="1.7" stroke-linecap="round">
+    <line x1="24" y1="5.2" x2="24" y2="7.4"/>
+    <line x1="14.9" y1="7.9" x2="16.5" y2="9.6"/>
+    <line x1="33.1" y1="7.9" x2="31.5" y2="9.6"/>
+  </g>
+  <path fill="#ffffff" opacity="0.96" d="M4.5 23C12 28 18 31 24 31.3C30 31 36 28 43.5 23C41 25.6 38.4 27.5 35.4 29C31.4 31.1 27.6 32.4 24 33.7C20.4 32.4 16.6 31.1 12.6 29C9.6 27.5 7 25.6 4.5 23Z"/>
+  <path fill="#ffffff" fill-rule="evenodd" d="M18 12.4H26.5C30.1 12.4 32.4 14.6 32.4 17.8C32.4 19.9 31.3 21.5 29.5 22.3C31.9 23 33.4 24.9 33.4 27.7C33.4 31.2 30.7 33.6 26.7 33.6H18V12.4ZM22.3 16V20.6H25.9C27.4 20.6 28.1 19.7 28.1 18.3C28.1 17 27.4 16 25.9 16H22.3ZM22.3 24V30H26.2C27.8 30 28.7 28.8 28.7 27C28.7 25.2 27.8 24 26.2 24H22.3Z"/>
+</svg>
