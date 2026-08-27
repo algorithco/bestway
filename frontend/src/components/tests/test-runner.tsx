@@ -75,7 +75,10 @@ export function TestRunner({ attempt }: { attempt: AttemptDetail }) {
     setAnswers((prev) => ({ ...prev, [q.questionId]: value }));
   }
   function persist(q: AttemptQuestion, value: string) {
-    save.mutate({ questionId: q.questionId, answer: value });
+    save.mutate(
+      { questionId: q.questionId, answer: value },
+      { onError: () => toast.error(tc("saveFailed")) },
+    );
   }
 
   const answeredCount = attempt.questions.filter((q) => (answers[q.questionId] ?? "").trim()).length;

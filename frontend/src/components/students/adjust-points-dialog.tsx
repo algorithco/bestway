@@ -33,6 +33,38 @@ export function AdjustPointsDialog({
   limit?: number;
 }) {
   const t = useTranslations("points");
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {t("adjust")} · {studentName}
+          </DialogTitle>
+        </DialogHeader>
+        {open && (
+          <AdjustPointsFields
+            key={studentId}
+            studentId={studentId}
+            limit={limit}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdjustPointsFields({
+  studentId,
+  limit,
+  onClose,
+}: {
+  studentId: string;
+  limit?: number;
+  onClose: () => void;
+}) {
+  const t = useTranslations("points");
   const tc = useTranslations("common");
   const adjust = useAdjustPoints(studentId);
 
@@ -40,15 +72,6 @@ export function AdjustPointsDialog({
   const [amount, setAmount] = React.useState("5");
   const [reason, setReason] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (open) {
-      setDir(1);
-      setAmount("5");
-      setReason("");
-      setError(null);
-    }
-  }, [open]);
 
   function submit() {
     setError(null);
@@ -71,81 +94,74 @@ export function AdjustPointsDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>
-            {t("adjust")} · {studentName}
-          </DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setDir(1)}
-              aria-pressed={dir === 1}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2.5 text-sm font-medium transition-colors",
-                dir === 1
-                  ? "border-success bg-success-bg text-success"
-                  : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
-              )}
-            >
-              <Plus className="size-4" />
-              {t("add")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDir(-1)}
-              aria-pressed={dir === -1}
-              className={cn(
-                "flex items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2.5 text-sm font-medium transition-colors",
-                dir === -1
-                  ? "border-danger bg-danger-bg text-danger"
-                  : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
-              )}
-            >
-              <Minus className="size-4" />
-              {t("subtract")}
-            </button>
+    <>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
           </div>
+        )}
 
-          <Field label={t("change")} htmlFor="pamount" hint={limit ? t("teacherLimit", { limit }) : undefined}>
-            <Input
-              id="pamount"
-              type="number"
-              min={1}
-              max={limit ?? undefined}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </Field>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setDir(1)}
+            aria-pressed={dir === 1}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2.5 text-sm font-medium transition-colors",
+              dir === 1
+                ? "border-success bg-success-bg text-success"
+                : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
+            )}
+          >
+            <Plus className="size-4" />
+            {t("add")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setDir(-1)}
+            aria-pressed={dir === -1}
+            className={cn(
+              "flex items-center justify-center gap-1.5 rounded-[8px] border px-3 py-2.5 text-sm font-medium transition-colors",
+              dir === -1
+                ? "border-danger bg-danger-bg text-danger"
+                : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
+            )}
+          >
+            <Minus className="size-4" />
+            {t("subtract")}
+          </button>
+        </div>
 
-          <Field label={t("reason")} htmlFor="preason">
-            <Textarea
-              id="preason"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder={t("reasonPlaceholder")}
-              maxLength={300}
-            />
-          </Field>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={adjust.isPending}>
-            {tc("save")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Field label={t("change")} htmlFor="pamount" hint={limit ? t("teacherLimit", { limit }) : undefined}>
+          <Input
+            id="pamount"
+            type="number"
+            min={1}
+            max={limit ?? undefined}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+        </Field>
+
+        <Field label={t("reason")} htmlFor="preason">
+          <Textarea
+            id="preason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={t("reasonPlaceholder")}
+            maxLength={300}
+          />
+        </Field>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={adjust.isPending}>
+          {tc("save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

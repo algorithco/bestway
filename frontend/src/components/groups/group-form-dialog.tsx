@@ -37,6 +37,34 @@ export function GroupFormDialog({
   onClose: () => void;
 }) {
   const t = useTranslations("groups");
+  const isEdit = !!group;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? t("edit") : t("create")}</DialogTitle>
+        </DialogHeader>
+        {open && (
+          <GroupFormFields
+            key={group?.id ?? "new"}
+            group={group}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function GroupFormFields({
+  group,
+  onClose,
+}: {
+  group: GroupListItem | GroupDetail | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations("groups");
   const tc = useTranslations("common");
   const tw = useTranslations("weekdaysShort");
   const isEdit = !!group;
@@ -46,21 +74,12 @@ export function GroupFormDialog({
   const update = useUpdateGroup(group?.id ?? "");
   const pending = create.isPending || update.isPending;
 
-  const [name, setName] = React.useState("");
-  const [teacherId, setTeacherId] = React.useState("none");
-  const [days, setDays] = React.useState<Set<string>>(new Set());
-  const [start, setStart] = React.useState("");
-  const [end, setEnd] = React.useState("");
-
-  React.useEffect(() => {
-    if (!open) return;
-    setName(group?.name ?? "");
-    setTeacherId(group?.teacherId ?? "none");
-    const sched = group?.schedule ?? [];
-    setDays(new Set(sched.map((s) => s.day)));
-    setStart(sched[0]?.startTime ?? "");
-    setEnd(sched[0]?.endTime ?? "");
-  }, [open, group]);
+  const sched = group?.schedule ?? [];
+  const [name, setName] = React.useState(group?.name ?? "");
+  const [teacherId, setTeacherId] = React.useState(group?.teacherId ?? "none");
+  const [days, setDays] = React.useState<Set<string>>(new Set(sched.map((s) => s.day)));
+  const [start, setStart] = React.useState(sched[0]?.startTime ?? "");
+  const [end, setEnd] = React.useState(sched[0]?.endTime ?? "");
 
   function toggleDay(d: string) {
     setDays((prev) => {
@@ -99,77 +118,72 @@ export function GroupFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t("edit") : t("create")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          <Field label={t("name")} htmlFor="gname">
-            <Input
-              id="gname"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={t("namePlaceholder")}
-              autoFocus
-            />
-          </Field>
+    <>
+      <DialogBody className="space-y-4">
+        <Field label={t("name")} htmlFor="gname">
+          <Input
+            id="gname"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={t("namePlaceholder")}
+            autoFocus
+          />
+        </Field>
 
-          <Field label={t("teacher")}>
-            <Select value={teacherId} onValueChange={setTeacherId}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t("noTeacher")}</SelectItem>
-                {(teachersQ.data ?? []).map((tch) => (
-                  <SelectItem key={tch.id} value={tch.id}>
-                    {tch.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-
-          <Field label={t("schedule")}>
-            <div className="flex flex-wrap gap-1.5">
-              {DAYS.map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  onClick={() => toggleDay(d)}
-                  aria-pressed={days.has(d)}
-                  className={cn(
-                    "size-9 rounded-[8px] border text-xs font-medium capitalize transition-colors",
-                    days.has(d)
-                      ? "border-brand bg-brand-subtle text-brand-subtle-fg"
-                      : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
-                  )}
-                >
-                  {tw(d)}
-                </button>
+        <Field label={t("teacher")}>
+          <Select value={teacherId} onValueChange={setTeacherId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t("noTeacher")}</SelectItem>
+              {(teachersQ.data ?? []).map((tch) => (
+                <SelectItem key={tch.id} value={tch.id}>
+                  {tch.name}
+                </SelectItem>
               ))}
-            </div>
-          </Field>
+            </SelectContent>
+          </Select>
+        </Field>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("startTime")} htmlFor="gstart">
-              <Input id="gstart" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
-            </Field>
-            <Field label={t("endTime")} htmlFor="gend">
-              <Input id="gend" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
-            </Field>
+        <Field label={t("schedule")}>
+          <div className="flex flex-wrap gap-1.5">
+            {DAYS.map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => toggleDay(d)}
+                aria-pressed={days.has(d)}
+                className={cn(
+                  "size-9 rounded-[8px] border text-xs font-medium capitalize transition-colors",
+                  days.has(d)
+                    ? "border-brand bg-brand-subtle text-brand-subtle-fg"
+                    : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
+                )}
+              >
+                {tw(d)}
+              </button>
+            ))}
           </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={pending} disabled={name.trim().length < 2}>
-            {tc("save")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("startTime")} htmlFor="gstart">
+            <Input id="gstart" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+          </Field>
+          <Field label={t("endTime")} htmlFor="gend">
+            <Input id="gend" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+          </Field>
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={pending} disabled={name.trim().length < 2}>
+          {tc("save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

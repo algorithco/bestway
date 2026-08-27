@@ -49,6 +49,8 @@ export function GroupDetailView({ groupId }: { groupId: string }) {
   const picker = useStudents(debounced);
 
   const isOffice = me?.user.role === "admin" || me?.user.role === "super_admin";
+  const canSeePhones =
+    me?.user.role === "teacher" || me?.user.role === "admin" || me?.user.role === "super_admin";
   const teacherLimit = me?.user.role === "teacher" ? settingsQ.data?.teacherPointLimit : undefined;
 
   const memberIds = new Set((group?.students ?? []).map((s) => s.studentId));
@@ -169,7 +171,9 @@ export function GroupDetailView({ groupId }: { groupId: string }) {
                       <Avatar name={u.name} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-fg">{u.name}</p>
-                        <p className="truncate text-xs text-fg-muted">{formatPhone(u.phone)}</p>
+                        {canSeePhones && (
+                          <p className="truncate text-xs text-fg-muted">{formatPhone(u.phone)}</p>
+                        )}
                       </div>
                     </div>
                     <Button size="sm" variant="subtle" className="h-7" onClick={() => onAdd(u.id)}>
@@ -202,7 +206,9 @@ export function GroupDetailView({ groupId }: { groupId: string }) {
                     <Avatar name={s.name} size="sm" />
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-fg">{s.name}</p>
-                      <p className="truncate text-xs text-fg-muted">{formatPhone(s.phone)}</p>
+                      {canSeePhones && (
+                        <p className="truncate text-xs text-fg-muted">{formatPhone(s.phone)}</p>
+                      )}
                     </div>
                   </>
                 );

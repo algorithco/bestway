@@ -12,10 +12,12 @@ export function formatMoney(amount: number): string {
     .replace(/ /g, " ");
 }
 
-/** Date | "2026-07-10" -> "2026-07-10" (UTC bo'yicha, mahalliy vaqtga surilmaydi) */
+/** Date | "2026-07-10" -> "2026-07-10" (mahalliy vaqt bo'yicha, UTC surilishi yo'q) */
 export function toDateKey(date: Date | string): string {
   if (typeof date === "string") return date.slice(0, 10);
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate(),
+  ).padStart(2, "0")}`;
 }
 
 /** "2026-07" — joriy oy kaliti */

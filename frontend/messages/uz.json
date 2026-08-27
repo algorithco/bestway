@@ -1,4 +1,4 @@
-{
+﻿{
   "groups": {
     "title": "Guruhlar",
     "create": "Guruh yaratish",
@@ -244,6 +244,7 @@
     "language": "Til",
     "logout": "Chiqish",
     "profile": "Profil",
+    "saveFailed": "Javob saqlanmadi",
     "unknownError": "Kutilmagan xatolik yuz berdi"
   },
   "nav": {

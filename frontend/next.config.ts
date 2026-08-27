@@ -24,6 +24,8 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
+    // Proxy body'larni xotiraga bufferlaydi (default 10MB) — 500MB gacha yuklashlar uchun
+    proxyClientMaxBodySize: "500mb",
     serverActions: {
       allowedOrigins: [
         "speeches-sports-performances-vitamin.trycloudflare.com",

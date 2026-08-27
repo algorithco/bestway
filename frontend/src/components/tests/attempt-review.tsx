@@ -8,7 +8,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Input, Textarea } from "@/components/ui/input";
+import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/app/page-header";
 import { useGradeAnswer } from "@/hooks/use-tests";
 import { useMe } from "@/hooks/use-me";

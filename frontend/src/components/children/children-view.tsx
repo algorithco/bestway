@@ -25,13 +25,17 @@ export function ChildrenView() {
   const children = profile?.children ?? [];
 
   const [childId, setChildId] = React.useState<string>("");
-  React.useEffect(() => {
-    if (childId || children.length === 0) return;
-    const wanted = params.get("child");
-    setChildId(wanted && children.some((c) => c.studentId === wanted) ? wanted! : children[0].studentId);
-  }, [children, childId, params]);
 
-  const selected = children.find((c) => c.studentId === childId);
+  const wantedChild = params.get("child");
+  const fallbackChildId =
+    children.length > 0
+      ? wantedChild && children.some((c) => c.studentId === wantedChild)
+        ? wantedChild
+        : children[0].studentId
+      : "";
+  const activeChildId = childId || fallbackChildId;
+
+  const selected = children.find((c) => c.studentId === activeChildId);
 
   if (isLoading) {
     return (
@@ -64,7 +68,7 @@ export function ChildrenView() {
                   onClick={() => setChildId(c.studentId)}
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                    c.studentId === childId
+                    c.studentId === activeChildId
                       ? "border-brand bg-brand-subtle text-brand-subtle-fg"
                       : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
                   )}

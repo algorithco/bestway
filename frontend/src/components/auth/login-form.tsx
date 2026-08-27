@@ -49,9 +49,17 @@ export function LoginForm() {
 
       // Cookie'lar o'rnatildi — to'liq yangilanish bilan o'tamiz, shunda
       // middleware yangi rolni ko'radi va app qobig'i SSR'da to'g'ri render bo'ladi.
-      const next = params.get("next");
       const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
-      window.location.assign(next && next.startsWith("/") ? next : `${prefix}/dashboard`);
+      let target = `${prefix}/dashboard`;
+      const next = params.get("next");
+      if (next) {
+        const normalized = next.replace(/\\/g, "/");
+        if (normalized.startsWith("/") && !normalized.startsWith("//")) {
+          const resolved = new URL(normalized, window.location.origin);
+          if (resolved.origin === window.location.origin) target = normalized;
+        }
+      }
+      window.location.assign(target);
       void user;
     } catch (err) {
       const message = err instanceof ApiError ? err.message : tc("unknownError");

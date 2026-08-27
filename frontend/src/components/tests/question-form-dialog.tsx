@@ -38,6 +38,21 @@ export function QuestionFormDialog({
   testId: string;
 }) {
   const t = useTranslations("tests");
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("addQuestion")}</DialogTitle>
+        </DialogHeader>
+        {open && <QuestionFormFields key={testId} testId={testId} onClose={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function QuestionFormFields({ testId, onClose }: { testId: string; onClose: () => void }) {
+  const t = useTranslations("tests");
   const tc = useTranslations("common");
   const add = useAddQuestion(testId);
 
@@ -48,18 +63,6 @@ export function QuestionFormDialog({
   const [correctAnswer, setCorrectAnswer] = React.useState("");
   const [maxScore, setMaxScore] = React.useState("1");
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (open) {
-      setSection("listening");
-      setType("multiple_choice");
-      setPrompt("");
-      setOptions("");
-      setCorrectAnswer("");
-      setMaxScore("1");
-      setError(null);
-    }
-  }, [open]);
 
   const isAuto = AUTO_SECTIONS.has(section);
 
@@ -90,78 +93,73 @@ export function QuestionFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("addQuestion")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("section")}>
-              <Select value={section} onValueChange={(v) => setSection(v as TestSection)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SECTIONS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {t(`sections.${s}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-            <Field label={t("questionType")}>
-              <Select value={type} onValueChange={(v) => setType(v as QuestionType)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPES.map((ty) => (
-                    <SelectItem key={ty} value={ty}>
-                      {t(`types.${ty}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+    <>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
           </div>
+        )}
 
-          <Field label={t("prompt")} htmlFor="qprompt">
-            <Textarea id="qprompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("section")}>
+            <Select value={section} onValueChange={(v) => setSection(v as TestSection)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SECTIONS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {t(`sections.${s}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
-
-          {type === "multiple_choice" && (
-            <Field label={t("options")} htmlFor="qopts">
-              <Textarea id="qopts" value={options} onChange={(e) => setOptions(e.target.value)} className="min-h-24" />
-            </Field>
-          )}
-
-          {isAuto && (
-            <Field label={t("correctAnswer")} hint={t("correctAnswerHint")} htmlFor="qcorrect">
-              <Input id="qcorrect" value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)} />
-            </Field>
-          )}
-
-          <Field label={t("maxScore")} htmlFor="qmax" className="w-32">
-            <Input id="qmax" type="number" min={1} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
+          <Field label={t("questionType")}>
+            <Select value={type} onValueChange={(v) => setType(v as QuestionType)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPES.map((ty) => (
+                  <SelectItem key={ty} value={ty}>
+                    {t(`types.${ty}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </Field>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={add.isPending}>
-            {tc("add")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+
+        <Field label={t("prompt")} htmlFor="qprompt">
+          <Textarea id="qprompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
+        </Field>
+
+        {type === "multiple_choice" && (
+          <Field label={t("options")} htmlFor="qopts">
+            <Textarea id="qopts" value={options} onChange={(e) => setOptions(e.target.value)} className="min-h-24" />
+          </Field>
+        )}
+
+        {isAuto && (
+          <Field label={t("correctAnswer")} hint={t("correctAnswerHint")} htmlFor="qcorrect">
+            <Input id="qcorrect" value={correctAnswer} onChange={(e) => setCorrectAnswer(e.target.value)} />
+          </Field>
+        )}
+
+        <Field label={t("maxScore")} htmlFor="qmax" className="w-32">
+          <Input id="qmax" type="number" min={1} value={maxScore} onChange={(e) => setMaxScore(e.target.value)} />
+        </Field>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={add.isPending}>
+          {tc("add")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

@@ -22,8 +22,8 @@ export function CountUp({
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduce) {
-      setVal(end);
-      return;
+      const id = requestAnimationFrame(() => setVal(end));
+      return () => cancelAnimationFrame(id);
     }
 
     const io = new IntersectionObserver(

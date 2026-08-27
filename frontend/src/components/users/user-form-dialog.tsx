@@ -43,6 +43,40 @@ export function UserFormDialog({
   groups?: GroupListItem[];
 }) {
   const t = useTranslations("staff");
+  const isEdit = !!editUser;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? t("updated") : t("create")}</DialogTitle>
+        </DialogHeader>
+        {open && (
+          <UserFormFields
+            key={editUser?.id ?? "new"}
+            editUser={editUser}
+            roleOptions={roleOptions}
+            groups={groups}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function UserFormFields({
+  editUser,
+  roleOptions,
+  groups,
+  onClose,
+}: {
+  editUser?: UserListItem | null;
+  roleOptions: CreatableRole[];
+  groups: GroupListItem[];
+  onClose: () => void;
+}) {
+  const t = useTranslations("staff");
   const tc = useTranslations("common");
   const tr = useTranslations("roles");
   const ts = useTranslations("student");
@@ -52,35 +86,16 @@ export function UserFormDialog({
   const update = useUpdateUser(editUser?.id ?? "");
   const pending = create.isPending || update.isPending;
 
-  const [name, setName] = React.useState("");
-  const [phone, setPhone] = React.useState("");
+  const [name, setName] = React.useState(editUser?.name ?? "");
+  const [phone, setPhone] = React.useState(editUser?.phone ?? "");
   const [password, setPassword] = React.useState("");
-  const [role, setRole] = React.useState<CreatableRole>(roleOptions[0] ?? "student");
-  const [groupId, setGroupId] = React.useState("none");
-  const [isActive, setIsActive] = React.useState(true);
-  const [isApproved, setIsApproved] = React.useState(false);
+  const [role, setRole] = React.useState<CreatableRole>(
+    editUser ? (editUser.role === "super_admin" ? "admin" : editUser.role) : (roleOptions[0] ?? "student"),
+  );
+  const [groupId, setGroupId] = React.useState(editUser?.student?.groupId ?? "none");
+  const [isActive, setIsActive] = React.useState(editUser?.isActive ?? true);
+  const [isApproved, setIsApproved] = React.useState(editUser?.student?.isApproved ?? false);
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    setError(null);
-    setPassword("");
-    if (editUser) {
-      setName(editUser.name);
-      setPhone(editUser.phone);
-      setRole(editUser.role === "super_admin" ? "admin" : editUser.role);
-      setGroupId(editUser.student?.groupId ?? "none");
-      setIsActive(editUser.isActive);
-      setIsApproved(editUser.student?.isApproved ?? false);
-    } else {
-      setName("");
-      setPhone("");
-      setRole(roleOptions[0] ?? "student");
-      setGroupId("none");
-      setIsActive(true);
-      setIsApproved(false);
-    }
-  }, [open, editUser, roleOptions]);
 
   const effectiveRole = isEdit ? editUser!.role : role;
   const isStudent = effectiveRole === "student";
@@ -124,107 +139,102 @@ export function UserFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t("updated") : t("create")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
+    <>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
+          </div>
+        )}
 
-          {!isEdit && roleOptions.length > 1 && (
-            <Field label={t("role")}>
-              <div className="flex flex-wrap gap-2">
-                {roleOptions.map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRole(r)}
-                    aria-pressed={role === r}
-                    className={cn(
-                      "rounded-[8px] border px-3 py-2 text-sm font-medium transition-colors",
-                      role === r
-                        ? "border-brand bg-brand-subtle text-brand-subtle-fg"
-                        : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
-                    )}
-                  >
-                    {tr(r)}
-                  </button>
-                ))}
-              </div>
-            </Field>
-          )}
-
-          <Field label={tc("name")} htmlFor="uname">
-            <Input id="uname" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
-          </Field>
-
-          <Field label={tc("phone")} htmlFor="uphone">
-            <Input
-              id="uphone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="+998901234567"
-            />
-          </Field>
-
-          <Field label={isEdit ? t("passwordReset") : t("password")} htmlFor="upass">
-            <Input
-              id="upass"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              placeholder={isEdit ? "••••••" : tc("save")}
-            />
-          </Field>
-
-          {isStudent && groups.length > 0 && (
-            <Field label={tc("group")}>
-              <Select value={groupId} onValueChange={setGroupId}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{tc("notSelected")}</SelectItem>
-                  {groups.map((g) => (
-                    <SelectItem key={g.id} value={g.id}>
-                      {g.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
-
-          {isEdit && (
+        {!isEdit && roleOptions.length > 1 && (
+          <Field label={t("role")}>
             <div className="flex flex-wrap gap-2">
-              <ToggleChip active={isActive} onClick={() => setIsActive((v) => !v)}>
-                {isActive ? t("active") : t("inactive")}
-              </ToggleChip>
-              {isStudent && (
-                <ToggleChip active={isApproved} onClick={() => setIsApproved((v) => !v)}>
-                  {ts("approved")}
-                </ToggleChip>
-              )}
+              {roleOptions.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRole(r)}
+                  aria-pressed={role === r}
+                  className={cn(
+                    "rounded-[8px] border px-3 py-2 text-sm font-medium transition-colors",
+                    role === r
+                      ? "border-brand bg-brand-subtle text-brand-subtle-fg"
+                      : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
+                  )}
+                >
+                  {tr(r)}
+                </button>
+              ))}
             </div>
-          )}
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={pending}>
-            {tc("save")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </Field>
+        )}
+
+        <Field label={tc("name")} htmlFor="uname">
+          <Input id="uname" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        </Field>
+
+        <Field label={tc("phone")} htmlFor="uphone">
+          <Input
+            id="uphone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+998901234567"
+          />
+        </Field>
+
+        <Field label={isEdit ? t("passwordReset") : t("password")} htmlFor="upass">
+          <Input
+            id="upass"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            placeholder={isEdit ? "••••••" : tc("save")}
+          />
+        </Field>
+
+        {isStudent && groups.length > 0 && (
+          <Field label={tc("group")}>
+            <Select value={groupId} onValueChange={setGroupId}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{tc("notSelected")}</SelectItem>
+                {groups.map((g) => (
+                  <SelectItem key={g.id} value={g.id}>
+                    {g.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
+
+        {isEdit && (
+          <div className="flex flex-wrap gap-2">
+            <ToggleChip active={isActive} onClick={() => setIsActive((v) => !v)}>
+              {isActive ? t("active") : t("inactive")}
+            </ToggleChip>
+            {isStudent && (
+              <ToggleChip active={isApproved} onClick={() => setIsApproved((v) => !v)}>
+                {ts("approved")}
+              </ToggleChip>
+            )}
+          </div>
+        )}
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={pending}>
+          {tc("save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 

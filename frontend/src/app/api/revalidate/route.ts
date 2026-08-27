@@ -1,5 +1,6 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
+import { getSessionRole } from "@/lib/auth";
 import { ARTICLES_TAG } from "@/lib/public-api";
 
 /**
@@ -15,6 +16,17 @@ import { ARTICLES_TAG } from "@/lib/public-api";
 const ALLOWED_TAGS = new Set<string>([ARTICLES_TAG]);
 
 export async function POST(request: Request) {
+  const role = await getSessionRole();
+  if (role !== "admin" && role !== "super_admin") {
+    return NextResponse.json(
+      {
+        success: false,
+        error: { code: "UNAUTHORIZED", message: "Faqat administratorlar keshni tozalashi mumkin" },
+      },
+      { status: 401 },
+    );
+  }
+
   let tag: string | undefined;
   try {
     const body = (await request.json()) as { tag?: string };

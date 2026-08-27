@@ -18,7 +18,10 @@ export function ThemeToggle() {
   const [mounted, setMounted] = React.useState(false);
 
   // Server HTML mavzuni bilmaydi — mount'gacha ikonka o'zgarmasin (hydration mismatch)
-  React.useEffect(() => setMounted(true), []);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <DropdownMenu>

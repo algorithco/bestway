@@ -1,4 +1,4 @@
-{
+﻿{
   "groups": {
     "title": "Groups",
     "create": "Create group",
@@ -244,6 +244,7 @@
     "language": "Language",
     "logout": "Log out",
     "profile": "Profile",
+    "saveFailed": "Answer not saved",
     "unknownError": "An unexpected error occurred"
   },
   "nav": {

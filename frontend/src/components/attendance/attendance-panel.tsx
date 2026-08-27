@@ -61,17 +61,18 @@ export function AttendancePanel() {
   const [groupId, setGroupId] = React.useState<string>("");
   const [month, setMonth] = React.useState<string>(currentMonthKey());
 
-  // Boshlang'ich guruh: ?group= yoki ro'yxatdagi birinchisi
-  React.useEffect(() => {
-    if (groupId || !groupsQ.data?.length) return;
-    const wanted = params.get("group");
-    const exists = wanted && groupsQ.data.some((g) => g.id === wanted);
-    setGroupId(exists ? wanted! : groupsQ.data[0].id);
-  }, [groupsQ.data, groupId, params]);
+  const wantedGroup = params.get("group");
+  const fallbackGroupId =
+    groupsQ.data && groupsQ.data.length > 0
+      ? wantedGroup && groupsQ.data.some((g) => g.id === wantedGroup)
+        ? wantedGroup
+        : groupsQ.data[0].id
+      : "";
+  const activeGroupId = groupId || fallbackGroupId;
 
-  const detailQ = useGroupDetail(groupId || undefined);
-  const attendanceQ = useAttendance(groupId || undefined, month);
-  const save = useSaveAttendanceCell(groupId, month);
+  const detailQ = useGroupDetail(activeGroupId || undefined);
+  const attendanceQ = useAttendance(activeGroupId || undefined, month);
+  const save = useSaveAttendanceCell(activeGroupId, month);
 
   const students = detailQ.data?.students ?? [];
 
@@ -124,11 +125,11 @@ export function AttendancePanel() {
         description={t("subtitle")}
         actions={
           <>
-            {groupId && (
-              <ExportButton path={`/stats/export/attendance?groupId=${groupId}&month=${month}`} />
+            {activeGroupId && (
+              <ExportButton path={`/stats/export/attendance?groupId=${activeGroupId}&month=${month}`} />
             )}
             {groupsQ.data && groupsQ.data.length > 0 && (
-              <Select value={groupId} onValueChange={setGroupId}>
+              <Select value={activeGroupId} onValueChange={setGroupId}>
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder={t("selectGroup")} />
                 </SelectTrigger>

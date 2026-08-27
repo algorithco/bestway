@@ -83,7 +83,7 @@ export default function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (matches(path, AUTH_PAGES) && role) {
+  if (matches(path, AUTH_PAGES) && role && req.cookies.has(COOKIE.access)) {
     const url = req.nextUrl.clone();
     url.pathname = withLocale(locale, "/dashboard");
     url.search = "";

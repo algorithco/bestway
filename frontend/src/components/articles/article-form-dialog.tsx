@@ -27,35 +27,58 @@ export function ArticleFormDialog({
   article?: Article | null;
 }) {
   const t = useTranslations("articles");
+  const isEdit = !!article;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-2xl">
+        {open && (
+          <ArticleFormFields
+            key={article?.id ?? "new"}
+            article={article}
+            onClose={onClose}
+            title={isEdit ? t("edit") : t("create")}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ArticleFormFields({
+  article,
+  onClose,
+  title,
+}: {
+  article?: Article | null;
+  onClose: () => void;
+  title: string;
+}) {
+  const t = useTranslations("articles");
   const tc = useTranslations("common");
   const isEdit = !!article;
   const create = useCreateArticle();
   const update = useUpdateArticle(article?.id ?? "");
   const pending = create.isPending || update.isPending;
 
-  const [title, setTitle] = React.useState("");
-  const [body, setBody] = React.useState("");
-  const [category, setCategory] = React.useState("");
-  const [tags, setTags] = React.useState("");
+  const [titleValue, setTitle] = React.useState(article?.title ?? "");
+  const [body, setBody] = React.useState(article?.body ?? "");
+  const [category, setCategory] = React.useState(article?.category ?? "");
+  const [tags, setTags] = React.useState(article?.tags?.join(", ") ?? "");
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    setError(null);
-    setTitle(article?.title ?? "");
-    setBody(article?.body ?? "");
-    setCategory(article?.category ?? "");
-    setTags(article?.tags?.join(", ") ?? "");
-  }, [open, article]);
 
   function submit() {
     setError(null);
-    if (title.trim().length < 3 || body.trim().length < 10 || category.trim().length < 2) {
+    if (
+      titleValue.trim().length < 3 ||
+      body.trim().length < 10 ||
+      category.trim().length < 2
+    ) {
       setError(tc("unknownError"));
       return;
     }
     const input = {
-      title: title.trim(),
+      title: titleValue.trim(),
       body: body.trim(),
       category: category.trim(),
       tags: tags
@@ -76,51 +99,49 @@ export function ArticleFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? t("edit") : t("create")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-          <Field label={t("articleTitle")} htmlFor="atitle">
-            <Input id="atitle" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("category")} htmlFor="acat">
-              <Input
-                id="acat"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder={t("categoryPlaceholder")}
-              />
-            </Field>
-            <Field label={t("tags")} htmlFor="atags">
-              <Input id="atags" value={tags} onChange={(e) => setTags(e.target.value)} />
-            </Field>
+    <>
+      <DialogHeader>
+        <DialogTitle>{title}</DialogTitle>
+      </DialogHeader>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
           </div>
-          <Field label={t("body")} htmlFor="abody">
-            <Textarea
-              id="abody"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="min-h-40"
+        )}
+        <Field label={t("articleTitle")} htmlFor="atitle">
+          <Input id="atitle" value={titleValue} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("category")} htmlFor="acat">
+            <Input
+              id="acat"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder={t("categoryPlaceholder")}
             />
           </Field>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={pending}>
-            {tc("save")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          <Field label={t("tags")} htmlFor="atags">
+            <Input id="atags" value={tags} onChange={(e) => setTags(e.target.value)} />
+          </Field>
+        </div>
+        <Field label={t("body")} htmlFor="abody">
+          <Textarea
+            id="abody"
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            className="min-h-40"
+          />
+        </Field>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={pending}>
+          {tc("save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

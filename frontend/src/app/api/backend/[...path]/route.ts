@@ -29,6 +29,21 @@ const STRIPPED_REQUEST_HEADERS = new Set([
   "cookie",
 ]);
 
+const ACCESS_COOKIE = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+  maxAge: 60 * 60,
+};
+const REFRESH_COOKIE = {
+  httpOnly: true,
+  sameSite: "lax" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: "/",
+  maxAge: 60 * 60 * 24 * 30,
+};
+
 function buildTargetUrl(path: string[], search: string): string {
   const suffix = path.map(encodeURIComponent).join("/");
   return `${API_URL}/${suffix}${search}`;
@@ -43,8 +58,10 @@ function forwardHeaders(req: NextRequest, accessToken?: string): Headers {
   return headers;
 }
 
-/** Backenddan yangi access token so'rash. Muvaffaqiyatsiz bo'lsa — null. */
-async function refreshAccessToken(refreshToken: string): Promise<string | null> {
+/** Backenddan yangi tokenlar so'rash. Muvaffaqiyatsiz bo'lsa — null. */
+async function refreshSession(
+  refreshToken: string,
+): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: "POST",
@@ -53,8 +70,12 @@ async function refreshAccessToken(refreshToken: string): Promise<string | null> 
       cache: "no-store",
     });
     if (!res.ok) return null;
-    const json = (await res.json()) as { success: boolean; data?: { accessToken: string } };
-    return json.success && json.data?.accessToken ? json.data.accessToken : null;
+    const json = (await res.json()) as {
+      success: boolean;
+      data?: { accessToken?: string; refreshToken?: string };
+    };
+    if (!json.success || !json.data?.accessToken) return null;
+    return { accessToken: json.data.accessToken, refreshToken: json.data.refreshToken };
   } catch {
     return null;
   }
@@ -90,14 +111,25 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     );
   }
 
-  let renewedAccessToken: string | null = null;
+  let renewed: { accessToken: string; refreshToken?: string } | null = null;
   let sessionExpired = false;
 
-  if (upstream.status === 401 && refreshToken) {
-    renewedAccessToken = await refreshAccessToken(refreshToken);
-    if (renewedAccessToken) {
-      upstream = await send(renewedAccessToken);
-    } else {
+  if (upstream.status === 401) {
+    renewed = refreshToken ? await refreshSession(refreshToken) : null;
+    if (renewed) {
+      try {
+        upstream = await send(renewed.accessToken);
+      } catch {
+        return NextResponse.json(
+          {
+            success: false,
+            error: { code: "BACKEND_UNREACHABLE", message: "Server bilan aloqa yo'q" },
+          },
+          { status: 502 },
+        );
+      }
+    }
+    if (upstream.status === 401) {
       sessionExpired = true;
     }
   }
@@ -113,14 +145,11 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     headers,
   });
 
-  if (renewedAccessToken) {
-    response.cookies.set(COOKIE.access, renewedAccessToken, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60,
-    });
+  if (renewed) {
+    response.cookies.set(COOKIE.access, renewed.accessToken, ACCESS_COOKIE);
+    if (renewed.refreshToken) {
+      response.cookies.set(COOKIE.refresh, renewed.refreshToken, REFRESH_COOKIE);
+    }
   }
 
   // Refresh ham o'lgan — sessiya tugagan, cookie'larni tozalaymiz.

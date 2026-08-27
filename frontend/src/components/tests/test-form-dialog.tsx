@@ -32,28 +32,48 @@ export function TestFormDialog({
   const t = useTranslations("tests");
   const tc = useTranslations("common");
   const isEdit = !!test;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? tc("edit") : t("create")}</DialogTitle>
+        </DialogHeader>
+        {open && (
+          <TestFormFields
+            key={test?.id ?? "new"}
+            test={test}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function TestFormFields({
+  test,
+  onClose,
+}: {
+  test?: TestListItem | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations("tests");
+  const tc = useTranslations("common");
+  const isEdit = !!test;
   const create = useCreateTest();
   const update = useUpdateTest(test?.id ?? "");
   const pending = create.isPending || update.isPending;
 
-  const [type, setType] = React.useState<TestType>("ielts");
-  const [title, setTitle] = React.useState("");
-  const [level, setLevel] = React.useState("");
-  const [duration, setDuration] = React.useState("");
-  const [isDemo, setIsDemo] = React.useState(false);
-  const [isActive, setIsActive] = React.useState(true);
+  const [type, setType] = React.useState<TestType>(test?.type ?? "ielts");
+  const [title, setTitle] = React.useState(test?.title ?? "");
+  const [level, setLevel] = React.useState(test?.level ?? "");
+  const [duration, setDuration] = React.useState(
+    test?.durationMinutes ? String(test.durationMinutes) : "",
+  );
+  const [isDemo, setIsDemo] = React.useState(test?.isDemo ?? false);
+  const [isActive, setIsActive] = React.useState(test?.isActive ?? true);
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!open) return;
-    setError(null);
-    setType(test?.type ?? "ielts");
-    setTitle(test?.title ?? "");
-    setLevel(test?.level ?? "");
-    setDuration(test?.durationMinutes ? String(test.durationMinutes) : "");
-    setIsDemo(test?.isDemo ?? false);
-    setIsActive(test?.isActive ?? true);
-  }, [open, test]);
 
   function submit() {
     setError(null);
@@ -76,87 +96,82 @@ export function TestFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{isEdit ? tc("edit") : t("create")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-
-          {!isEdit && (
-            <div className="grid grid-cols-2 gap-2">
-              {TYPES.map((ty) => (
-                <button
-                  key={ty}
-                  type="button"
-                  onClick={() => setType(ty)}
-                  aria-pressed={type === ty}
-                  className={cn(
-                    "rounded-[8px] border px-3 py-2 text-sm font-medium uppercase transition-colors",
-                    type === ty
-                      ? "border-brand bg-brand-subtle text-brand-subtle-fg"
-                      : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
-                  )}
-                >
-                  {ty}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <Field label={tc("name")} htmlFor="ttitle">
-            <Input id="ttitle" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("level")} htmlFor="tlevel">
-              <Input id="tlevel" value={level} onChange={(e) => setLevel(e.target.value)} placeholder="B2" />
-            </Field>
-            <Field label={t("duration")} htmlFor="tdur">
-              <Input id="tdur" type="number" min={1} value={duration} onChange={(e) => setDuration(e.target.value)} />
-            </Field>
+    <>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
           </div>
+        )}
 
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setIsDemo((v) => !v)}
-              aria-pressed={isDemo}
-              className={cn(
-                "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                isDemo ? "border-info bg-info-bg text-info" : "border-border text-fg-muted hover:bg-surface-hover",
-              )}
-            >
-              {t("isDemo")}
-            </button>
-            {isEdit && (
+        {!isEdit && (
+          <div className="grid grid-cols-2 gap-2">
+            {TYPES.map((ty) => (
               <button
+                key={ty}
                 type="button"
-                onClick={() => setIsActive((v) => !v)}
-                aria-pressed={isActive}
+                onClick={() => setType(ty)}
+                aria-pressed={type === ty}
                 className={cn(
-                  "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                  isActive ? "border-success bg-success-bg text-success" : "border-border text-fg-muted hover:bg-surface-hover",
+                  "rounded-[8px] border px-3 py-2 text-sm font-medium uppercase transition-colors",
+                  type === ty
+                    ? "border-brand bg-brand-subtle text-brand-subtle-fg"
+                    : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
                 )}
               >
-                {t("isActive")}
+                {ty}
               </button>
-            )}
+            ))}
           </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={pending}>
-            {tc("save")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        )}
+
+        <Field label={tc("name")} htmlFor="ttitle">
+          <Input id="ttitle" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("level")} htmlFor="tlevel">
+            <Input id="tlevel" value={level} onChange={(e) => setLevel(e.target.value)} placeholder="B2" />
+          </Field>
+          <Field label={t("duration")} htmlFor="tdur">
+            <Input id="tdur" type="number" min={1} value={duration} onChange={(e) => setDuration(e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setIsDemo((v) => !v)}
+            aria-pressed={isDemo}
+            className={cn(
+              "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+              isDemo ? "border-info bg-info-bg text-info" : "border-border text-fg-muted hover:bg-surface-hover",
+            )}
+          >
+            {t("isDemo")}
+          </button>
+          {isEdit && (
+            <button
+              type="button"
+              onClick={() => setIsActive((v) => !v)}
+              aria-pressed={isActive}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
+                isActive ? "border-success bg-success-bg text-success" : "border-border text-fg-muted hover:bg-surface-hover",
+              )}
+            >
+              {t("isActive")}
+            </button>
+          )}
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={pending}>
+          {tc("save")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

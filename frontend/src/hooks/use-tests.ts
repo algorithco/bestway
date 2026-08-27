@@ -51,6 +51,7 @@ export function useSubmitAttempt(attemptId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-attempts"] });
       qc.invalidateQueries({ queryKey: ["attempts"] });
+      qc.invalidateQueries({ queryKey: ["attempt", attemptId] });
     },
   });
 }
