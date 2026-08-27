@@ -29,6 +29,21 @@ const TYPES: MockExamType[] = ["ielts_academic", "ielts_general", "multilevel"];
 
 export function MockExamCreateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("mock");
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("create")}</DialogTitle>
+        </DialogHeader>
+        {open && <MockExamCreateFields onClose={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MockExamCreateFields({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("mock");
   const tc = useTranslations("common");
   const router = useRouter();
   const create = useCreateMockExam();
@@ -38,16 +53,6 @@ export function MockExamCreateDialog({ open, onClose }: { open: boolean; onClose
   const [level, setLevel] = React.useState("");
   const [price, setPrice] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (open) {
-      setType("ielts_academic");
-      setTitle("");
-      setLevel("");
-      setPrice("");
-      setError(null);
-    }
-  }, [open]);
 
   function submit() {
     setError(null);
@@ -71,73 +76,68 @@ export function MockExamCreateDialog({ open, onClose }: { open: boolean; onClose
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("create")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
+    <>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
+          </div>
+        )}
 
-          <Field label={tc("name")} htmlFor="mtitle">
+        <Field label={tc("name")} htmlFor="mtitle">
+          <Input
+            id="mtitle"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="IELTS Academic Mock #1"
+            autoFocus
+          />
+        </Field>
+
+        <Field label="Type">
+          <Select value={type} onValueChange={(v) => setType(v as MockExamType)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPES.map((ty) => (
+                <SelectItem key={ty} value={ty}>
+                  {t(`types.${ty}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("cefrLevel")} htmlFor="mlevel">
             <Input
-              id="mtitle"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="IELTS Academic Mock #1"
-              autoFocus
+              id="mlevel"
+              value={level}
+              onChange={(e) => setLevel(e.target.value)}
+              placeholder="Academic / B1-B2"
             />
           </Field>
-
-          <Field label="Type">
-            <Select value={type} onValueChange={(v) => setType(v as MockExamType)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {TYPES.map((ty) => (
-                  <SelectItem key={ty} value={ty}>
-                    {t(`types.${ty}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <Field label={`${tc("sum")}`} htmlFor="mprice">
+            <Input
+              id="mprice"
+              type="number"
+              min={0}
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="0"
+            />
           </Field>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("cefrLevel")} htmlFor="mlevel">
-              <Input
-                id="mlevel"
-                value={level}
-                onChange={(e) => setLevel(e.target.value)}
-                placeholder="Academic / B1-B2"
-              />
-            </Field>
-            <Field label={`${tc("sum")}`} htmlFor="mprice">
-              <Input
-                id="mprice"
-                type="number"
-                min={0}
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0"
-              />
-            </Field>
-          </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={create.isPending}>
-            {tc("add")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={create.isPending}>
+          {tc("add")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

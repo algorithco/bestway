@@ -5,7 +5,6 @@ import { AlertTriangle, Loader2, Mic, Send, Square } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { ErrorState, Skeleton } from "@/components/ui/feedback";
@@ -32,15 +31,9 @@ const SINGLE_CHOICE = new Set<MockQuestionType>([
   "matching",
   "matching_headings",
 ]);
-const TEXT_INPUT = new Set<MockQuestionType>([
-  "sentence_completion",
-  "note_completion",
-  "summary_completion",
-  "table_completion",
-  "short_answer",
-  "map_labelling",
-]);
 const ESSAY = new Set<MockQuestionType>(["essay_task1", "essay_task2"]);
+
+const STOP_RECORDINGS_EVENT = "mock-stop-recordings";
 
 /** Media backend proxy orqali oqadi — token httpOnly cookie'da */
 const media = (path: string) => `/api/backend${path}`;
@@ -93,15 +86,20 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   const [cheatWarn, setCheatWarn] = React.useState(false);
 
   const answersRef = React.useRef(answers);
-  answersRef.current = answers;
+  React.useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
   const dirty = React.useRef<Set<string>>(new Set());
 
   const flush = React.useCallback(() => {
     const ids = [...dirty.current];
     if (!ids.length) return;
     dirty.current.clear();
-    bulk.mutate(ids.map((id) => ({ questionId: id, response: answersRef.current[id] ?? "" })));
-  }, [bulk]);
+    bulk.mutate(
+      ids.map((id) => ({ questionId: id, response: answersRef.current[id] ?? "" })),
+      { onError: () => toast.error(tc("saveFailed")) },
+    );
+  }, [bulk, tc]);
 
   // Debounce autosave
   React.useEffect(() => {
@@ -117,7 +115,7 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   // Timer (faqat vaqtli rejim)
   const deadline = attempt.deadlineAt ? new Date(attempt.deadlineAt).getTime() : null;
   const [remaining, setRemaining] = React.useState<number | null>(
-    deadline ? deadline - Date.now() : null,
+    () => (deadline ? deadline - Date.now() : null),
   );
   const submittingRef = React.useRef(false);
 
@@ -126,6 +124,7 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
       if (submittingRef.current) return;
       if (!auto && !confirm(t("submitConfirm"))) return;
       submittingRef.current = true;
+      window.dispatchEvent(new Event(STOP_RECORDINGS_EVENT));
       try {
         const all = Object.entries(answersRef.current)
           .filter(([, v]) => v !== "")
@@ -486,7 +485,24 @@ function SpeakingRecorder({
   const [recording, setRecording] = React.useState(false);
   const [hasAudio, setHasAudio] = React.useState(initialHasAudio);
   const recRef = React.useRef<MediaRecorder | null>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
   const chunks = React.useRef<Blob[]>([]);
+
+  const halt = React.useCallback(() => {
+    const mr = recRef.current;
+    if (mr && mr.state === "recording") mr.stop();
+    setRecording(false);
+  }, []);
+
+  React.useEffect(() => {
+    window.addEventListener(STOP_RECORDINGS_EVENT, halt);
+    return () => {
+      window.removeEventListener(STOP_RECORDINGS_EVENT, halt);
+      halt();
+      streamRef.current?.getTracks().forEach((tr) => tr.stop());
+      streamRef.current = null;
+    };
+  }, [halt]);
 
   async function start() {
     try {
@@ -511,6 +527,7 @@ function SpeakingRecorder({
         );
       };
       recRef.current = mr;
+      streamRef.current = stream;
       mr.start();
       setRecording(true);
     } catch {
@@ -518,15 +535,10 @@ function SpeakingRecorder({
     }
   }
 
-  function stop() {
-    recRef.current?.stop();
-    setRecording(false);
-  }
-
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-[8px] border border-border bg-bg-subtle p-3">
       {recording ? (
-        <Button size="sm" variant="danger" onClick={stop}>
+        <Button size="sm" variant="danger" onClick={halt}>
           <Square className="fill-current" />
           {t("stopRecording")}
         </Button>

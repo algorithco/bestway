@@ -38,6 +38,29 @@ export function MockSectionDialog({
   onClose: () => void;
 }) {
   const t = useTranslations("mock");
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{t("addSection")}</DialogTitle>
+        </DialogHeader>
+        {open && <MockSectionFields key={existing.join(",")} examId={examId} existing={existing} onClose={onClose} />}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MockSectionFields({
+  examId,
+  existing,
+  onClose,
+}: {
+  examId: string;
+  existing: MockSkill[];
+  onClose: () => void;
+}) {
+  const t = useTranslations("mock");
   const tc = useTranslations("common");
   const create = useCreateMockSection(examId);
   const available = ALL_SKILLS.filter((s) => !existing.includes(s));
@@ -46,16 +69,6 @@ export function MockSectionDialog({
   const [duration, setDuration] = React.useState("");
   const [instructions, setInstructions] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (open) {
-      setSkill(available[0] ?? "listening");
-      setDuration("");
-      setInstructions("");
-      setError(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   function submit() {
     setError(null);
@@ -76,59 +89,54 @@ export function MockSectionDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{t("addSection")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-          <Field label={t("skill")}>
-            <Select value={skill} onValueChange={(v) => setSkill(v as MockSkill)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {available.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {t(`skills.${s}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
-          <Field label={t("duration")} htmlFor="sdur">
-            <Input
-              id="sdur"
-              type="number"
-              min={1}
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              placeholder="30"
-            />
-          </Field>
-          <Field label={t("instructions")} htmlFor="sinstr">
-            <Textarea
-              id="sinstr"
-              value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
-              className="min-h-20"
-            />
-          </Field>
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
-          </Button>
-          <Button onClick={submit} loading={create.isPending} disabled={available.length === 0}>
-            {tc("add")}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <>
+      <DialogBody className="space-y-4">
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
+          </div>
+        )}
+        <Field label={t("skill")}>
+          <Select value={skill} onValueChange={(v) => setSkill(v as MockSkill)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {available.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {t(`skills.${s}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label={t("duration")} htmlFor="sdur">
+          <Input
+            id="sdur"
+            type="number"
+            min={1}
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            placeholder="30"
+          />
+        </Field>
+        <Field label={t("instructions")} htmlFor="sinstr">
+          <Textarea
+            id="sinstr"
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            className="min-h-20"
+          />
+        </Field>
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        <Button onClick={submit} loading={create.isPending} disabled={available.length === 0}>
+          {tc("add")}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }

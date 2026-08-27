@@ -91,6 +91,39 @@ export function MockQuestionsDialog({
   onClose: () => void;
 }) {
   const t = useTranslations("mock");
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{t("addQuestions")}</DialogTitle>
+        </DialogHeader>
+        {open && (
+          <MockQuestionsFields
+            key={`${groupId}-${skill}`}
+            examId={examId}
+            groupId={groupId}
+            skill={skill}
+            onClose={onClose}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MockQuestionsFields({
+  examId,
+  groupId,
+  skill,
+  onClose,
+}: {
+  examId: string;
+  groupId: string;
+  skill: MockSkill;
+  onClose: () => void;
+}) {
+  const t = useTranslations("mock");
   const tc = useTranslations("common");
   const isAuto = AUTO_SKILLS.has(skill);
   const importMut = useImportMockQuestions(examId);
@@ -114,24 +147,6 @@ export function MockQuestionsDialog({
   const [mCorrect, setMCorrect] = React.useState("");
   const [mPoints, setMPoints] = React.useState(isAuto ? "1" : "9");
   const [mWordLimit, setMWordLimit] = React.useState("");
-
-  React.useEffect(() => {
-    if (open) {
-      setMode("import");
-      setError(null);
-      setText("");
-      setAnswerKey("");
-      setPoints("1");
-      setMNumber("");
-      setMType(isAuto ? "multiple_choice" : "essay_task2");
-      setMPrompt("");
-      setMOptions("");
-      setMCorrect("");
-      setMPoints(isAuto ? "1" : "9");
-      setMWordLimit("");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   function submitImport() {
     setError(null);
@@ -192,165 +207,160 @@ export function MockQuestionsDialog({
   const isEssay = mType === "essay_task1" || mType === "essay_task2";
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t("addQuestions")}</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
-            {(["import", "manual"] as const).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                aria-pressed={mode === m}
-                className={cn(
-                  "rounded-[8px] border px-3 py-2 text-sm font-medium transition-colors",
-                  mode === m
-                    ? "border-brand bg-brand-subtle text-brand-subtle-fg"
-                    : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
-                )}
-              >
-                {m === "import" ? t("importQuestions") : t("manualAdd")}
-              </button>
-            ))}
+    <>
+      <DialogBody className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {(["import", "manual"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              aria-pressed={mode === m}
+              className={cn(
+                "rounded-[8px] border px-3 py-2 text-sm font-medium transition-colors",
+                mode === m
+                  ? "border-brand bg-brand-subtle text-brand-subtle-fg"
+                  : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
+              )}
+            >
+              {m === "import" ? t("importQuestions") : t("manualAdd")}
+            </button>
+          ))}
+        </div>
+
+        {error && (
+          <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
+            {error}
           </div>
+        )}
 
-          {error && (
-            <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
-              {error}
-            </div>
-          )}
-
-          {mode === "import" ? (
-            <>
-              <Field label={t("questionsText")} htmlFor="qtext">
+        {mode === "import" ? (
+          <>
+            <Field label={t("questionsText")} htmlFor="qtext">
+              <Textarea
+                id="qtext"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                className="min-h-40 font-mono text-xs"
+                placeholder={"1. The capital of ...\n2. ...\n"}
+              />
+            </Field>
+            {isAuto && (
+              <Field label={t("answerKey")} hint={t("answerKeyHint")} htmlFor="qkey">
                 <Textarea
-                  id="qtext"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  className="min-h-40 font-mono text-xs"
-                  placeholder={"1. The capital of ...\n2. ...\n"}
+                  id="qkey"
+                  value={answerKey}
+                  onChange={(e) => setAnswerKey(e.target.value)}
+                  className="min-h-24 font-mono text-xs"
+                  placeholder={"1: B\n2: flowers/flower\n3: TRUE"}
                 />
               </Field>
-              {isAuto && (
-                <Field label={t("answerKey")} hint={t("answerKeyHint")} htmlFor="qkey">
-                  <Textarea
-                    id="qkey"
-                    value={answerKey}
-                    onChange={(e) => setAnswerKey(e.target.value)}
-                    className="min-h-24 font-mono text-xs"
-                    placeholder={"1: B\n2: flowers/flower\n3: TRUE"}
-                  />
-                </Field>
-              )}
-              <Field label={t("points")} htmlFor="qpts">
+            )}
+            <Field label={t("points")} htmlFor="qpts">
+              <Input
+                id="qpts"
+                type="number"
+                min={1}
+                value={points}
+                onChange={(e) => setPoints(e.target.value)}
+                className="w-28"
+              />
+            </Field>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("questionNumber")} htmlFor="mnum">
                 <Input
-                  id="qpts"
+                  id="mnum"
                   type="number"
                   min={1}
-                  value={points}
-                  onChange={(e) => setPoints(e.target.value)}
-                  className="w-28"
+                  value={mNumber}
+                  onChange={(e) => setMNumber(e.target.value)}
                 />
               </Field>
-            </>
-          ) : (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t("questionNumber")} htmlFor="mnum">
-                  <Input
-                    id="mnum"
-                    type="number"
-                    min={1}
-                    value={mNumber}
-                    onChange={(e) => setMNumber(e.target.value)}
-                  />
-                </Field>
-                <Field label={t("questionType")}>
-                  <Select value={mType} onValueChange={(v) => setMType(v as MockQuestionType)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {QTYPES.map((qt) => (
-                        <SelectItem key={qt} value={qt}>
-                          {QLABEL[qt]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              <Field label={t("prompt")} htmlFor="mprompt">
+              <Field label={t("questionType")}>
+                <Select value={mType} onValueChange={(v) => setMType(v as MockQuestionType)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {QTYPES.map((qt) => (
+                      <SelectItem key={qt} value={qt}>
+                        {QLABEL[qt]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            </div>
+            <Field label={t("prompt")} htmlFor="mprompt">
+              <Textarea
+                id="mprompt"
+                value={mPrompt}
+                onChange={(e) => setMPrompt(e.target.value)}
+                className="min-h-20"
+              />
+            </Field>
+            {OPTION_TYPES.has(mType) && (
+              <Field label={t("options")} hint={t("optionsHint")} htmlFor="mopts">
                 <Textarea
-                  id="mprompt"
-                  value={mPrompt}
-                  onChange={(e) => setMPrompt(e.target.value)}
+                  id="mopts"
+                  value={mOptions}
+                  onChange={(e) => setMOptions(e.target.value)}
                   className="min-h-20"
                 />
               </Field>
-              {OPTION_TYPES.has(mType) && (
-                <Field label={t("options")} hint={t("optionsHint")} htmlFor="mopts">
-                  <Textarea
-                    id="mopts"
-                    value={mOptions}
-                    onChange={(e) => setMOptions(e.target.value)}
-                    className="min-h-20"
-                  />
-                </Field>
-              )}
-              {isAuto && (
-                <Field label={t("correctAnswer")} hint={t("correctAnswerHint")} htmlFor="mcorr">
+            )}
+            {isAuto && (
+              <Field label={t("correctAnswer")} hint={t("correctAnswerHint")} htmlFor="mcorr">
+                <Input
+                  id="mcorr"
+                  value={mCorrect}
+                  onChange={(e) => setMCorrect(e.target.value)}
+                  placeholder="B  ·  flowers|flower"
+                />
+              </Field>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("points")} htmlFor="mpts">
+                <Input
+                  id="mpts"
+                  type="number"
+                  min={1}
+                  value={mPoints}
+                  onChange={(e) => setMPoints(e.target.value)}
+                />
+              </Field>
+              {isEssay && (
+                <Field label={t("wordLimit")} htmlFor="mwl">
                   <Input
-                    id="mcorr"
-                    value={mCorrect}
-                    onChange={(e) => setMCorrect(e.target.value)}
-                    placeholder="B  ·  flowers|flower"
-                  />
-                </Field>
-              )}
-              <div className="grid grid-cols-2 gap-3">
-                <Field label={t("points")} htmlFor="mpts">
-                  <Input
-                    id="mpts"
+                    id="mwl"
                     type="number"
                     min={1}
-                    value={mPoints}
-                    onChange={(e) => setMPoints(e.target.value)}
+                    value={mWordLimit}
+                    onChange={(e) => setMWordLimit(e.target.value)}
                   />
                 </Field>
-                {isEssay && (
-                  <Field label={t("wordLimit")} htmlFor="mwl">
-                    <Input
-                      id="mwl"
-                      type="number"
-                      min={1}
-                      value={mWordLimit}
-                      onChange={(e) => setMWordLimit(e.target.value)}
-                    />
-                  </Field>
-                )}
-              </div>
-            </>
-          )}
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            {tc("cancel")}
+              )}
+            </div>
+          </>
+        )}
+      </DialogBody>
+      <DialogFooter>
+        <Button variant="outline" onClick={onClose}>
+          {tc("cancel")}
+        </Button>
+        {mode === "import" ? (
+          <Button onClick={submitImport} loading={importMut.isPending}>
+            {t("importQuestions")}
           </Button>
-          {mode === "import" ? (
-            <Button onClick={submitImport} loading={importMut.isPending}>
-              {t("importQuestions")}
-            </Button>
-          ) : (
-            <Button onClick={submitManual} loading={addMut.isPending}>
-              {tc("add")}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        ) : (
+          <Button onClick={submitManual} loading={addMut.isPending}>
+            {tc("add")}
+          </Button>
+        )}
+      </DialogFooter>
+    </>
   );
 }

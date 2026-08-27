@@ -12,6 +12,7 @@ import { Field, Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { useMe } from "@/hooks/use-me";
 import { useDeleteMockExam, useMockExam, useUpdateMockExam } from "@/hooks/use-mock";
+import type { MockExamDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** Kichik on/off tugma — alohida Switch komponenti yo'q */
@@ -52,52 +53,9 @@ function Toggle({
 export function MockManageView({ examId }: { examId: string }) {
   const t = useTranslations("mock");
   const tc = useTranslations("common");
-  const router = useRouter();
-  const { data: me } = useMe();
   const examQ = useMockExam(examId);
-  const update = useUpdateMockExam(examId);
-  const del = useDeleteMockExam();
 
   const exam = examQ.data;
-  const [form, setForm] = React.useState({ title: "", level: "", price: "" });
-  const [flags, setFlags] = React.useState({ isPublished: false, isDemo: false, isFreeForApproved: true });
-
-  React.useEffect(() => {
-    if (exam) {
-      setForm({ title: exam.title, level: exam.level ?? "", price: String(exam.price) });
-      setFlags({
-        isPublished: exam.isPublished,
-        isDemo: exam.isDemo,
-        isFreeForApproved: exam.isFreeForApproved,
-      });
-    }
-  }, [exam]);
-
-  function save() {
-    update.mutate(
-      {
-        title: form.title.trim(),
-        level: form.level.trim() || undefined,
-        price: Number(form.price) || 0,
-        ...flags,
-      },
-      {
-        onSuccess: () => toast.success(tc("saved")),
-        onError: () => toast.error(tc("unknownError")),
-      },
-    );
-  }
-
-  function onDelete() {
-    if (!confirm(tc("delete") + "?")) return;
-    del.mutate(examId, {
-      onSuccess: () => {
-        toast.success(tc("saved"));
-        router.push("/mock");
-      },
-      onError: () => toast.error(tc("unknownError")),
-    });
-  }
 
   if (examQ.isError) {
     return (
@@ -143,65 +101,10 @@ export function MockManageView({ examId }: { examId: string }) {
       </div>
 
       {/* Sozlamalar */}
-      <Card>
-        <CardContent className="space-y-4 pt-5">
-          <Field label={tc("name")} htmlFor="title">
-            <Input
-              id="title"
-              value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            />
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={t("cefrLevel")} htmlFor="level">
-              <Input
-                id="level"
-                value={form.level}
-                onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
-              />
-            </Field>
-            <Field label={tc("sum")} htmlFor="price">
-              <Input
-                id="price"
-                type="number"
-                min={0}
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-              />
-            </Field>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Toggle
-              on={flags.isPublished}
-              onClick={() => setFlags((f) => ({ ...f, isPublished: !f.isPublished }))}
-              label={t("published")}
-            />
-            <Toggle
-              on={flags.isDemo}
-              onClick={() => setFlags((f) => ({ ...f, isDemo: !f.isDemo }))}
-              label={t("demo")}
-            />
-            <Toggle
-              on={flags.isFreeForApproved}
-              onClick={() => setFlags((f) => ({ ...f, isFreeForApproved: !f.isFreeForApproved }))}
-              label={t("freeForApproved")}
-            />
-          </div>
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            {me?.user.role === "super_admin" ? (
-              <Button variant="ghost" size="sm" onClick={onDelete}>
-                <Trash2 className="text-danger" />
-                {tc("delete")}
-              </Button>
-            ) : (
-              <span />
-            )}
-            <Button onClick={save} loading={update.isPending}>
-              {tc("save")}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <ManageSettingsCard
+        key={`${exam.title}|${exam.level ?? ""}|${exam.price}|${exam.isPublished}|${exam.isDemo}|${exam.isFreeForApproved}`}
+        exam={exam}
+      />
 
       {/* Tuzilma */}
       <h2 className="mt-6 mb-3 text-sm font-semibold text-fg-muted">{t("sections")}</h2>
@@ -249,5 +152,113 @@ export function MockManageView({ examId }: { examId: string }) {
       )}
       <p className="mt-4 text-center text-xs text-fg-subtle">{t("authoringHint")}</p>
     </div>
+  );
+}
+
+function ManageSettingsCard({ exam }: { exam: MockExamDetail }) {
+  const t = useTranslations("mock");
+  const tc = useTranslations("common");
+  const router = useRouter();
+  const { data: me } = useMe();
+  const update = useUpdateMockExam(exam.id);
+  const del = useDeleteMockExam();
+
+  const [form, setForm] = React.useState({
+    title: exam.title,
+    level: exam.level ?? "",
+    price: String(exam.price),
+  });
+  const [flags, setFlags] = React.useState({
+    isPublished: exam.isPublished,
+    isDemo: exam.isDemo,
+    isFreeForApproved: exam.isFreeForApproved,
+  });
+
+  function save() {
+    update.mutate(
+      {
+        title: form.title.trim(),
+        level: form.level.trim() || undefined,
+        price: Number(form.price) || 0,
+        ...flags,
+      },
+      {
+        onSuccess: () => toast.success(tc("saved")),
+        onError: () => toast.error(tc("unknownError")),
+      },
+    );
+  }
+
+  function onDelete() {
+    if (!confirm(tc("delete") + "?")) return;
+    del.mutate(exam.id, {
+      onSuccess: () => {
+        toast.success(tc("saved"));
+        router.push("/mock");
+      },
+      onError: () => toast.error(tc("unknownError")),
+    });
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-5">
+        <Field label={tc("name")} htmlFor="title">
+          <Input
+            id="title"
+            value={form.title}
+            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+          />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("cefrLevel")} htmlFor="level">
+            <Input
+              id="level"
+              value={form.level}
+              onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
+            />
+          </Field>
+          <Field label={tc("sum")} htmlFor="price">
+            <Input
+              id="price"
+              type="number"
+              min={0}
+              value={form.price}
+              onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+            />
+          </Field>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Toggle
+            on={flags.isPublished}
+            onClick={() => setFlags((f) => ({ ...f, isPublished: !f.isPublished }))}
+            label={t("published")}
+          />
+          <Toggle
+            on={flags.isDemo}
+            onClick={() => setFlags((f) => ({ ...f, isDemo: !f.isDemo }))}
+            label={t("demo")}
+          />
+          <Toggle
+            on={flags.isFreeForApproved}
+            onClick={() => setFlags((f) => ({ ...f, isFreeForApproved: !f.isFreeForApproved }))}
+            label={t("freeForApproved")}
+          />
+        </div>
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          {me?.user.role === "super_admin" ? (
+            <Button variant="ghost" size="sm" onClick={onDelete}>
+              <Trash2 className="text-danger" />
+              {tc("delete")}
+            </Button>
+          ) : (
+            <span />
+          )}
+          <Button onClick={save} loading={update.isPending}>
+            {tc("save")}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
