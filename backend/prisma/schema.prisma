@@ -426,6 +426,28 @@ model Teacher {
   @@index([isActive, sortOrder])
 }
 
+// ---------- Galereya (AccordionGallery uchun) ----------
+
+/// AccordionGallery da ko'rsatiladigan rasm — admin boshqaradi (o'qituvchilar galereyasi yoki umumiy galereya)
+model GalleryImage {
+  id        String   @id @default(uuid())
+  /// Storage kaliti — gallery/ ichida (storage/gallery/<uuid>.jpg)
+  imageKey  String
+  /// Yorliq — masalan o'qituvchi ismi yoki tavsif (AccordionGallery label)
+  label     String?
+  /// Havola — bosilganda o'tish (ixtiyoriy)
+  link      String?
+  /// Alt matn — rasm tavsifi (SEO/accessibility)
+  alt       String?
+  /// Tartib (kichik son — oldinroq chiqadi)
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, sortOrder])
+}
+
 // ---------- Bildirishnomalar ----------
 
 model Notification {

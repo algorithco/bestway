@@ -22,6 +22,7 @@ import { PointsModule } from './points/points.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SettingsModule } from './settings/settings.module';
 import { StatsModule } from './stats/stats.module';
+import { GalleryModule } from './gallery/gallery.module';
 import { TeachersModule } from './teachers/teachers.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { TestsModule } from './tests/tests.module';
@@ -53,6 +54,7 @@ import { VideosModule } from './videos/videos.module';
     VideosModule,
     ArticlesModule,
     TeachersModule,
+    GalleryModule,
     StatsModule,
   ],
   controllers: [AppController],

@@ -20,7 +20,7 @@ export class StorageService implements OnModuleInit {
   }
 
   onModuleInit() {
-    for (const dir of ['videos', 'thumbnails', 'teachers']) {
+    for (const dir of ['videos', 'thumbnails', 'teachers', 'gallery']) {
       fs.mkdirSync(path.join(this.baseDir, dir), { recursive: true });
     }
   }
