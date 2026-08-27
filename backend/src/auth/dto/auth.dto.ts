@@ -24,7 +24,7 @@ export class RegisterDto {
   phone: string;
 
   @IsString()
-  @MinLength(6, { message: "Parol kamida 6 belgidan iborat bo'lsin" })
+  @MinLength(8, { message: "Parol kamida 8 belgidan iborat bo'lsin" })
   @MaxLength(72)
   password: string;
 

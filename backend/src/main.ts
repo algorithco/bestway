@@ -9,6 +9,8 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import { AppException } from './common/app.exception';
 
+process.env.TZ = process.env.TZ || 'Asia/Tashkent';
+
 function firstValidationMessage(errors: ValidationError[]): string {
   for (const err of errors) {
     if (err.constraints) return Object.values(err.constraints)[0];
@@ -24,6 +26,11 @@ async function bootstrap() {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET .env faylida ko'rsatilishi shart");
   }
+  /* eslint-disable no-console */
+  if (process.env.JWT_SECRET.length < 32) {
+    console.warn('JWT_SECRET kamida 32 belgidan iborat bo\'lishi tavsiya etiladi');
+  }
+  /* eslint-enable no-console */
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -74,20 +81,22 @@ async function bootstrap() {
     }),
   );
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle("O'quv markaz API")
-    .setDescription("O'quv markaz platformasi backend — api-contract.md asosida qurilgan")
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  if (process.env.NODE_ENV !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle("O'quv markaz API")
+      .setDescription("O'quv markaz platformasi backend — api-contract.md asosida qurilgan")
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+  }
 
   const port = parseInt(process.env.PORT ?? '3001', 10);
   await app.listen(port);
   /* eslint-disable no-console */
   console.log(`API:         http://localhost:${port}/v1`);
   console.log(`Admin panel: http://localhost:${port}/admin`);
-  console.log(`Swagger:     http://localhost:${port}/docs`);
+  if (process.env.NODE_ENV !== 'production') console.log(`Swagger:     http://localhost:${port}/docs`);
 }
 
 void bootstrap();

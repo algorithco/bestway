@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomBytes, randomInt } from 'crypto';
+import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
 import { AppException } from '../common/app.exception';
 import { AuthUser } from '../common/types';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -12,6 +12,7 @@ import { SETTING_KEYS, SettingsService } from '../settings/settings.service';
 import { LinkChildDto, LoginDto, RefreshDto, RegisterDto } from './dto/auth.dto';
 
 const LINK_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const DUMMY_PASSWORD_HASH = '$2a$10$S0DkiNylcFUhAIuwhOeOz.jS/i48bFSlu6E0mrcE/jVrZ9Ph9i6Zy';
 
 @Injectable()
 export class AuthService {
@@ -55,7 +56,7 @@ export class AuthService {
     if (exists) {
       throw new AppException('PHONE_TAKEN', "Bu telefon raqam allaqachon ro'yxatdan o'tgan", 409);
     }
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, 12);
     const initialPoints = await this.settings.getNumber(SETTING_KEYS.initialPoints);
 
     const user = await this.prisma.$transaction(async (tx) => {
@@ -79,11 +80,13 @@ export class AuthService {
     });
 
     if (dto.role === 'student') {
-      await this.notifications.notify(
-        user.id,
-        'points',
-        `Xush kelibsiz! Sizga boshlang'ich ${initialPoints} ball berildi.`,
-      );
+      this.notifications
+        .notify(
+          user.id,
+          'points',
+          `Xush kelibsiz! Sizga boshlang'ich ${initialPoints} ball berildi.`,
+        )
+        .catch(() => undefined);
     }
 
     const tokens = await this.issueTokens(user);
@@ -92,7 +95,11 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { phone: dto.phone.trim() } });
-    if (!user || !(await bcrypt.compare(dto.password, user.passwordHash))) {
+    if (!user) {
+      await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
+      throw new AppException('INVALID_CREDENTIALS', "Telefon raqam yoki parol noto'g'ri", 401);
+    }
+    if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new AppException('INVALID_CREDENTIALS', "Telefon raqam yoki parol noto'g'ri", 401);
     }
     if (!user.isActive) {
@@ -103,15 +110,41 @@ export class AuthService {
   }
 
   async refresh(dto: RefreshDto) {
-    const row = await this.prisma.refreshToken.findUnique({
-      where: { tokenHash: this.hashToken(dto.refreshToken) },
-      include: { user: true },
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.refreshToken.findUnique({
+        where: { tokenHash: this.hashToken(dto.refreshToken) },
+        include: { user: true },
+      });
+      if (!row || row.expiresAt < new Date() || !row.user.isActive) return { kind: 'invalid' as const };
+      if (row.revokedAt) {
+        await tx.refreshToken.updateMany({
+          where: { userId: row.userId, familyId: row.familyId },
+          data: { revokedAt: new Date() },
+        });
+        return { kind: 'reuse' as const };
+      }
+      const accessToken = await this.jwt.signAsync({ sub: row.userId, role: row.user.role });
+      const refreshToken = randomBytes(48).toString('base64url');
+      const days = parseInt(this.config.get<string>('JWT_REFRESH_TTL_DAYS') ?? '30', 10);
+      const now = new Date();
+      await tx.refreshToken.update({ where: { id: row.id }, data: { revokedAt: now } });
+      await tx.refreshToken.create({
+        data: {
+          userId: row.userId,
+          tokenHash: this.hashToken(refreshToken),
+          familyId: row.familyId || randomUUID(),
+          expiresAt: new Date(now.getTime() + days * 86_400_000),
+        },
+      });
+      return { kind: 'ok' as const, accessToken, refreshToken };
     });
-    if (!row || row.expiresAt < new Date() || !row.user.isActive) {
+    if (outcome.kind === 'invalid') {
       throw new AppException('INVALID_REFRESH_TOKEN', 'Sessiya muddati tugagan — qaytadan kiring', 401);
     }
-    const accessToken = await this.jwt.signAsync({ sub: row.userId, role: row.user.role });
-    return { accessToken };
+    if (outcome.kind === 'reuse') {
+      throw new AppException('SESSION_EXPIRED', 'Sessiya xavfsizlik sababli bekor qilindi — qaytadan kiring', 401);
+    }
+    return { accessToken: outcome.accessToken, refreshToken: outcome.refreshToken };
   }
 
   async logout(userId: string, refreshToken?: string) {
@@ -225,6 +258,7 @@ export class AuthService {
       data: {
         userId: user.id,
         tokenHash: this.hashToken(refreshToken),
+        familyId: randomUUID(),
         expiresAt: new Date(Date.now() + days * 86_400_000),
       },
     });
