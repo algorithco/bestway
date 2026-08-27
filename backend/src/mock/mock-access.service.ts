@@ -101,10 +101,19 @@ export class MockAccessService {
     if (access === 'granted') {
       throw new AppException('MOCK_ALREADY_ACCESSIBLE', 'Bu imtihon sizga allaqachon ochiq', 400);
     }
+    await this.prisma.mockPurchase.updateMany({
+      where: { userId: student.id, examId, status: { not: 'purchased' } },
+      data: { status: 'pending_confirmation', amount: exam.price },
+    });
     const purchase = await this.prisma.mockPurchase.upsert({
       where: { userId_examId: { userId: student.id, examId } },
-      update: { status: 'pending_confirmation', amount: exam.price },
-      create: { userId: student.id, examId, status: 'pending_confirmation', amount: exam.price },
+      update: {},
+      create: {
+        userId: student.id,
+        examId,
+        status: 'pending_confirmation',
+        amount: exam.price,
+      },
     });
     await this.audit.log({
       userId: student.id,

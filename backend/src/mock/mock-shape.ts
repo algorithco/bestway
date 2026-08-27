@@ -129,3 +129,21 @@ export function totalDuration(exam: ExamRow): number | null {
   const sum = exam.sections.reduce((s, sec) => s + (sec.durationMinutes ?? 0), 0);
   return sum > 0 ? sum : null;
 }
+
+/** Kirish huquqi yo'q o'quvchiga — tarkibsiz (sections/savollar/passages) metadata */
+export function shapeExamMeta(exam: ExamRow) {
+  return {
+    id: exam.id,
+    type: exam.type,
+    title: exam.title,
+    description: exam.description,
+    level: exam.level,
+    isPublished: exam.isPublished,
+    isDemo: exam.isDemo,
+    createdAt: exam.createdAt,
+    updatedAt: exam.updatedAt,
+    questionCount: countQuestions(exam),
+    durationMinutes: totalDuration(exam),
+    sections: [],
+  };
+}

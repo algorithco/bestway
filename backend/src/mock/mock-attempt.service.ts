@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MockAttempt, Prisma } from '@prisma/client';
+import { MockAnswer, MockAttempt, Prisma } from '@prisma/client';
 import { AppException } from '../common/app.exception';
 import { AuthUser } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -26,6 +26,8 @@ export const MOCK_EXAM_INCLUDE = {
     },
   },
 } satisfies Prisma.MockExamInclude;
+
+const CHEAT_EVENT_CAP = 50;
 
 @Injectable()
 export class MockAttemptService {
@@ -66,20 +68,7 @@ export class MockAttemptService {
       include: { answers: true },
     });
     if (existing) {
-      return {
-        attemptId: existing.id,
-        resumed: true,
-        mode: existing.mode,
-        startedAt: existing.startedAt,
-        deadlineAt: existing.deadlineAt,
-        serverTime: new Date(),
-        durationMinutes: totalDuration(exam as unknown as ExamRow),
-        exam: shaped,
-        annotations: existing.annotations ?? [],
-        savedAnswers: Object.fromEntries(
-          existing.answers.map((a) => [a.questionId, a.audioKey ? '[audio]' : a.response]),
-        ),
-      };
+      return this.resumeResponse(existing, shaped, totalDuration(exam as unknown as ExamRow));
     }
 
     const mode = dto.mode ?? 'practice';
@@ -87,9 +76,19 @@ export class MockAttemptService {
     const deadlineAt =
       mode === 'timed' && duration ? new Date(Date.now() + duration * 60_000) : null;
 
-    const attempt = await this.prisma.mockAttempt.create({
-      data: { examId, studentId: student.id, mode, deadlineAt },
-    });
+    let attempt: MockAttempt;
+    try {
+      attempt = await this.prisma.mockAttempt.create({
+        data: { examId, studentId: student.id, mode, deadlineAt },
+      });
+    } catch (err) {
+      const raced = await this.prisma.mockAttempt.findFirst({
+        where: { studentId: student.id, examId, status: 'in_progress' },
+        include: { answers: true },
+      });
+      if (!raced) throw err;
+      return this.resumeResponse(raced, shaped, duration);
+    }
     return {
       attemptId: attempt.id,
       resumed: false,
@@ -101,6 +100,27 @@ export class MockAttemptService {
       exam: shaped,
       annotations: [],
       savedAnswers: {},
+    };
+  }
+
+  private resumeResponse(
+    attempt: MockAttempt & { answers: MockAnswer[] },
+    exam: ReturnType<typeof shapeExam>,
+    durationMinutes: number | null,
+  ) {
+    return {
+      attemptId: attempt.id,
+      resumed: true,
+      mode: attempt.mode,
+      startedAt: attempt.startedAt,
+      deadlineAt: attempt.deadlineAt,
+      serverTime: new Date(),
+      durationMinutes,
+      exam,
+      annotations: attempt.annotations ?? [],
+      savedAnswers: Object.fromEntries(
+        attempt.answers.map((a) => [a.questionId, a.audioKey ? '[audio]' : a.response]),
+      ),
     };
   }
 
@@ -176,12 +196,14 @@ export class MockAttemptService {
     const existing = await this.prisma.mockAnswer.findUnique({
       where: { attemptId_questionId: { attemptId, questionId } },
     });
-    if (existing?.audioKey) this.storage.delete(existing.audioKey);
     await this.prisma.mockAnswer.upsert({
       where: { attemptId_questionId: { attemptId, questionId } },
       update: { audioKey: key },
       create: { attemptId, questionId, response: '', audioKey: key },
     });
+    if (existing?.audioKey && existing.audioKey !== key) {
+      this.storage.delete(existing.audioKey);
+    }
     return {
       saved: true,
       audioUrl: `${this.base}/mock/attempts/${attemptId}/answers/${questionId}/audio`,
@@ -202,6 +224,8 @@ export class MockAttemptService {
   async flagCheat(student: AuthUser, attemptId: string, dto: FlagCheatDto) {
     const attempt = await this.ownAttempt(student, attemptId);
     if (attempt.status !== 'in_progress') return { saved: true };
+    const count = await this.prisma.mockCheatEvent.count({ where: { attemptId } });
+    if (count >= CHEAT_EVENT_CAP) return { saved: true };
     await this.prisma.$transaction([
       this.prisma.mockCheatEvent.create({ data: { attemptId, event: dto.event } }),
       this.prisma.mockAttempt.update({

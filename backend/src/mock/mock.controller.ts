@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { CurrentUser, OptionalAuth, Roles } from '../common/decorators';
 import { AuthUser } from '../common/types';
@@ -47,7 +48,7 @@ import { MockAttemptService } from './mock-attempt.service';
 import { MockAuthoringService } from './mock-authoring.service';
 import { MockCertificateService } from './mock-certificate.service';
 import { MockGradingService } from './mock-grading.service';
-import { mockMediaMulterOptions } from './mock-storage';
+import { mockMediaMulterOptions, speakingAudioMulterOptions } from './mock-storage';
 
 // Diqqat: aniq marshrutlar (attempts/mine, groups/..., sections/..., purchases) ':id' dan OLDIN.
 @ApiTags('mock')
@@ -149,7 +150,7 @@ export class MockController {
   @ApiConsumes('multipart/form-data')
   @Roles('student')
   @Post('attempts/:attemptId/speaking/:questionId')
-  @UseInterceptors(FileInterceptor('audio', mockMediaMulterOptions()))
+  @UseInterceptors(FileInterceptor('audio', speakingAudioMulterOptions()))
   uploadSpeaking(
     @CurrentUser() user: AuthUser,
     @Param('attemptId') attemptId: string,
@@ -186,6 +187,7 @@ export class MockController {
 
   @ApiBearerAuth()
   @Roles('student')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('attempts/:attemptId/flag-cheat')
   flagCheat(
     @CurrentUser() user: AuthUser,

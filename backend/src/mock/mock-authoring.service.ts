@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { MockQuestionType, Prisma } from '@prisma/client';
+import { MockExamType, MockQuestionType, Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service';
 import { AppException } from '../common/app.exception';
@@ -23,7 +23,7 @@ import { MockAccessService } from './mock-access.service';
 import { buildCorrectAnswers, parseQuestions } from './mock-parse';
 import { audioContentType } from './mock-storage';
 import { AUTO_SKILLS } from './mock-scoring';
-import { ExamRow, shapeExam } from './mock-shape';
+import { ExamRow, shapeExam, shapeExamMeta } from './mock-shape';
 
 /** Variantlar (options) majburiy bo'lgan savol turlari */
 const OPTION_TYPES = new Set<MockQuestionType>([
@@ -32,6 +32,8 @@ const OPTION_TYPES = new Set<MockQuestionType>([
   'matching',
   'matching_headings',
 ]);
+
+const IELTS_MANUAL_POINTS = 9;
 
 const EXAM_INCLUDE = {
   sections: {
@@ -208,8 +210,17 @@ export class MockAuthoringService {
       throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
     }
     const access = await this.accessSvc.accessFor(viewer, exam);
+    const row = exam as unknown as ExamRow;
+    if (!staff && access !== 'granted') {
+      return {
+        ...shapeExamMeta(row),
+        price: exam.price,
+        isFreeForApproved: exam.isFreeForApproved,
+        access,
+      };
+    }
     return {
-      ...shapeExam(exam as unknown as ExamRow, staff, this.base),
+      ...shapeExam(row, staff, this.base),
       price: exam.price,
       isFreeForApproved: exam.isFreeForApproved,
       access,
@@ -390,7 +401,15 @@ export class MockAuthoringService {
   ) {
     const group = await this.prisma.mockQuestionGroup.findUnique({
       where: { id: groupId },
-      include: { section: { include: { exam: { select: { isDemo: true } } } } },
+      include: {
+        section: {
+          include: {
+            exam: {
+              select: { id: true, isDemo: true, isPublished: true, price: true, isFreeForApproved: true },
+            },
+          },
+        },
+      },
     });
     if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
     const key = kind === 'audio' ? group.audioKey : group.imageKey;
@@ -399,6 +418,15 @@ export class MockAuthoringService {
     }
     if (!viewer && !group.section.exam.isDemo) {
       throw new AppException('UNAUTHORIZED', 'Avval tizimga kiring', 401);
+    }
+    if (viewer && !isStaff(viewer)) {
+      const access = await this.accessSvc.accessFor(viewer, group.section.exam);
+      if (access === 'pending') {
+        throw new AppException('MOCK_PURCHASE_PENDING', 'Xaridingiz tasdiqlanishini kuting', 402);
+      }
+      if (access !== 'granted') {
+        throw new AppException('MOCK_PAYMENT_REQUIRED', "Bu imtihon uchun to'lov talab qilinadi", 402);
+      }
     }
 
     const stat = this.storage.stat(key);
@@ -447,7 +475,7 @@ export class MockAuthoringService {
   async importQuestions(actor: AuthUser, groupId: string, dto: ImportQuestionsDto) {
     const group = await this.prisma.mockQuestionGroup.findUnique({
       where: { id: groupId },
-      include: { section: { select: { skill: true } } },
+      include: { section: { select: { skill: true, exam: { select: { type: true } } } } },
     });
     if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
 
@@ -475,7 +503,7 @@ export class MockAuthoringService {
         prompt: q.prompt,
         options: q.options ? (q.options as Prisma.InputJsonValue) : undefined,
         correctAnswers: correctAnswers ? (correctAnswers as Prisma.InputJsonValue) : undefined,
-        points: dto.points ?? 1,
+        points: this.resolvePoints(group.section.exam.type, isAuto, dto.points),
       };
     });
     if (isAuto && missing.length) {
@@ -511,7 +539,7 @@ export class MockAuthoringService {
   async addQuestions(actor: AuthUser, groupId: string, dto: AddQuestionsDto) {
     const group = await this.prisma.mockQuestionGroup.findUnique({
       where: { id: groupId },
-      include: { section: { select: { skill: true } } },
+      include: { section: { select: { skill: true, exam: { select: { type: true } } } } },
     });
     if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
 
@@ -529,7 +557,7 @@ export class MockAuthoringService {
         prompt: q.prompt,
         options: q.options ? (q.options as Prisma.InputJsonValue) : undefined,
         correctAnswers: q.correctAnswers ? (q.correctAnswers as Prisma.InputJsonValue) : undefined,
-        points: q.points ?? 1,
+        points: this.resolvePoints(group.section.exam.type, isAuto, q.points, `#${i + 1}-savol: `),
         wordLimit: q.wordLimit,
       })),
     });
@@ -551,7 +579,9 @@ export class MockAuthoringService {
   async updateQuestion(actor: AuthUser, questionId: string, dto: UpdateQuestionDto) {
     const question = await this.prisma.mockQuestion.findUnique({
       where: { id: questionId },
-      include: { group: { include: { section: { select: { skill: true } } } } },
+      include: {
+        group: { include: { section: { select: { skill: true, exam: { select: { type: true } } } } } },
+      },
     });
     if (!question) throw new AppException('MOCK_QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
 
@@ -582,7 +612,15 @@ export class MockAuthoringService {
         ...(dto.correctAnswers !== undefined
           ? { correctAnswers: dto.correctAnswers as Prisma.InputJsonValue }
           : {}),
-        ...(dto.points !== undefined ? { points: dto.points } : {}),
+        ...(dto.points !== undefined
+          ? {
+              points: this.resolvePoints(
+                question.group.section.exam.type,
+                isAuto,
+                dto.points,
+              ),
+            }
+          : {}),
         ...(dto.wordLimit !== undefined ? { wordLimit: dto.wordLimit } : {}),
       },
     });
@@ -626,6 +664,26 @@ export class MockAuthoringService {
         400,
       );
     }
+  }
+
+  private resolvePoints(
+    examType: MockExamType,
+    isAuto: boolean,
+    points: number | undefined,
+    label = '',
+  ): number {
+    const ielts = examType === 'ielts_academic' || examType === 'ielts_general';
+    if (!isAuto && ielts) {
+      if (points !== undefined && points !== IELTS_MANUAL_POINTS) {
+        throw new AppException(
+          'VALIDATION_ERROR',
+          `${label}IELTS Writing/Speaking savoli uchun points aynan ${IELTS_MANUAL_POINTS} bo'lsin (band shkalasi 0–9, qo'lda baholash)`,
+          400,
+        );
+      }
+      return IELTS_MANUAL_POINTS;
+    }
+    return points ?? 1;
   }
 
   private defaultSectionOrder(skill: string): number {

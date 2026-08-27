@@ -12,6 +12,13 @@ export interface StorageLike {
   createReadStream(key: string, opts?: { start: number; end: number }): NodeJS.ReadableStream;
 }
 
+function assertContainedKey(key: string): void {
+  const normalized = path.posix.normalize(key.replace(/\\/g, '/'));
+  if (path.posix.isAbsolute(normalized) || normalized.split('/').includes('..')) {
+    throw new AppException('INVALID_FILE_KEY', "Fayl manzili noto'g'ri", 400);
+  }
+}
+
 /** Faylni Range qo'llab-quvvatlagan holda oqim qilib beradi (audio/video/rasm) */
 export function streamFileRange(
   storage: StorageLike,
@@ -20,6 +27,7 @@ export function streamFileRange(
   req: Request,
   res: Response,
 ): void {
+  assertContainedKey(key);
   const stat = storage.stat(key);
   const range = req.headers.range;
   if (range) {
@@ -47,25 +55,29 @@ export function streamFileRange(
   }
 }
 
+function mockDiskStorage() {
+  return diskStorage({
+    destination: (
+      _req: unknown,
+      _file: Express.Multer.File,
+      cb: (error: Error | null, destination: string) => void,
+    ) => {
+      const dir = path.join(path.resolve(process.env.STORAGE_DIR ?? './storage'), 'mock');
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (
+      _req: unknown,
+      file: Express.Multer.File,
+      cb: (error: Error | null, filename: string) => void,
+    ) => cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
+  });
+}
+
 /** Mock media (Listening audio, map/diagram rasm) uchun multer sozlamalari */
 export function mockMediaMulterOptions() {
   return {
-    storage: diskStorage({
-      destination: (
-        _req: unknown,
-        _file: Express.Multer.File,
-        cb: (error: Error | null, destination: string) => void,
-      ) => {
-        const dir = path.join(path.resolve(process.env.STORAGE_DIR ?? './storage'), 'mock');
-        fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-      },
-      filename: (
-        _req: unknown,
-        file: Express.Multer.File,
-        cb: (error: Error | null, filename: string) => void,
-      ) => cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
-    }),
+    storage: mockDiskStorage(),
     limits: { fileSize: parseInt(process.env.MAX_UPLOAD_MB ?? '500', 10) * 1024 * 1024 },
     fileFilter: (
       _req: unknown,
@@ -77,6 +89,26 @@ export function mockMediaMulterOptions() {
       }
       if (file.fieldname === 'image' && !file.mimetype.startsWith('image/')) {
         return cb(new AppException('INVALID_FILE_TYPE', 'Rasm fayli yuklang', 400), false);
+      }
+      cb(null, true);
+    },
+  };
+}
+
+const SPEAKING_AUDIO_MAX_MB = 25;
+
+/** Speaking javob audio uchun alohida profil — kichik limit va faqat audio/* */
+export function speakingAudioMulterOptions() {
+  return {
+    storage: mockDiskStorage(),
+    limits: { fileSize: SPEAKING_AUDIO_MAX_MB * 1024 * 1024 },
+    fileFilter: (
+      _req: unknown,
+      file: Express.Multer.File,
+      cb: (error: Error | null, acceptFile: boolean) => void,
+    ) => {
+      if (!file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/')) {
+        return cb(new AppException('INVALID_FILE_TYPE', 'Audio fayl yuklang (mp3, m4a...)', 400), false);
       }
       cb(null, true);
     },
