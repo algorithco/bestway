@@ -60,6 +60,16 @@ export default async function LocaleLayout({
   return (
     // suppressHydrationWarning — next-themes <html> ga class qo'shadi (server bilmaydi)
     <html lang={locale} className={`${inter.variable} h-full`} suppressHydrationWarning>
+      <head>
+        {/* FOUC oldini olish: sahifa ko'rinmasdan oldin tema class'ini o'rnatamiz. 
+            Bu <script> server komponentda — React 19 client ichida <script> render qilish xatosini keltirib chiqarmaydi. */}
+        <script
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var s=localStorage.getItem('theme')||'system',m=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',r=s==='system'?m:s,d=document.documentElement;d.classList.remove('light','dark');r&&d.classList.add(r);d.style.colorScheme=r}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="flex min-h-full flex-col antialiased">
         <NextIntlClientProvider messages={messages}>
           <Providers>{children}</Providers>
