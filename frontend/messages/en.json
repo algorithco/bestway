@@ -26,7 +26,11 @@
   },
   "staff": {
     "title": "Staff",
-    "tabs": { "teacher": "Teachers", "admin": "Admins", "parent": "Parents" },
+    "tabs": {
+      "teacher": "Teachers",
+      "admin": "Admins",
+      "parent": "Parents"
+    },
     "create": "Add staff",
     "createParent": "Add parent",
     "role": "Role",
@@ -79,6 +83,27 @@
     "deleted": "Article deleted",
     "deleteConfirm": "Delete this article?",
     "empty": "No articles yet"
+  },
+  "gallery": {
+    "title": "Gallery",
+    "create": "Add image",
+    "edit": "Edit image",
+    "deleteConfirm": "Delete this image?",
+    "deleted": "Image deleted",
+    "created": "Image added",
+    "updated": "Image updated",
+    "empty": "No images yet",
+    "image": "Image",
+    "imageHint": "Image file, up to 10 MB (jpg, png, webp)",
+    "imageRequired": "Image is required",
+    "label": "Label",
+    "labelPlaceholder": "e.g. Sardor Karimov — IELTS 8.5",
+    "link": "Link",
+    "alt": "Alt text",
+    "altPlaceholder": "Image description for accessibility",
+    "sortOrder": "Sort order",
+    "isActive": "Active (visible on site)",
+    "preview": "Preview"
   },
   "profile": {
     "title": "Profile",
@@ -266,7 +291,8 @@
     "myAttendance": "My attendance",
     "myPayments": "My payments",
     "myPoints": "My points",
-    "children": "My children"
+    "children": "My children",
+    "gallery": "Gallery"
   },
   "roles": {
     "super_admin": "Super admin",

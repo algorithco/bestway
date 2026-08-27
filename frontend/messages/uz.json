@@ -26,7 +26,11 @@
   },
   "staff": {
     "title": "Xodimlar",
-    "tabs": { "teacher": "O'qituvchilar", "admin": "Adminlar", "parent": "Ota-onalar" },
+    "tabs": {
+      "teacher": "O'qituvchilar",
+      "admin": "Adminlar",
+      "parent": "Ota-onalar"
+    },
     "create": "Xodim qo'shish",
     "createParent": "Ota-ona qo'shish",
     "role": "Rol",
@@ -79,6 +83,27 @@
     "deleted": "Yangilik o'chirildi",
     "deleteConfirm": "Bu yangilik o'chirilsinmi?",
     "empty": "Hali yangilik yo'q"
+  },
+  "gallery": {
+    "title": "Galereya",
+    "create": "Rasm qo'shish",
+    "edit": "Tahrirlash",
+    "deleteConfirm": "Bu rasmni o'chirish kerakmi?",
+    "deleted": "Rasm o'chirildi",
+    "created": "Rasm qo'shildi",
+    "updated": "Rasm yangilandi",
+    "empty": "Hali rasm yo'q",
+    "image": "Rasm",
+    "imageHint": "Rasm fayli, 10 MB gacha (jpg, png, webp)",
+    "imageRequired": "Rasm majburiy",
+    "label": "Yorliq",
+    "labelPlaceholder": "Masalan: Sardor Karimov — IELTS 8.5",
+    "link": "Havola",
+    "alt": "Alt matn",
+    "altPlaceholder": "Rasm tavsifi",
+    "sortOrder": "Tartib",
+    "isActive": "Faol (saytda ko'rinadi)",
+    "preview": "Ko'rib chiqish"
   },
   "profile": {
     "title": "Profil",
@@ -266,7 +291,8 @@
     "myAttendance": "Davomatim",
     "myPayments": "To'lovlarim",
     "myPoints": "Ballarim",
-    "children": "Farzandlarim"
+    "children": "Farzandlarim",
+    "gallery": "Galereya"
   },
   "roles": {
     "super_admin": "Super admin",

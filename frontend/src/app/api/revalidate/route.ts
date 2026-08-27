@@ -1,7 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { getSessionRole } from "@/lib/auth";
-import { ARTICLES_TAG } from "@/lib/public-api";
+import { ARTICLES_TAG, GALLERY_TAG, TEACHERS_TAG } from "@/lib/public-api";
 
 /**
  * On-demand kesh tozalash.
@@ -13,7 +13,7 @@ import { ARTICLES_TAG } from "@/lib/public-api";
  * Bu faqat keshni yangilaydi (hech qanday maxfiy ma'lumot ochilmaydi), shuning uchun
  * xavfsiz. Faqat oldindan ruxsat berilgan teglar qabul qilinadi.
  */
-const ALLOWED_TAGS = new Set<string>([ARTICLES_TAG]);
+const ALLOWED_TAGS = new Set<string>([ARTICLES_TAG, GALLERY_TAG, TEACHERS_TAG]);
 
 export async function POST(request: Request) {
   const role = await getSessionRole();
