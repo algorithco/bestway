@@ -90,7 +90,7 @@ export class UsersService {
       if (!group) throw new AppException('GROUP_NOT_FOUND', 'Guruh topilmadi', 404);
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const passwordHash = await bcrypt.hash(dto.password, 12);
     const initialPoints = await this.settings.getNumber(SETTING_KEYS.initialPoints);
 
     const user = await this.prisma.$transaction(async (tx) => {
@@ -236,7 +236,7 @@ export class UsersService {
       ...(dto.role !== undefined ? { role: dto.role } : {}),
       ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
       ...(dto.telegramChatId !== undefined ? { telegramChatId: dto.telegramChatId } : {}),
-      ...(dto.password ? { passwordHash: await bcrypt.hash(dto.password, 10) } : {}),
+      ...(dto.password ? { passwordHash: await bcrypt.hash(dto.password, 12) } : {}),
     };
     if (Object.keys(data).length > 0) {
       await this.prisma.user.update({ where: { id }, data });

@@ -57,8 +57,10 @@ HTTP status kodlari: `200` OK, `201` Created, `400` Validation error, `401` Unau
 |---|---|---|---|---|
 | POST | `/auth/register` | Mehmon | `{ name, phone, password, role }` | `{ user, accessToken, refreshToken }` |
 | POST | `/auth/login` | Mehmon | `{ phone, password }` | `{ user, accessToken, refreshToken }` |
-| POST | `/auth/refresh` | Har kim | `{ refreshToken }` | `{ accessToken }` |
+| POST | `/auth/refresh` | Har kim | `{ refreshToken }` | `{ accessToken, refreshToken }` |
 | POST | `/auth/link-child` | Ota-ona | `{ linkCode }` | `{ child: StudentProfile }` |
+
+**Refresh token rotatsiyasi:** `/auth/refresh` har chaqiriqda yangi `refreshToken` qaytaradi va eskisi birda ishlatiladi (single-use). Allaqachon ishlatilgan (revoked) tokenni qayta yuborish reuse-hujum deb hisoblanadi — butun token oilasi bekor qilinadi va `SESSION_EXPIRED` xatosi (401) qaytadi.
 
 `user` obyekti doim shu shaklda:
 ```json

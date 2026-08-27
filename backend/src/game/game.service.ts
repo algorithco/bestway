@@ -8,14 +8,6 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SETTING_KEYS, SettingsService } from '../settings/settings.service';
 
-/** ensureCurrentPeriod uchun kerakli minimal maydonlar */
-interface PeriodStudent {
-  userId: string;
-  pointsPeriod: string | null;
-  currentPoints: number;
-  gameQualified: boolean;
-}
-
 /**
  * Oylik o'yin tizimi.
  *
@@ -62,7 +54,7 @@ export class GameService implements OnModuleInit {
   }
 
   /** Har oyning 1-kuni 00:05 da avtomatik oylik reset */
-  @Cron('5 0 1 * *')
+  @Cron('5 0 1 * *', { timeZone: 'Asia/Tashkent' })
   async monthlyReset(): Promise<void> {
     const n = await this.rolloverStale();
     this.logger.log(`Oylik reset (cron): ${n} o'quvchi balli yangilandi`);
@@ -76,35 +68,49 @@ export class GameService implements OnModuleInit {
     const current = GameService.periodKey();
     const stale = await this.prisma.studentProfile.findMany({
       where: { OR: [{ pointsPeriod: { not: current } }, { pointsPeriod: null }] },
-      select: { userId: true, pointsPeriod: true, currentPoints: true, gameQualified: true },
+      select: { userId: true },
     });
+    let rolled = 0;
     for (const s of stale) {
-      await this.prisma.$transaction((tx) => this.ensureCurrentPeriod(tx, s));
+      const done = await this.prisma.$transaction((tx) => this.ensureCurrentPeriod(tx, s.userId));
+      if (done) rolled++;
     }
-    return stale.length;
+    return rolled;
   }
 
   /**
    * Bitta o'quvchini joriy oyga keltiradi (kerak bo'lsa arxivlab reset qiladi).
    * `client` — tranzaksiya klienti yoki PrismaService. Ball o'zgartirishdan OLDIN chaqiriladi.
+   * Profil tranzaksiya ICHIDA qayta o'qiladi — chaqiruvchi snapshotiga tayanmaymiz,
+   * chunki u eskirgan bo'lishi mumkin. Reset shartli updateMany bilan guard qilinadi:
+   * birinchi yozuvchi g'olib, count===0 bo'lsa boshqa yozuvchi allaqachon yangi davrni
+   * ochgan bo'ladi va biz uning ustiga yozmaymiz (ikki marta arxivlash ham bo'lmaydi).
    */
-  async ensureCurrentPeriod(client: Prisma.TransactionClient, student: PeriodStudent): Promise<void> {
+  async ensureCurrentPeriod(
+    client: Prisma.TransactionClient,
+    studentUserId: string,
+  ): Promise<boolean> {
     const current = GameService.periodKey();
-    if (student.pointsPeriod === current) return;
+    const student = await client.studentProfile.findUnique({
+      where: { userId: studentUserId },
+      select: { userId: true, pointsPeriod: true, currentPoints: true, gameQualified: true },
+    });
+    if (!student || student.pointsPeriod === current) return false;
 
     // Feature'dan oldin yaratilган o'quvchi (pointsPeriod hali yo'q):
     // ballini saqlagan holda joriy oyga "qabul qilamiz", arxivlamaymiz.
     if (student.pointsPeriod == null) {
-      await client.studentProfile.update({
-        where: { userId: student.userId },
+      const res = await client.studentProfile.updateMany({
+        where: { userId: student.userId, pointsPeriod: null },
         data: { pointsPeriod: current },
       });
-      return;
+      return res.count > 0;
     }
 
     // Haqiqiy oy almashuvi: o'tgan oyni arxivlab, ballni boshlang'ichга qaytaramiz.
+    const stalePeriod = student.pointsPeriod;
     const initial = await this.settings.getNumber(SETTING_KEYS.initialPoints);
-    const { year, month } = GameService.parsePeriod(student.pointsPeriod);
+    const { year, month } = GameService.parsePeriod(stalePeriod);
     await client.monthlyPointsArchive.upsert({
       where: { studentId_year_month: { studentId: student.userId, year, month } },
       update: { points: student.currentPoints, qualified: student.gameQualified },
@@ -116,10 +122,11 @@ export class GameService implements OnModuleInit {
         qualified: student.gameQualified,
       },
     });
-    await client.studentProfile.update({
-      where: { userId: student.userId },
+    const res = await client.studentProfile.updateMany({
+      where: { userId: student.userId, pointsPeriod: stalePeriod },
       data: { currentPoints: initial, pointsPeriod: current, gameQualified: false, qualifiedAt: null },
     });
+    return res.count > 0;
   }
 
   // ---------- O'yinga qo'shilish ----------

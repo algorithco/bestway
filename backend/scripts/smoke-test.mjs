@@ -69,7 +69,7 @@ const YEAR = now.getFullYear();
   check('GET /auth/me', me.json.success && me.json.data.user.role === 'student' && me.json.data.profile.currentPoints === 100, me.json.data);
 
   const refreshed = await call('POST', '/auth/refresh', { body: { refreshToken: student.refreshToken } });
-  check('POST /auth/refresh -> faqat accessToken', refreshed.json.success && !!refreshed.json.data.accessToken && !refreshed.json.data.refreshToken, refreshed.json.data);
+  check('POST /auth/refresh -> accessToken + refreshToken', refreshed.json.success && !!refreshed.json.data.accessToken && !!refreshed.json.data.refreshToken, refreshed.json.data);
 
   const noAuth = await call('GET', '/auth/me');
   check('token yo\'q -> 401', noAuth.status === 401 && noAuth.json.error.code === 'UNAUTHORIZED', noAuth.json);

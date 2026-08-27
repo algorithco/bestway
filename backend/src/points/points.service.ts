@@ -85,12 +85,8 @@ export class PointsService {
 
     const updated = await this.prisma.$transaction(async (tx) => {
       // Oy almashgan bo'lsa — avval o'tgan oyni arxivlab, ballni yangi oydan boshlaymiz
-      await this.game.ensureCurrentPeriod(tx, {
-        userId: studentUserId,
-        pointsPeriod: profile.pointsPeriod,
-        currentPoints: profile.currentPoints,
-        gameQualified: profile.gameQualified,
-      });
+      // (profil tranzaksiya ichida qayta o'qiladi, snapshot eskirgan bo'lishi mumkin)
+      await this.game.ensureCurrentPeriod(tx, studentUserId);
       const u = await tx.studentProfile.update({
         where: { userId: studentUserId },
         data: { currentPoints: { increment: dto.change } },
@@ -108,12 +104,13 @@ export class PointsService {
 
     const oldPoints = updated.currentPoints - dto.change;
     const sign = dto.change > 0 ? '+' : '';
-    await this.notifications.notify(
+    // Commit'dan keyingi xabarlar — fire-and-forget: xato javobni 500 ga aylantirmasin
+    this.notifications.safeNotify(
       studentUserId,
       'points',
       `Ball o'zgarishi: ${sign}${dto.change} (${dto.reason}). Joriy ball: ${updated.currentPoints}.`,
     );
-    await this.notifications.notifyParents(
+    this.notifications.safeNotifyParents(
       studentUserId,
       'points',
       `Farzandingiz ${profile.user.name} balli o'zgardi: ${sign}${dto.change} (${dto.reason}). Joriy ball: ${updated.currentPoints}.`,

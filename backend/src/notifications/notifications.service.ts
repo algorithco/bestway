@@ -22,6 +22,20 @@ export class NotificationsService {
     await this.notifyMany([userId], type, text);
   }
 
+  /** Fire-and-forget: commit'dan keyingi xabarda xato asosiy javobni buzmasin */
+  safeNotify(userId: string, type: NotificationType, text: string): void {
+    void this.notify(userId, type, text).catch((e) =>
+      this.logger.warn(`Bildirishnoma yuborilmadi (${userId}): ${String(e)}`),
+    );
+  }
+
+  /** notifyParents ning fire-and-forget ko'rinishi */
+  safeNotifyParents(studentUserId: string, type: NotificationType, text: string): void {
+    void this.notifyParents(studentUserId, type, text).catch((e) =>
+      this.logger.warn(`Ota-ona bildirishnomasi yuborilmadi (${studentUserId}): ${String(e)}`),
+    );
+  }
+
   async notifyMany(userIds: string[], type: NotificationType, text: string): Promise<void> {
     const unique = [...new Set(userIds)].filter(Boolean);
     if (unique.length === 0) return;

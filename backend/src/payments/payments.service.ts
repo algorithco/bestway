@@ -107,7 +107,7 @@ export class PaymentsService {
           },
           update: {
             state: r.state,
-            amount: r.amount ?? 0,
+            ...(r.amount !== undefined ? { amount: r.amount } : {}),
             note: r.note ?? null,
             markedById: actor.id,
           },

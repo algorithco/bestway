@@ -23,9 +23,7 @@ export class AttendanceService {
 
   private monthRange(month?: string): { gte: Date; lt: Date } {
     const now = new Date();
-    const [y, m] = month
-      ? month.split('-').map(Number)
-      : [now.getUTCFullYear(), now.getUTCMonth() + 1];
+    const [y, m] = month ? month.split('-').map(Number) : [now.getFullYear(), now.getMonth() + 1];
     return { gte: new Date(Date.UTC(y, m - 1, 1)), lt: new Date(Date.UTC(y, m, 1)) };
   }
 

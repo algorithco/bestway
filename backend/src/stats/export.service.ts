@@ -1,16 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { toCsv } from '../common/csv.util';
 import { monthRangeUtc } from '../common/date.util';
 import { PrismaService } from '../prisma/prisma.service';
-
-/** Excel to'g'ri ochishi uchun BOM + nuqta-vergul ajratgich */
-function toCsv(headers: string[], rows: (string | number | null)[][]): string {
-  const esc = (v: string | number | null): string => {
-    const s = v === null || v === undefined ? '' : String(v);
-    return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-  };
-  const lines = [headers.join(';'), ...rows.map((r) => r.map(esc).join(';'))];
-  return '﻿' + lines.join('\r\n');
-}
 
 const STATE_UZ: Record<string, string> = {
   present: 'Keldi',

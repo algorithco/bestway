@@ -11,6 +11,7 @@ import {
   StreamableFile,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { CurrentUser, OptionalAuth, Roles } from '../common/decorators';
 import { AuthUser } from '../common/types';
@@ -94,6 +95,7 @@ export class TestsController {
   /** Anti-cheat signal (tab almashtirish va h.k.) */
   @ApiBearerAuth()
   @Roles('student')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('attempts/:attemptId/flag-cheat')
   flagCheat(
     @CurrentUser() user: AuthUser,

@@ -97,6 +97,7 @@ export class GroupsService {
       }
     }
 
+    const showPhones = viewer.role !== 'student' && viewer.role !== 'parent';
     return {
       id: group.id,
       name: group.name,
@@ -107,7 +108,7 @@ export class GroupsService {
       students: group.students.map((s) => ({
         studentId: s.userId,
         name: s.user.name,
-        phone: s.user.phone,
+        ...(showPhones ? { phone: s.user.phone } : {}),
         isActive: s.user.isActive,
         isApproved: s.isApproved,
         currentPoints: s.currentPoints,

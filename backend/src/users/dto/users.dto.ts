@@ -40,7 +40,7 @@ export class CreateUserDto {
   phone: string;
 
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   @MaxLength(72)
   password: string;
 
@@ -68,7 +68,7 @@ export class UpdateUserDto {
   /** Yangi parol (admin tiklab beradi) */
   @IsOptional()
   @IsString()
-  @MinLength(6)
+  @MinLength(8)
   @MaxLength(72)
   password?: string;
 

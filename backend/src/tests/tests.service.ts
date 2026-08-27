@@ -296,6 +296,7 @@ export class TestsService {
     if (attempt.status !== 'in_progress') {
       throw new AppException('ATTEMPT_FINISHED', 'Bu urinish allaqachon yakunlangan', 400);
     }
+    this.assertNotTimedOut(attempt);
     const order = attempt.questionOrder as string[];
     if (!order.includes(dto.questionId)) {
       throw new AppException('QUESTION_NOT_IN_ATTEMPT', 'Savol bu urinishga tegishli emas', 400);
@@ -312,6 +313,9 @@ export class TestsService {
   async flagCheat(student: AuthUser, attemptId: string, dto: FlagCheatDto) {
     const attempt = await this.ownAttempt(student, attemptId);
     if (attempt.status !== 'in_progress') return { saved: true };
+    // Flood himoyasi: urinishiga ko'pi bilan 50 ta signal
+    const count = await this.prisma.antiCheatEvent.count({ where: { attemptId } });
+    if (count >= 50) return { saved: true };
     await this.prisma.$transaction([
       this.prisma.antiCheatEvent.create({ data: { attemptId, event: dto.event } }),
       this.prisma.testAttempt.update({
@@ -325,11 +329,27 @@ export class TestsService {
   // ---------------- Yordamchilar ----------------
 
   private async ownAttempt(student: AuthUser, attemptId: string) {
-    const attempt = await this.prisma.testAttempt.findUnique({ where: { id: attemptId } });
+    const attempt = await this.prisma.testAttempt.findUnique({
+      where: { id: attemptId },
+      include: { test: { select: { durationMinutes: true } } },
+    });
     if (!attempt || attempt.studentId !== student.id) {
       throw new AppException('ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
     }
     return attempt;
+  }
+
+  /** Vaqtli testda muddat o'tgan bo'lsa javob qabul qilinmaydi (yakunlang) */
+  private assertNotTimedOut(attempt: {
+    startedAt: Date;
+    test: { durationMinutes: number | null };
+  }): void {
+    const minutes = attempt.test.durationMinutes;
+    if (!minutes || minutes <= 0) return;
+    const deadline = attempt.startedAt.getTime() + minutes * 60_000;
+    if (Date.now() > deadline) {
+      throw new AppException('MOCK_TIME_UP', 'Vaqt tugadi — imtihonni yakunlang', 400);
+    }
   }
 
   /** Kriptografik random bilan aralashtirish (Fisher-Yates) */
