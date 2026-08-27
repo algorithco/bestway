@@ -30,6 +30,8 @@ async function publicGet<T>(
 
 /** Ochiq maqola so'rovlarining kesh tegi — admin o'zgartirsa shu teg tozalanadi */
 export const ARTICLES_TAG = "articles";
+export const GALLERY_TAG = "gallery";
+export const TEACHERS_TAG = "teachers";
 
 /** So'nggi yangiliklar (rasmiy sayt bosh sahifasi uchun) */
 export async function getLatestArticles(limit = 3): Promise<Article[]> {
@@ -46,4 +48,20 @@ export async function getArticles(limit = 24): Promise<Article[]> {
 /** Bitta maqola (yangilik tafsiloti) */
 export async function getArticle(id: string): Promise<Article | null> {
   return publicGet<Article>(`/articles/${encodeURIComponent(id)}`, { tags: [ARTICLES_TAG] });
+}
+
+/** Galereya rasmlari (AccordionGallery uchun — ochiq) */
+export async function getGalleryImages(): Promise<import("./types").GalleryImage[]> {
+  const data = await publicGet<import("./types").GalleryImage[]>("/gallery", { tags: [GALLERY_TAG] });
+  return data ?? [];
+}
+
+/** O'qituvchilar (fallback: agar galereya bo'sh bo'lsa) */
+export async function getTeachersPublic(): Promise<
+  { id: string; name: string; specialty: string; achievement?: string | null; photoUrl: string | null; socialUrl?: string | null }[]
+> {
+  const data = await publicGet<
+    { id: string; name: string; specialty: string; achievement?: string | null; photoUrl: string | null; socialUrl?: string | null }[]
+  >("/teachers", { tags: [TEACHERS_TAG] });
+  return data ?? [];
 }

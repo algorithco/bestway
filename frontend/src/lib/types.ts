@@ -315,6 +315,40 @@ export interface CreateArticleInput {
   tags?: string[];
 }
 
+/* ── Gallery (AccordionGallery) ─────────────────────────────────────────── */
+
+export interface GalleryImage {
+  id: string;
+  image: string;
+  label?: string;
+  link?: string;
+  alt?: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface GalleryAdminItem extends GalleryImage {
+  imageKey: string;
+  updatedAt: string;
+}
+
+export interface CreateGalleryInput {
+  label?: string;
+  link?: string;
+  alt?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface UpdateGalleryInput {
+  label?: string;
+  link?: string;
+  alt?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
 /* ── Users (management) ──────────────────────────────────────────────────── */
 
 /** GET /users/:id — base + rolga qarab children yoki groups */

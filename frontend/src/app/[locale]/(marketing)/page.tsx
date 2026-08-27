@@ -20,9 +20,10 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { Reveal } from "@/components/marketing/reveal";
 import { CountUp } from "@/components/marketing/count-up";
 import { HeroShowcase } from "@/components/marketing/hero-showcase";
-import { getLatestArticles } from "@/lib/public-api";
+import AccordionGallery from "@/components/ui/accordion-gallery";
+import { getGalleryImages, getLatestArticles, getTeachersPublic } from "@/lib/public-api";
 import { CENTER } from "@/lib/config";
-import { cn, formatPhone, initials } from "@/lib/utils";
+import { cn, formatPhone } from "@/lib/utils";
 
 const COURSES = [
   { key: "ielts", Icon: Award, tone: "brand" },
@@ -43,12 +44,7 @@ const STATS = [
   { num: 17, suffix: "+", key: "statsYears" },
 ] as const;
 
-const TEACHERS = [
-  { name: "Sardor Karimov", score: "IELTS 8.5", focus: "Academic", grad: "from-brand to-accent" },
-  { name: "Nilufar Rasulova", score: "Multilevel C1", focus: "Speaking", grad: "from-accent to-highlight" },
-  { name: "Jasur Aliyev", score: "IELTS 8.0", focus: "Writing", grad: "from-orange to-highlight" },
-  { name: "Dilnoza Yusupova", score: "CEFR C1", focus: "General", grad: "from-brand to-orange" },
-];
+// TEACHERS section now uses AccordionGallery with dynamic data from /gallery (fallback to /teachers)
 
 const MARQUEE = [
   "IELTS",
@@ -76,6 +72,21 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const t = await getTranslations("marketing");
   const format = await getFormatter();
   const articles = await getLatestArticles(3);
+
+  // ── Galereya (AccordionGallery) ──
+  const galleryImages = await getGalleryImages();
+  const teachersFallback = galleryImages.length === 0 ? await getTeachersPublic() : [];
+  const galleryItems =
+    galleryImages.length > 0
+      ? galleryImages.map((g) => ({ image: g.image, label: g.label, link: g.link, alt: g.alt }))
+      : teachersFallback.length > 0
+        ? teachersFallback.map((teacher) => ({
+            image: teacher.photoUrl ?? `https://picsum.photos/seed/${teacher.id}/900/1200`,
+            label: teacher.name,
+            link: teacher.socialUrl ?? undefined,
+            alt: teacher.specialty,
+          }))
+        : undefined;
 
   return (
     <>
@@ -195,34 +206,35 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      {/* ── O'qituvchilar ────────────────────────────────────────────────── */}
+      {/* ── O'qituvchilar galereyasi (AccordionGallery) ───────────────────── */}
       <section id="teachers" className="scroll-mt-16">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <SectionHeading title={t("teachersTitle")} subtitle={t("teachersSubtitle")} />
           </Reveal>
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {TEACHERS.map((teacher, i) => (
-              <Reveal key={teacher.name} delay={i * 80}>
-                <FancyCard className="items-center text-center">
-                  <span
-                    className={cn(
-                      "inline-flex size-20 items-center justify-center rounded-full bg-gradient-to-br text-2xl font-bold text-white shadow-lg transition-transform duration-300 group-hover:scale-110",
-                      teacher.grad,
-                    )}
-                  >
-                    {initials(teacher.name)}
-                  </span>
-                  <p className="mt-4 font-semibold text-fg">{teacher.name}</p>
-                  <p className="text-sm text-fg-muted">{teacher.focus}</p>
-                  <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-brand-subtle px-2.5 py-1 text-xs font-semibold text-brand-subtle-fg">
-                    <Star className="size-3" />
-                    {teacher.score}
-                  </span>
-                </FancyCard>
-              </Reveal>
-            ))}
-          </div>
+          <Reveal delay={120}>
+            <div className="mt-12">
+              <AccordionGallery
+                items={galleryItems}
+                defaultIndex={2}
+                expandRatio={0.52}
+                trigger="hover"
+                height={460}
+                gap={10}
+                radius={16}
+                grayscale
+                showLabels
+                accentColor="#ffffff"
+                overlayColor="#060010"
+                textColor="#ffffff"
+                duration={0.6}
+                ease="power3.out"
+                parallax={0.5}
+                tilt={8}
+                stagger={0.06}
+              />
+            </div>
+          </Reveal>
         </div>
       </section>
 
