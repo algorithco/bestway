@@ -60,14 +60,16 @@ export function PaymentsPanel() {
   const [year, setYear] = React.useState<number>(new Date().getFullYear());
   const [target, setTarget] = React.useState<PaymentCellTarget | null>(null);
 
-  React.useEffect(() => {
-    if (groupId || !groupsQ.data?.length) return;
-    const wanted = params.get("group");
-    const exists = wanted && groupsQ.data.some((g) => g.id === wanted);
-    setGroupId(exists ? wanted! : groupsQ.data[0].id);
-  }, [groupsQ.data, groupId, params]);
+  const wantedGroup = params.get("group");
+  const fallbackGroupId =
+    groupsQ.data && groupsQ.data.length > 0
+      ? wantedGroup && groupsQ.data.some((g) => g.id === wantedGroup)
+        ? wantedGroup
+        : groupsQ.data[0].id
+      : "";
+  const activeGroupId = groupId || fallbackGroupId;
 
-  const detailQ = useGroupDetail(groupId || undefined);
+  const detailQ = useGroupDetail(activeGroupId || undefined);
   const paymentsQ = usePayments(year);
   const save = useSavePaymentCell(year);
   const monthlyFee = settingsQ.data?.monthlyFee ?? 0;
@@ -119,7 +121,7 @@ export function PaymentsPanel() {
           <>
             <ExportButton path={`/stats/export/payments?year=${year}`} />
             {groupsQ.data && groupsQ.data.length > 0 && (
-              <Select value={groupId} onValueChange={setGroupId}>
+              <Select value={activeGroupId} onValueChange={setGroupId}>
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder={tc("group")} />
                 </SelectTrigger>
