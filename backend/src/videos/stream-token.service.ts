@@ -9,14 +9,16 @@ import { AppException } from '../common/app.exception';
  */
 @Injectable()
 export class StreamTokenService {
-  constructor(private readonly config: ConfigService) {}
+  private readonly secret: string;
 
-  private secret(): string {
-    return (
-      this.config.get<string>('STREAM_TOKEN_SECRET') ||
-      this.config.get<string>('JWT_SECRET') ||
-      'stream-secret'
-    );
+  constructor(config: ConfigService) {
+    const secret = config.get<string>('STREAM_TOKEN_SECRET') ?? config.get<string>('JWT_SECRET');
+    if (!secret) {
+      throw new Error(
+        "STREAM_TOKEN_SECRET muhit o'zgaruvchisi talab qilinadi (JWT_SECRET ham bo'lishi mumkin)",
+      );
+    }
+    this.secret = secret;
   }
 
   sign(videoId: string, userId: string, ttlSeconds: number): { token: string; expiresAt: Date } {
@@ -24,7 +26,7 @@ export class StreamTokenService {
     const payload = Buffer.from(JSON.stringify({ v: videoId, u: userId, e: exp })).toString(
       'base64url',
     );
-    const sig = createHmac('sha256', this.secret()).update(payload).digest('base64url');
+    const sig = createHmac('sha256', this.secret).update(payload).digest('base64url');
     return { token: `${payload}.${sig}`, expiresAt: new Date(exp * 1000) };
   }
 
@@ -33,7 +35,7 @@ export class StreamTokenService {
     if (!payload || !sig) {
       throw new AppException('STREAM_TOKEN_INVALID', 'Stream havolasi yaroqsiz', 403);
     }
-    const expected = createHmac('sha256', this.secret()).update(payload).digest('base64url');
+    const expected = createHmac('sha256', this.secret).update(payload).digest('base64url');
     const a = Buffer.from(sig);
     const b = Buffer.from(expected);
     if (a.length !== b.length || !timingSafeEqual(a, b)) {

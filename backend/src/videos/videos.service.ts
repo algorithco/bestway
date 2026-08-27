@@ -200,14 +200,23 @@ export class VideosService {
     const range = req.headers.range;
 
     if (range) {
-      const m = /bytes=(\d*)-(\d*)/.exec(range);
-      let start = m && m[1] ? parseInt(m[1], 10) : 0;
-      let end = m && m[2] ? parseInt(m[2], 10) : size - 1;
-      if (Number.isNaN(start) || start < 0) start = 0;
-      if (Number.isNaN(end) || end >= size) end = size - 1;
-      if (start > end) {
-        start = 0;
+      const m = /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+      let start: number;
+      let end: number;
+      if (!m || (m[1] === '' && m[2] === '') || (m[1] === '' && parseInt(m[2], 10) <= 0)) {
+        throw new AppException('INVALID_RANGE', "Range so'rovi yaroqsiz", 416);
+      }
+      if (m[1] === '') {
+        // Suffix range (bytes=-N): faylning oxirgi N bayti
+        start = Math.max(0, size - parseInt(m[2], 10));
         end = size - 1;
+      } else {
+        start = parseInt(m[1], 10);
+        end = m[2] !== '' ? parseInt(m[2], 10) : size - 1;
+        if (end >= size) end = size - 1;
+      }
+      if (start > end || start >= size) {
+        throw new AppException('RANGE_NOT_SATISFIABLE', 'Range diapazoni mavjud emas', 416);
       }
       res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${size}`,
@@ -256,11 +265,19 @@ export class VideosService {
     if (access === 'pending_confirmation') {
       return { status: 'pending_confirmation' };
     }
-    await this.prisma.videoPurchase.upsert({
-      where: { userId_videoId: { userId: user.id, videoId } },
-      update: { status: 'pending_confirmation' },
-      create: { userId: user.id, videoId, status: 'pending_confirmation', method: 'manual' },
+    // Shartli yozuv: parallel so'rovlarda 'purchased' holat hech qachon ustiga yozilmasin
+    const updated = await this.prisma.videoPurchase.updateMany({
+      where: { userId: user.id, videoId, status: { not: 'purchased' } },
+      data: { status: 'pending_confirmation' },
     });
+    if (updated.count === 0) {
+      // Row umuman yo'q bo'lsa yaratamiz; allaqachon 'purchased' bo'lsa — no-op
+      await this.prisma.videoPurchase.upsert({
+        where: { userId_videoId: { userId: user.id, videoId } },
+        create: { userId: user.id, videoId, status: 'pending_confirmation', method: 'manual' },
+        update: {},
+      });
+    }
     return { status: 'pending_confirmation' };
   }
 

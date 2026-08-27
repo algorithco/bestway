@@ -27,7 +27,7 @@ export class StorageService implements OnModuleInit {
 
   resolve(key: string): string {
     const abs = path.resolve(this.baseDir, key);
-    if (!abs.startsWith(this.baseDir)) {
+    if (abs !== this.baseDir && !abs.startsWith(this.baseDir + path.sep)) {
       throw new AppException('INVALID_FILE_KEY', "Fayl manzili noto'g'ri", 400);
     }
     return abs;
