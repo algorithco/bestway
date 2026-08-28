@@ -49,13 +49,6 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
   });
 
-  // Sessiya butunlay tugagan — proxy cookie'larni tozalab yubordi
-  if (res.status === 401 && typeof window !== "undefined") {
-    const next = encodeURIComponent(window.location.pathname);
-    window.location.replace(`/login?next=${next}`);
-    throw new ApiError("SESSION_EXPIRED", "Sessiya muddati tugagan", 401);
-  }
-
   const json = (await res.json()) as ApiResponse<T>;
 
   if (!res.ok || !json.success) {
@@ -84,12 +77,6 @@ async function requestPaged<T>(
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-
-  if (res.status === 401 && typeof window !== "undefined") {
-    const next = encodeURIComponent(window.location.pathname);
-    window.location.replace(`/login?next=${next}`);
-    throw new ApiError("SESSION_EXPIRED", "Sessiya muddati tugagan", 401);
-  }
 
   const json = (await res.json()) as ApiResponse<T>;
   if (!res.ok || !json.success) {
