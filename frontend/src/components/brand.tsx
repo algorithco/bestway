@@ -1,14 +1,13 @@
+import Image from "next/image";
+
 import { cn } from "@/lib/utils";
 
 /**
- * Best Way markaz logotipi — to'liq vektor (SVG), rasm emas.
- *
- * Nega SVG: eski `logo.png` oq fonli edi va qorong'i mavzuda "oq chip" hiylasini
- * talab qilardi. Bu emblema o'z foniga ega (yashil squircle), shuning uchun istalgan
- * fonda — yorug', qorong'i yoki rangli — bir xil chiroyli ko'rinadi va cheksiz masshtablanadi.
- *
- * Elementlar: yashil squircle + oq "B" + ko'tarilayotgan quyosh + yoyilgan qanotlar
- * ("Best Way" — muvaffaqiyat sari yo'l).
+ * Best Way markaz logotipi — 2 variant:
+ * 1. `BrandMark` — yangi vektor SVG (yashil squircle, minimal)
+ * 2. `BrandImage` — eski kub + qanotlar + quyosh logotipi (foydalanuvchi so'rovi asosida)
+ *    Yangi shaffof PNG `public/logo-transparent.png` (2130×762, 3× upscale, fon olib tashlangan)
+ *    har qanday fonda (yorug'/qorong'i) mukammal ko'rinadi.
  */
 export function BrandMark({
   className,
@@ -78,20 +77,68 @@ const SIZE = {
 } as const;
 
 /**
+ * Eski kub + qanotlar logotipi — foydalanuvchi taqdim etgan rasm asosida.
+ * Shaffof PNG `public/logo.png` (2130×762) va `public/logo-transparent.png`
+ * har qanday fonda mukammal ko'rinadi (fon olib tashlangan, 3× upscale).
+ */
+export function BrandImage({
+  className,
+  priority = false,
+}: {
+  className?: string;
+  priority?: boolean;
+}) {
+  return (
+    <Image
+      src="/logo.png"
+      alt="Best Way"
+      width={2130}
+      height={762}
+      priority={priority}
+      className={cn("h-auto w-auto object-contain drop-shadow-sm", className)}
+    />
+  );
+}
+
+/**
  * Emblema + "Best Way" so'z-belgisi. `showText={false}` — faqat emblema.
+ * `variant="image"` — eski kub logotipi (shaffof PNG), `variant="mark"` — yangi SVG.
  */
 export function Brand({
   className,
   size = "md",
   showText = true,
   animated = false,
+  variant = "image",
 }: {
   className?: string;
   size?: keyof typeof SIZE;
   showText?: boolean;
   animated?: boolean;
+  variant?: "image" | "mark";
 }) {
   const s = SIZE[size];
+  if (variant === "image") {
+    return (
+      <span className={cn("inline-flex items-center gap-2.5", className)}>
+        <BrandImage
+          priority
+          className={cn(
+            size === "sm" ? "h-8" : size === "lg" ? "h-12" : "h-10",
+            "w-auto",
+          )}
+        />
+        {showText && (
+          <span className={cn("font-extrabold leading-none tracking-tight", s.text)}>
+            <span className="bg-gradient-to-br from-brand to-accent bg-clip-text text-transparent">
+              Best
+            </span>
+            <span className="text-fg">Way</span>
+          </span>
+        )}
+      </span>
+    );
+  }
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <BrandMark className={cn(s.mark, "drop-shadow-sm")} animated={animated} />
