@@ -21,7 +21,8 @@
     "seed:mock": "ts-node --transpile-only prisma/seed-mock.ts",
     "test:smoke": "node scripts/smoke-test.mjs",
     "tg:link": "node scripts/telegram-link.mjs",
-    "db:backup": "bash scripts/backup.sh"
+    "db:backup": "bash scripts/backup.sh",
+    "postinstall": "patch-package"
   },
   "prisma": {
     "seed": "ts-node --transpile-only prisma/seed.ts"
@@ -53,6 +54,8 @@
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.2",
     "@types/pdfkit": "^0.13.8",
+    "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.2"
