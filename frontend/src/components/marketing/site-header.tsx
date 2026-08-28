@@ -25,12 +25,45 @@ export function SiteHeader() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
+  const [activeIdx, setActiveIdx] = React.useState(0);
 
   React.useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Sync active pill with URL hash and visible section (scroll spy)
+  React.useEffect(() => {
+    const fromHash = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      const idx = SECTIONS.findIndex((s) => s.hash === hash);
+      if (idx >= 0) setActiveIdx(idx);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const idx = SECTIONS.findIndex((s) => s.hash === entry.target.id);
+            if (idx >= 0) setActiveIdx(idx);
+          }
+        }
+      },
+      { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
+    );
+    SECTIONS.forEach((s) => {
+      const el = document.getElementById(s.hash);
+      if (el) observer.observe(el);
+    });
+
+    return () => {
+      window.removeEventListener("hashchange", fromHash);
+      observer.disconnect();
+    };
   }, []);
 
   return (
@@ -54,7 +87,7 @@ export function SiteHeader() {
             particleCount={15}
             particleDistances={[90, 10]}
             particleR={100}
-            initialActiveIndex={0}
+            initialActiveIndex={activeIdx}
             animationTime={600}
             timeVariance={300}
             colors={[1, 2, 3, 1, 2, 3, 1, 4]}
