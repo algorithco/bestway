@@ -178,9 +178,10 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
           .effect.text {
             color: white;
             transition: color 0.3s ease;
+            display: none;
           }
           .effect.text.active {
-            color: transparent;
+            color: black;
           }
           .effect.filter {
             filter: blur(7px) contrast(100) blur(0);
