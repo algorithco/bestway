@@ -333,10 +333,12 @@
   },
   "attendance": {
     "title": "Attendance",
-    "subtitle": "Click a cell — present, absent and late states cycle through",
+    "subtitle": "Click a cell — present, absent, late, and blank/empty states cycle through",
     "present": "Present",
     "absent": "Absent",
     "late": "Late",
+    "empty": "Empty",
+    "blank": "Blank",
     "notMarked": "Not marked",
     "selectGroup": "Select a group",
     "noGroups": "No groups assigned to you",
@@ -344,7 +346,7 @@
     "rate": "Attendance rate",
     "stats": "Statistics",
     "legend": "Legend",
-    "keyboardHint": "Keyboard: ← → ↑ ↓ move · K present · N absent · S late",
+    "keyboardHint": "Keyboard: ← → ↑ ↓ move · K present · N absent · S late · B/E blank · Space/Del empty",
     "saveError": "Not saved — check your connection",
     "calendarTitle": "Attendance history"
   },

@@ -126,6 +126,8 @@ const ATT_TONE: Record<AttendanceState, string> = {
   present: "text-success",
   absent: "text-danger",
   late: "text-warning",
+  empty: "text-fg-subtle",
+  blank: "text-fg-subtle",
 };
 
 function ChildAttendance({ studentId }: { studentId: string }) {
@@ -134,9 +136,12 @@ function ChildAttendance({ studentId }: { studentId: string }) {
   const { data, isLoading } = useChildAttendance(studentId, month);
 
   const counts = React.useMemo(() => {
-    const c = { present: 0, absent: 0, late: 0 };
-    for (const r of data ?? []) c[r.state]++;
-    return c;
+    const c = { present: 0, absent: 0, late: 0, empty: 0, blank: 0 } as Record<AttendanceState, number> & { present: number; absent: number; late: number };
+    for (const r of data ?? []) {
+      if (r.state === "empty" || r.state === "blank") continue;
+      c[r.state]++;
+    }
+    return { present: c.present, absent: c.absent, late: c.late };
   }, [data]);
   const total = counts.present + counts.absent + counts.late;
   const rate = total > 0 ? Math.round(((counts.present + counts.late) / total) * 100) : null;
@@ -154,7 +159,7 @@ function ChildAttendance({ studentId }: { studentId: string }) {
           <p className="text-sm text-fg-muted">{t("notMarked")}</p>
         ) : (
           <div className="grid grid-cols-3 gap-3">
-            {(["present", "absent", "late"] as AttendanceState[]).map((state) => (
+            {(["present", "absent", "late"] as const).map((state) => (
               <div key={state} className="rounded-[8px] bg-bg-subtle px-3 py-2 text-center">
                 <p className={cn("text-xl font-bold tabular-nums", ATT_TONE[state])}>
                   {counts[state]}

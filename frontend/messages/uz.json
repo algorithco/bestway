@@ -333,10 +333,12 @@
   },
   "attendance": {
     "title": "Davomat",
-    "subtitle": "Katakka bosing — keldi, kelmadi, kech qoldi holatlari almashadi",
+    "subtitle": "Katakka bosing — keldi, kelmadi, kech qoldi, bo'sh holatlari almashadi",
     "present": "Keldi",
     "absent": "Kelmadi",
     "late": "Kech qoldi",
+    "empty": "Bo'sh",
+    "blank": "Bo'sh",
     "notMarked": "Belgilanmagan",
     "selectGroup": "Guruhni tanlang",
     "noGroups": "Sizga guruh biriktirilmagan",
@@ -344,7 +346,7 @@
     "rate": "Davomat foizi",
     "stats": "Statistika",
     "legend": "Belgilar",
-    "keyboardHint": "Klaviatura: ← → ↑ ↓ yurish · K keldi · N kelmadi · S kech qoldi",
+    "keyboardHint": "Klaviatura: ← → ↑ ↓ yurish · K keldi · N kelmadi · S kech qoldi · B/E bo'sh · Space/Del tozalash",
     "saveError": "Saqlanmadi — internet aloqasini tekshiring",
     "calendarTitle": "Davomat tarixi"
   },

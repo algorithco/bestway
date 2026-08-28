@@ -25,6 +25,8 @@ const ATT_TONE: Record<AttendanceState, string> = {
   present: "text-success",
   absent: "text-danger",
   late: "text-warning",
+  empty: "text-fg-subtle",
+  blank: "text-fg-subtle",
 };
 const PAY_TONE: Record<PaymentState, string> = {
   paid: "bg-success-bg text-success border-success-border",
@@ -84,8 +86,11 @@ export function StudentDetailView({ studentId }: { studentId: string }) {
     );
   }
 
-  const att = { present: 0, absent: 0, late: 0 };
-  for (const r of attQ.data ?? []) att[r.state]++;
+  const att = { present: 0, absent: 0, late: 0 } as Record<Exclude<AttendanceState, "empty" | "blank">, number>;
+  for (const r of attQ.data ?? []) {
+    if (r.state === "empty" || r.state === "blank") continue;
+    att[r.state as Exclude<AttendanceState, "empty" | "blank">]++;
+  }
   const attTotal = att.present + att.absent + att.late;
   const attRate = attTotal > 0 ? Math.round(((att.present + att.late) / attTotal) * 100) : null;
 
@@ -195,7 +200,7 @@ export function StudentDetailView({ studentId }: { studentId: string }) {
               <p className="text-sm text-fg-muted">{tatt("notMarked")}</p>
             ) : (
               <div className="grid grid-cols-3 gap-2">
-                {(["present", "absent", "late"] as AttendanceState[]).map((s) => (
+                {(["present", "absent", "late"] as const).map((s) => (
                   <div key={s} className="rounded-[8px] bg-bg-subtle px-2 py-2 text-center">
                     <p className={cn("text-lg font-bold tabular-nums", ATT_TONE[s])}>{att[s]}</p>
                     <p className="text-[11px] text-fg-muted">{tatt(s)}</p>

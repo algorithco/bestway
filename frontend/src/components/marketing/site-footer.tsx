@@ -15,7 +15,9 @@ export function SiteFooter() {
       <div className="mx-auto max-w-6xl px-4 pt-14 pb-8 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
-            <Brand size="lg" />
+            <Link href="/" aria-label={CENTER.name} className="inline-flex transition-transform hover:scale-[1.02]">
+              <Brand size="lg" />
+            </Link>
             <div className="mt-4 max-w-sm min-h-[1.4em]">
               <TextType
                 text="Do your best, forget the rest!"

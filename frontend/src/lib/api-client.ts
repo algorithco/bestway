@@ -52,7 +52,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   // Sessiya butunlay tugagan — proxy cookie'larni tozalab yubordi
   if (res.status === 401 && typeof window !== "undefined") {
     const next = encodeURIComponent(window.location.pathname);
-    window.location.href = `/login?next=${next}`;
+    window.location.replace(`/login?next=${next}`);
     throw new ApiError("SESSION_EXPIRED", "Sessiya muddati tugagan", 401);
   }
 
@@ -87,7 +87,7 @@ async function requestPaged<T>(
 
   if (res.status === 401 && typeof window !== "undefined") {
     const next = encodeURIComponent(window.location.pathname);
-    window.location.href = `/login?next=${next}`;
+    window.location.replace(`/login?next=${next}`);
     throw new ApiError("SESSION_EXPIRED", "Sessiya muddati tugagan", 401);
   }
 

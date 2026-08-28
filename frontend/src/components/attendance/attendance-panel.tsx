@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronLeft, ChevronRight, Clock, Users, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Clock, Minus, Users, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
@@ -30,13 +30,25 @@ const STATE_VIEW: Record<AttendanceState, { tone: CellTone; Icon: typeof Check }
   present: { tone: "success", Icon: Check },
   absent: { tone: "danger", Icon: X },
   late: { tone: "warning", Icon: Clock },
+  empty: { tone: "neutral", Icon: Minus },
+  blank: { tone: "neutral", Icon: Minus },
 };
+
+function isEmptyState(state?: string): boolean {
+  return state === "empty" || state === "blank";
+}
 
 function nextState(cur?: AttendanceState): AttendanceState {
   if (cur === "present") return "absent";
   if (cur === "absent") return "late";
-  if (cur === "late") return "present";
+  if (cur === "late") return "empty";
+  if (isEmptyState(cur)) return "present";
   return "present";
+}
+
+/** Bo'sh/empty holatiga o'tkazish — hech qanday amal bajarmaydi, shunchaki tanlovni tozalaydi */
+export function clearAttendanceState(): AttendanceState {
+  return "empty";
 }
 
 function shiftMonth(monthKey: string, delta: number): string {
@@ -204,20 +216,24 @@ export function AttendancePanel() {
                 corner={tc("student")}
                 renderCell={(studentId, date) => {
                   const cur = stateMap.get(`${studentId}|${date}`);
-                  const view = cur ? STATE_VIEW[cur] : null;
+                  const isEmpty = isEmptyState(cur);
+                  const view = cur && !isEmpty ? STATE_VIEW[cur] : isEmpty ? STATE_VIEW["empty"] : null;
+                  const titleKey = !cur ? "notMarked" : isEmpty ? "empty" : cur;
                   return (
                     <StateCell
                       tone={view?.tone ?? "neutral"}
-                      title={cur ? t(cur) : t("notMarked")}
+                      title={t(titleKey as never)}
                       onClick={() => commit(studentId, date, nextState(cur))}
                       onKeyDown={(e) => {
                         const k = e.key.toLowerCase();
                         if (k === "k") commit(studentId, date, "present");
                         else if (k === "n") commit(studentId, date, "absent");
                         else if (k === "s") commit(studentId, date, "late");
+                        else if (k === "b" || k === "e" || k === "x" || k === "0" || k === " ") commit(studentId, date, "empty");
+                        else if (k === "delete" || k === "backspace") commit(studentId, date, "empty");
                       }}
                     >
-                      {view ? <view.Icon /> : <span className="text-fg-subtle">·</span>}
+                      {view ? <view.Icon className={isEmpty ? "opacity-50" : undefined} /> : <span className="text-fg-subtle">·</span>}
                     </StateCell>
                   );
                 }}
@@ -237,6 +253,7 @@ function Legend() {
     { state: "present" },
     { state: "absent" },
     { state: "late" },
+    { state: "empty" },
   ];
   return (
     <div className="flex items-center gap-3 text-xs text-fg-muted">

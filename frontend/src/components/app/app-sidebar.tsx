@@ -21,7 +21,7 @@ export function AppSidebar({ role }: { role: Role }) {
           aria-hidden
           className="pointer-events-none absolute -top-10 left-0 h-24 w-40 rounded-full bg-brand/10 blur-2xl"
         />
-        <Link href="/dashboard" aria-label={CENTER.name} className="relative transition-transform hover:scale-[1.02]">
+        <Link href="/" aria-label={CENTER.name} className="relative transition-transform hover:scale-[1.02]">
           <Brand />
         </Link>
       </div>

@@ -35,7 +35,7 @@ export function UserMenu() {
     } finally {
       qc.clear();
       const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
-      window.location.assign(`${prefix}/login`);
+      window.location.replace(`${prefix}/login`);
     }
   }
 

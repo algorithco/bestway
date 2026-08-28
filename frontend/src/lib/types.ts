@@ -5,7 +5,7 @@
  */
 
 export type Role = "super_admin" | "admin" | "teacher" | "student" | "parent";
-export type AttendanceState = "present" | "absent" | "late";
+export type AttendanceState = "present" | "absent" | "late" | "empty" | "blank";
 export type PaymentState = "paid" | "unpaid" | "partial";
 export type PaymentMethod = "manual";
 export type TestType = "ielts" | "multilevel";
