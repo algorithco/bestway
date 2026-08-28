@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Inter } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
@@ -64,18 +63,11 @@ export default async function LocaleLayout({
 
   return (
     // suppressHydrationWarning — next-themes <html> ga class qo'shadi (server bilmaydi)
+    // React 19: inline <script> client renderda warning beradi, shuning uchun
+    // FOUC oldini olish uchun tashqi script emas, balki CSS media query + client hydration yeter.
+    // ThemeProvider mount bo'lganda to'g'ri themani o'rnatadi (kichik FOUC qabul qilinadi).
     <html lang={locale} data-scroll-behavior="smooth" className={`${inter.variable} h-full`} suppressHydrationWarning>
-      <head>
-        {/* FOUC oldini olish: sahifa ko'rinmasdan oldin tema class'ini o'rnatamiz. 
-            next/script beforeInteractive — React 19 da <script> ni komponent ichida render qilish warningini oldini oladi. */}
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var s=localStorage.getItem('theme')||'system',m=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',r=s==='system'?m:s,d=document.documentElement;d.classList.remove('light','dark');r&&d.classList.add(r);d.style.colorScheme=r}catch(e){}})();`,
-          }}
-        />
-      </head>
+      <head />
       <body className="flex min-h-full flex-col antialiased">
         <NextIntlClientProvider messages={messages}>
           <Providers>{children}</Providers>
