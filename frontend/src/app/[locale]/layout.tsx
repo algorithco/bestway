@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Inter } from "next/font/google";
 import { notFound } from "next/navigation";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
@@ -62,9 +63,10 @@ export default async function LocaleLayout({
     <html lang={locale} className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
         {/* FOUC oldini olish: sahifa ko'rinmasdan oldin tema class'ini o'rnatamiz. 
-            Bu <script> server komponentda — React 19 client ichida <script> render qilish xatosini keltirib chiqarmaydi. */}
-        <script
-          suppressHydrationWarning
+            next/script beforeInteractive — React 19 da <script> ni komponent ichida render qilish warningini oldini oladi. */}
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var s=localStorage.getItem('theme')||'system',m=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',r=s==='system'?m:s,d=document.documentElement;d.classList.remove('light','dark');r&&d.classList.add(r);d.style.colorScheme=r}catch(e){}})();`,
           }}
