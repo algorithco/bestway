@@ -93,26 +93,33 @@ export function SiteHeader() {
           : "border-b border-transparent bg-transparent",
       )}
     >
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link href="/" aria-label="Best Way" className="transition-transform hover:scale-[1.03]">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:gap-4">
+        <Link
+          href="/"
+          aria-label="Best Way"
+          className="shrink-0 transition-transform hover:scale-[1.03]"
+        >
           <Brand size="md" />
         </Link>
 
         {/* Desktop navigatsiya — GooeyNav (React Bits) */}
-        <div className="hidden lg:flex">
-          <GooeyNav
-            items={SECTIONS.map((s) => ({ label: t(s.key), href: `#${s.hash}` }))}
-            particleCount={8}
-            particleDistances={[60, 10]}
-            particleR={100}
-            initialActiveIndex={activeIdx}
-            animationTime={600}
-            timeVariance={300}
-            colors={[1, 2, 3, 1, 2, 3, 1, 4]}
-          />
+        {/* xl breakpoint keeps RU labels (Преподаватели/Преимущества) from overlapping brand/actions at 1024-1279px */}
+        <div className="hidden min-w-0 flex-1 justify-center overflow-hidden xl:flex">
+          <div className="max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <GooeyNav
+              items={SECTIONS.map((s) => ({ label: t(s.key), href: `#${s.hash}` }))}
+              particleCount={8}
+              particleDistances={[60, 10]}
+              particleR={100}
+              initialActiveIndex={activeIdx}
+              animationTime={600}
+              timeVariance={300}
+              colors={[1, 2, 3, 1, 2, 3, 1, 4]}
+            />
+          </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center gap-1.5 sm:flex">
             <LanguageSwitcher />
             <ThemeToggle />
@@ -170,7 +177,7 @@ export function SiteHeader() {
           <Button
             variant="ghost"
             size="icon-sm"
-            className="lg:hidden"
+            className="xl:hidden"
             aria-label="Menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
@@ -182,7 +189,7 @@ export function SiteHeader() {
 
       {/* Mobil ochiladigan panel */}
       {open && (
-        <div className="anim-fade border-t border-border bg-bg/95 backdrop-blur-md lg:hidden" data-state="open">
+        <div className="anim-fade border-t border-border bg-bg/95 backdrop-blur-md xl:hidden" data-state="open">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 sm:px-6">
             {SECTIONS.map((s) => (
               <Link
