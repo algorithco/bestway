@@ -20,11 +20,11 @@ export interface GooeyNavProps {
 
 const GooeyNav: React.FC<GooeyNavProps> = ({
   items,
-  animationTime = 600,
-  particleCount = 15,
-  particleDistances = [90, 10],
-  particleR = 100,
-  timeVariance = 300,
+  animationTime = 450,
+  particleCount = 10,
+  particleDistances = [45, 8],
+  particleR = 45,
+  timeVariance = 150,
   colors = [1, 2, 3, 1, 2, 3, 1, 4],
   initialActiveIndex = 0,
 }) => {
@@ -105,7 +105,9 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
     textRef.current.innerText = element.innerText;
   };
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, index: number) => {
-    const liEl = e.currentTarget;
+    // Use the <li> as reference so pill/text overlay matches the exact li dimensions
+    // (anchor vs li rect mismatch was causing duplicated / offset text)
+    const liEl = (e.currentTarget.closest("li") as HTMLElement) ?? e.currentTarget;
     if (activeIndex === index) return;
     setActiveIndex(index);
     updateEffectPosition(liEl);
@@ -176,17 +178,21 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
           .effect.text {
             color: white;
             transition: color 0.3s ease;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+            line-height: 1;
           }
           .effect.text.active {
             color: var(--bg);
           }
           .effect.filter {
-            filter: blur(7px) contrast(100) blur(0);
+            filter: blur(5px) contrast(100) blur(0);
           }
           .effect.filter::before {
             content: "";
             position: absolute;
-            inset: -75px;
+            inset: -40px;
             z-index: -2;
             background: transparent;
           }
@@ -213,16 +219,16 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
           .point {
             display: block;
             opacity: 0;
-            width: 20px;
-            height: 20px;
+            width: 14px;
+            height: 14px;
             border-radius: 9999px;
             transform-origin: center;
           }
           .particle {
             --time: 5s;
             position: absolute;
-            top: calc(50% - 8px);
-            left: calc(50% - 8px);
+            top: calc(50% - 7px);
+            left: calc(50% - 7px);
             animation: particle calc(var(--time)) ease 1 -350ms;
           }
           .point {
@@ -276,13 +282,14 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
               opacity: 0;
             }
           }
+          /* Hide duplicate pill/text in <li> — rely solely on gooey filter/text overlays for active state */
           li.active {
-            color: var(--bg);
+            color: transparent;
             text-shadow: none;
           }
           li.active::after {
-            opacity: 1;
-            transform: scale(1);
+            opacity: 0;
+            transform: scale(0);
           }
           li::after {
             content: "";
@@ -301,7 +308,7 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
         <nav className="flex relative" style={{ transform: "translate3d(0,0,0.01px)" }}>
           <ul
             ref={navRef}
-            className="flex gap-1 list-none p-0 px-1 m-0 relative z-[3]"
+            className="flex gap-0.5 list-none p-0 px-0.5 m-0 relative z-[3]"
             style={{
               color: "var(--fg-muted)",
               textShadow: "0 1px 1px hsl(205deg 30% 10% / 0.2)",
@@ -318,7 +325,7 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
                   href={item.href}
                   onClick={(e) => handleClick(e, index)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
-                  className="outline-none py-[0.6em] px-[1em] inline-block text-sm font-medium whitespace-nowrap"
+                  className="outline-none py-[0.45em] px-[0.85em] inline-block text-[13px] font-medium whitespace-nowrap leading-none"
                 >
                   {item.label}
                 </a>

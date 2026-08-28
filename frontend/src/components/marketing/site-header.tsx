@@ -80,16 +80,16 @@ export function SiteHeader() {
           <Brand size="md" />
         </Link>
 
-        {/* Desktop navigatsiya — GooeyNav (React Bits) */}
+        {/* Desktop navigatsiya — GooeyNav (React Bits) — compact for navbar */}
         <div className="hidden lg:flex">
           <GooeyNav
             items={SECTIONS.map((s) => ({ label: t(s.key), href: `#${s.hash}` }))}
-            particleCount={15}
-            particleDistances={[90, 10]}
-            particleR={100}
+            particleCount={8}
+            particleDistances={[40, 8]}
+            particleR={40}
             initialActiveIndex={activeIdx}
-            animationTime={600}
-            timeVariance={300}
+            animationTime={400}
+            timeVariance={120}
             colors={[1, 2, 3, 1, 2, 3, 1, 4]}
           />
         </div>
