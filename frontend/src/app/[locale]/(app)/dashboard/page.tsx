@@ -1,9 +1,19 @@
+import dynamic from "next/dynamic";
 import { setRequestLocale } from "next-intl/server";
 import { getSessionRole } from "@/lib/auth";
-import { AdminDashboard } from "@/components/dashboard/admin-dashboard";
-import { TeacherDashboard } from "@/components/dashboard/teacher-dashboard";
-import { StudentDashboard } from "@/components/dashboard/student-dashboard";
-import { ParentDashboard } from "@/components/dashboard/parent-dashboard";
+
+const AdminDashboard = dynamic(() => import("@/components/dashboard/admin-dashboard").then((m) => m.AdminDashboard), {
+  loading: () => <div className="h-64 animate-pulse rounded-[12px] bg-border/40" />,
+});
+const TeacherDashboard = dynamic(() => import("@/components/dashboard/teacher-dashboard").then((m) => m.TeacherDashboard), {
+  loading: () => <div className="h-64 animate-pulse rounded-[12px] bg-border/40" />,
+});
+const StudentDashboard = dynamic(() => import("@/components/dashboard/student-dashboard").then((m) => m.StudentDashboard), {
+  loading: () => <div className="h-64 animate-pulse rounded-[12px] bg-border/40" />,
+});
+const ParentDashboard = dynamic(() => import("@/components/dashboard/parent-dashboard").then((m) => m.ParentDashboard), {
+  loading: () => <div className="h-64 animate-pulse rounded-[12px] bg-border/40" />,
+});
 
 export default async function DashboardPage({ params }: { params: Promise<{ locale: string }> }) {
   const { locale } = await params;

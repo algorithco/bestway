@@ -107,6 +107,8 @@ export function VideosView() {
                     <img
                       src={v.thumbnailUrl}
                       alt={v.title}
+                      loading="lazy"
+                      decoding="async"
                       className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (

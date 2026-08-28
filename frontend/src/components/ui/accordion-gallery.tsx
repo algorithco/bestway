@@ -153,25 +153,39 @@ const AccordionGallery = ({
     ]
   );
 
+  // Fix: ResizeObserver should not recreate on every `active` change.
+  // Use a ref to always call latest applyLayout without re-subscribing.
+  const applyLayoutRef = useRef(applyLayout);
+  useEffect(() => {
+    applyLayoutRef.current = applyLayout;
+  }, [applyLayout]);
+
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
 
+    let rafId = 0;
     const measure = () => {
-      const rect = el.getBoundingClientRect();
-      const total = vertical ? rect.height : rect.width;
-      const usable = Math.max(total - gap * (count - 1), 120);
-      const size = Math.max(140, usable * Math.min(Math.max(expandRatio, 0.2), 0.9) * 1.22);
-      mediaSizeRef.current = size;
-      el.style.setProperty('--ag-media-size', `${size}px`);
-      applyLayout(!firstRunRef.current);
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const rect = el.getBoundingClientRect();
+        const total = vertical ? rect.height : rect.width;
+        const usable = Math.max(total - gap * (count - 1), 120);
+        const size = Math.max(140, usable * Math.min(Math.max(expandRatio, 0.2), 0.9) * 1.22);
+        mediaSizeRef.current = size;
+        el.style.setProperty('--ag-media-size', `${size}px`);
+        applyLayoutRef.current(!firstRunRef.current);
+      });
     };
 
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
-    return () => ro.disconnect();
-  }, [applyLayout, gap, count, expandRatio, vertical]);
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
+  }, [gap, count, expandRatio, vertical]);
 
   useEffect(() => {
     applyLayout(!firstRunRef.current);
@@ -257,6 +271,9 @@ const AccordionGallery = ({
                   src={item.image}
                   alt={item.alt || item.label || ''}
                   draggable={false}
+                  loading={i === 2 ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={i === 2 ? "high" : "low"}
                   className="block h-full w-full select-none object-cover [-webkit-user-drag:none]"
                 />
               </span>

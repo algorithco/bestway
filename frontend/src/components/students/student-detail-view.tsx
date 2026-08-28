@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, BookOpen, Check, Pencil, Sparkles, Star } from "lucide-react";
+import { ArrowLeft, Ban, BookOpen, Check, Pencil, Sparkles, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { AdjustPointsDialog } from "@/components/students/adjust-points-dialog";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { useUserDetail, useApproveStudent } from "@/hooks/use-users";
+import { useUserDetail, useApproveStudent, useDeactivateUser } from "@/hooks/use-users";
+import { useMe } from "@/hooks/use-me";
 import { usePoints } from "@/hooks/use-points";
 import { useStudentAttendance } from "@/hooks/use-attendance";
 import { useChildPayments } from "@/hooks/use-child";
@@ -43,6 +44,11 @@ export function StudentDetailView({ studentId }: { studentId: string }) {
   const pointsQ = usePoints(studentId);
   const groupsQ = useGroups();
   const approve = useApproveStudent();
+  const deactivate = useDeactivateUser();
+  const { data: me } = useMe();
+  const isSuper = me?.user.role === "super_admin";
+  const router = useRouter();
+  const tst = useTranslations("staff");
   const [adjustOpen, setAdjustOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
 
@@ -150,6 +156,28 @@ export function StudentDetailView({ studentId }: { studentId: string }) {
               {tc("confirm")}
             </Button>
           )}
+          {isSuper && user.isActive && user.id !== me?.user.id && user.role !== "super_admin" && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-danger hover:text-danger hover:bg-danger-bg"
+              loading={deactivate.isPending}
+              onClick={() => {
+                if (!confirm(tst("deactivateConfirm"))) return;
+                deactivate.mutate(studentId, {
+                  onSuccess: () => {
+                    toast.success(tst("deactivated"));
+                    router.push("/students");
+                  },
+                  onError: () => toast.error(tc("unknownError")),
+                });
+              }}
+            >
+              <Ban />
+              {tst("deactivate")}
+            </Button>
+          )}
+          {!user.isActive && <Badge variant="danger">{tst("inactive")}</Badge>}
         </div>
       </Card>
 

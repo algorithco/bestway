@@ -12,8 +12,12 @@ import "../globals.css";
 // Inter — lotin (uz/en) va kirill (ru) uchun. globals.css uni --font-inter orqali oladi.
 const inter = Inter({
   subsets: ["latin", "cyrillic"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
+  preload: true,
+  fallback: ["system-ui", "sans-serif"],
+  adjustFontFallback: true,
 });
 
 // Uch tilni build vaqtida oldindan render qilamiz (statik sahifalar uchun)
@@ -60,7 +64,7 @@ export default async function LocaleLayout({
 
   return (
     // suppressHydrationWarning — next-themes <html> ga class qo'shadi (server bilmaydi)
-    <html lang={locale} className={`${inter.variable} h-full`} suppressHydrationWarning>
+    <html lang={locale} data-scroll-behavior="smooth" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <head>
         {/* FOUC oldini olish: sahifa ko'rinmasdan oldin tema class'ini o'rnatamiz. 
             next/script beforeInteractive — React 19 da <script> ni komponent ichida render qilish warningini oldini oladi. */}

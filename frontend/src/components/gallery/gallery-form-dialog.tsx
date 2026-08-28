@@ -118,7 +118,7 @@ function GalleryFormFields({
         {isEdit && item?.image && !file && (
           <div className="overflow-hidden rounded-[10px] border border-border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.image} alt={item.alt || item.label || ""} className="max-h-48 w-full object-cover" />
+            <img src={item.image} alt={item.alt || item.label || ""} loading="lazy" decoding="async" className="max-h-48 w-full object-cover" />
           </div>
         )}
         <Field label={tGallery("image")} htmlFor="gimage">

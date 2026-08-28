@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BookOpen, Check, ChevronRight, Plus, Search, Star, Users } from "lucide-react";
+import { Ban, BookOpen, Check, ChevronRight, Plus, Search, Star, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
@@ -14,25 +14,38 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
 import { ExportButton } from "@/components/app/export-button";
 import { UserFormDialog } from "@/components/users/user-form-dialog";
-import { useStudents, useApproveStudent, useDebouncedValue } from "@/hooks/use-users";
+import { useStudents, useApproveStudent, useDeactivateUser, useDebouncedValue } from "@/hooks/use-users";
 import { useGroups } from "@/hooks/use-groups";
+import { useMe } from "@/hooks/use-me";
 import { formatPhone } from "@/lib/utils";
 
 export function StudentsView() {
   const t = useTranslations("common");
   const ts = useTranslations("student");
+  const tst = useTranslations("staff");
+  const { data: me } = useMe();
+  const isSuper = me?.user.role === "super_admin";
   const [search, setSearch] = React.useState("");
   const [createOpen, setCreateOpen] = React.useState(false);
   const debounced = useDebouncedValue(search);
   const { data, isLoading, isError, refetch } = useStudents(debounced);
   const groupsQ = useGroups();
   const approve = useApproveStudent();
+  const deactivate = useDeactivateUser();
 
   const students = data ?? [];
 
   function onApprove(id: string) {
     approve.mutate(id, {
       onSuccess: () => toast.success(ts("approved")),
+      onError: () => toast.error(t("unknownError")),
+    });
+  }
+
+  function onDeactivate(id: string) {
+    if (!confirm(tst("deactivateConfirm"))) return;
+    deactivate.mutate(id, {
+      onSuccess: () => toast.success(tst("deactivated")),
       onError: () => toast.error(t("unknownError")),
     });
   }
@@ -117,6 +130,18 @@ export function StudentsView() {
                     onClick={() => onApprove(s.id)}
                   >
                     {t("confirm")}
+                  </Button>
+                )}
+                {!s.isActive && <Badge variant="danger">{tst("inactive")}</Badge>}
+                {isSuper && s.isActive && s.id !== me?.user.id && (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={tst("deactivate")}
+                    onClick={() => onDeactivate(s.id)}
+                    className="shrink-0"
+                  >
+                    <Ban className="text-danger" />
                   </Button>
                 )}
                 <Link href={`/students/${s.id}`} aria-label={s.name}>

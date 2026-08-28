@@ -21,7 +21,8 @@ import { Reveal } from "@/components/marketing/reveal";
 import { CountUp } from "@/components/marketing/count-up";
 import { HeroShowcase } from "@/components/marketing/hero-showcase";
 import { HeroCta } from "@/components/marketing/hero-cta";
-import AccordionGallery from "@/components/ui/accordion-gallery";
+import AccordionGallery from "@/components/ui/accordion-gallery-dynamic";
+import FoldText from "@/components/ui/fold-text";
 import { getGalleryImages, getLatestArticles, getTeachersPublic } from "@/lib/public-api";
 import { CENTER } from "@/lib/config";
 import { cn, formatPhone } from "@/lib/utils";
@@ -70,12 +71,13 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   const { locale } = await params;
   setRequestLocale(locale);
 
-  const t = await getTranslations("marketing");
-  const format = await getFormatter();
-  const articles = await getLatestArticles(3);
-
-  // ── Galereya (AccordionGallery) ──
-  const galleryImages = await getGalleryImages();
+  // Parallel fetch — avoids sequential waterfall that added 600ms+ to TTFB
+  const [t, format, articles, galleryImages] = await Promise.all([
+    getTranslations("marketing"),
+    getFormatter(),
+    getLatestArticles(3),
+    getGalleryImages(),
+  ]);
   const teachersFallback = galleryImages.length === 0 ? await getTeachersPublic() : [];
   const galleryItems =
     galleryImages.length > 0
@@ -108,11 +110,23 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                 {t("heroBadge")}
               </span>
             </Reveal>
-            <Reveal delay={90}>
-              <h1 className="mt-5 text-[2rem] leading-[1.1] font-bold tracking-tight text-balance text-fg sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
-                {t("heroTitle")}
-              </h1>
-            </Reveal>
+            <h1 className="mt-5 overflow-visible pt-1 text-[2rem] leading-[1.1] font-bold tracking-tight text-balance text-fg sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
+              <FoldText
+                text={t("heroTitle")}
+                splitBy="char"
+                hinge="bottom"
+                trigger="hover"
+                duration={1.2}
+                stagger={0.045}
+                ease="expo.out"
+                perspective={800}
+                creaseShading={0.7}
+                fontSize="inherit"
+                fontWeight={800}
+                color="currentColor"
+                style={{ lineHeight: "inherit", letterSpacing: "inherit" }}
+              />
+            </h1>
             <Reveal delay={180}>
               <p className="mx-auto mt-5 max-w-xl text-base text-pretty text-fg-muted sm:text-lg lg:mx-0">
                 {t("heroSubtitle")}

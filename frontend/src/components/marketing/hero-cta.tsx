@@ -3,9 +3,19 @@
 import { ArrowRight } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { SpecularButton } from "@/components/ui/specular-button";
+import { useMe } from "@/hooks/use-me";
 
 export function HeroCta({ label }: { label: string }) {
   const router = useRouter();
+  const { data: me, isLoading } = useMe();
+  const isLoggedIn = !!me?.user;
+
+  if (isLoading) {
+    return <span className="inline-flex h-[52px] w-44 animate-pulse rounded-[14px] bg-border/40" aria-hidden />;
+  }
+
+  if (isLoggedIn) return null;
+
   return (
     <SpecularButton
       size="lg"

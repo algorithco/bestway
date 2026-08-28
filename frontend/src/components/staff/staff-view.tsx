@@ -117,7 +117,7 @@ export function StaffView() {
               >
                 <Pencil />
               </Button>
-              {isSuper && u.isActive && (
+              {isSuper && u.isActive && u.id !== me?.user.id && u.role !== "super_admin" && (
                 <Button
                   variant="ghost"
                   size="icon-sm"

@@ -10,6 +10,9 @@ import GooeyNav from "@/components/ui/gooey-nav";
 import { SpecularButton } from "@/components/ui/specular-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { Avatar } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/feedback";
+import { useMe } from "@/hooks/use-me";
 import { cn } from "@/lib/utils";
 
 const SECTIONS = [
@@ -23,13 +26,28 @@ const SECTIONS = [
 export function SiteHeader() {
   const t = useTranslations("marketing");
   const router = useRouter();
+  const { data: me, isLoading: meLoading } = useMe();
+  const isLoggedIn = !!me?.user;
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const [activeIdx, setActiveIdx] = React.useState(0);
 
   React.useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8);
-    onScroll();
+    let ticking = false;
+    let lastVal = window.scrollY > 8;
+    setScrolled(lastVal);
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const next = window.scrollY > 8;
+        if (next !== lastVal) {
+          lastVal = next;
+          setScrolled(next);
+        }
+        ticking = false;
+      });
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
@@ -99,40 +117,54 @@ export function SiteHeader() {
             <LanguageSwitcher />
             <ThemeToggle />
           </div>
-          <SpecularButton
-            size="sm"
-            radius={12}
-            tint="#ffffff"
-            tintOpacity={0}
-            textColor="var(--fg-muted)"
-            lineColor="#128139"
-            baseColor="#e5e7eb"
-            intensity={1}
-            shineSize={10}
-            shineFade={40}
-            thickness={1.2}
-            onClick={() => router.push("/login")}
-            className="hidden sm:inline-flex"
-          >
-            {t("login")}
-          </SpecularButton>
-          <SpecularButton
-            size="sm"
-            radius={12}
-            tint="#128139"
-            tintOpacity={1}
-            textColor="#ffffff"
-            lineColor="#ffffff"
-            baseColor="#0d6a2d"
-            intensity={1.2}
-            shineSize={10}
-            shineFade={40}
-            thickness={1.2}
-            onClick={() => router.push("/register")}
-            className="hidden shadow-sm sm:inline-flex"
-          >
-            {t("heroCta")}
-          </SpecularButton>
+          {meLoading ? (
+            <Skeleton className="hidden size-9 rounded-full sm:inline-flex" />
+          ) : isLoggedIn ? (
+            <Link
+              href="/dashboard"
+              aria-label={me.user.name}
+              className="hidden items-center gap-2 sm:inline-flex rounded-full p-1 transition-colors hover:bg-surface-hover"
+            >
+              <Avatar name={me.user.name} size="sm" />
+            </Link>
+          ) : (
+            <>
+              <SpecularButton
+                size="sm"
+                radius={12}
+                tint="#ffffff"
+                tintOpacity={0}
+                textColor="var(--fg-muted)"
+                lineColor="#128139"
+                baseColor="#e5e7eb"
+                intensity={1}
+                shineSize={10}
+                shineFade={40}
+                thickness={1.2}
+                onClick={() => router.push("/login")}
+                className="hidden sm:inline-flex"
+              >
+                {t("login")}
+              </SpecularButton>
+              <SpecularButton
+                size="sm"
+                radius={12}
+                tint="#128139"
+                tintOpacity={1}
+                textColor="#ffffff"
+                lineColor="#ffffff"
+                baseColor="#0d6a2d"
+                intensity={1.2}
+                shineSize={10}
+                shineFade={40}
+                thickness={1.2}
+                onClick={() => router.push("/register")}
+                className="hidden shadow-sm sm:inline-flex"
+              >
+                {t("heroCta")}
+              </SpecularButton>
+            </>
+          )}
 
           {/* Mobil menyu tugmasi */}
           <Button
@@ -169,44 +201,60 @@ export function SiteHeader() {
                 <ThemeToggle />
               </div>
               <div className="flex items-center gap-2">
-                <SpecularButton
-                  size="sm"
-                  radius={12}
-                  tint="#ffffff"
-                  tintOpacity={0}
-                  textColor="var(--fg)"
-                  lineColor="#128139"
-                  baseColor="#d1d5db"
-                  intensity={1}
-                  shineSize={10}
-                  shineFade={40}
-                  thickness={1.2}
-                  onClick={() => {
-                    setOpen(false);
-                    router.push("/login");
-                  }}
-                >
-                  {t("login")}
-                </SpecularButton>
-                <SpecularButton
-                  size="sm"
-                  radius={12}
-                  tint="#128139"
-                  tintOpacity={1}
-                  textColor="#ffffff"
-                  lineColor="#ffffff"
-                  baseColor="#0d6a2d"
-                  intensity={1.2}
-                  shineSize={10}
-                  shineFade={40}
-                  thickness={1.2}
-                  onClick={() => {
-                    setOpen(false);
-                    router.push("/register");
-                  }}
-                >
-                  {t("heroCta")}
-                </SpecularButton>
+                {meLoading ? (
+                  <Skeleton className="size-9 rounded-full" />
+                ) : isLoggedIn ? (
+                  <Link
+                    href="/dashboard"
+                    aria-label={me.user.name}
+                    onClick={() => setOpen(false)}
+                    className="inline-flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-surface-hover"
+                  >
+                    <Avatar name={me.user.name} size="sm" />
+                    <span className="pr-2 text-sm font-medium text-fg">{me.user.name}</span>
+                  </Link>
+                ) : (
+                  <>
+                    <SpecularButton
+                      size="sm"
+                      radius={12}
+                      tint="#ffffff"
+                      tintOpacity={0}
+                      textColor="var(--fg)"
+                      lineColor="#128139"
+                      baseColor="#d1d5db"
+                      intensity={1}
+                      shineSize={10}
+                      shineFade={40}
+                      thickness={1.2}
+                      onClick={() => {
+                        setOpen(false);
+                        router.push("/login");
+                      }}
+                    >
+                      {t("login")}
+                    </SpecularButton>
+                    <SpecularButton
+                      size="sm"
+                      radius={12}
+                      tint="#128139"
+                      tintOpacity={1}
+                      textColor="#ffffff"
+                      lineColor="#ffffff"
+                      baseColor="#0d6a2d"
+                      intensity={1.2}
+                      shineSize={10}
+                      shineFade={40}
+                      thickness={1.2}
+                      onClick={() => {
+                        setOpen(false);
+                        router.push("/register");
+                      }}
+                    >
+                      {t("heroCta")}
+                    </SpecularButton>
+                  </>
+                )}
               </div>
             </div>
           </nav>

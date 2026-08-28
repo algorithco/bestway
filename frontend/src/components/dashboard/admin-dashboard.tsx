@@ -13,13 +13,18 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import dynamic from "next/dynamic";
 import { ErrorState } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
-import { IncomeChart } from "@/components/dashboard/income-chart";
 import { useMe } from "@/hooks/use-me";
 import { useDashboardStats, useIncome } from "@/hooks/use-dashboard";
 import { formatMoney } from "@/lib/utils";
+
+const IncomeChart = dynamic(() => import("@/components/dashboard/income-chart").then((m) => m.IncomeChart), {
+  ssr: false,
+  loading: () => <div className="h-[260px] animate-pulse rounded-[8px] bg-border/40" />,
+});
 
 export function AdminDashboard() {
   const t = useTranslations("dashboard");

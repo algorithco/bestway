@@ -313,6 +313,8 @@ function GroupBlock({
         <img
           src={media(`/mock/groups/${group.id}/image`)}
           alt=""
+          loading="lazy"
+          decoding="async"
           className="mt-3 max-h-96 w-full rounded-[8px] border border-border object-contain"
         />
       )}
