@@ -6,10 +6,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useLocale, useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
+import { SpecularButton } from "@/components/ui/specular-button";
 import { Field, Input } from "@/components/ui/input";
 import { authApi, ApiError } from "@/lib/api-client";
 import { routing } from "@/i18n/routing";
@@ -113,9 +113,31 @@ export function LoginForm() {
         </div>
       </Field>
 
-      <Button type="submit" className="w-full" size="lg" loading={isSubmitting}>
-        {isSubmitting ? t("loggingIn") : t("loginButton")}
-      </Button>
+      <SpecularButton
+        type="submit"
+        size="lg"
+        radius={12}
+        tint="#128139"
+        tintOpacity={1}
+        textColor="#ffffff"
+        lineColor="#ffffff"
+        baseColor="#0d6a2d"
+        intensity={1.15}
+        shineSize={10}
+        shineFade={40}
+        thickness={1.5}
+        disabled={isSubmitting}
+        className="w-full"
+      >
+        {isSubmitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            {t("loggingIn")}
+          </>
+        ) : (
+          t("loginButton")
+        )}
+      </SpecularButton>
 
       <p className="text-center text-sm text-fg-muted">
         {t("noAccount")}{" "}
