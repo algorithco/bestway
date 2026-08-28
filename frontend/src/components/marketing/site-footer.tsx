@@ -4,6 +4,7 @@ import { Link } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
 import { CENTER } from "@/lib/config";
 import { formatPhone } from "@/lib/utils";
+import TextType from "@/components/ui/text-type";
 
 export function SiteFooter() {
   const t = useTranslations("marketing");
@@ -15,7 +16,19 @@ export function SiteFooter() {
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
             <Brand size="lg" />
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-fg-muted">{CENTER.tagline}</p>
+            <TextType
+              text="Do your best, forget the rest!"
+              as="p"
+              typingSpeed={40}
+              initialDelay={300}
+              pauseDuration={2500}
+              deletingSpeed={30}
+              loop={true}
+              showCursor={true}
+              cursorCharacter="▎"
+              cursorBlinkDuration={0.5}
+              className="mt-4 max-w-sm text-sm leading-relaxed text-fg-muted min-h-[1.4em]"
+            />
             <p className="mt-3 text-xs text-fg-subtle">
               {t("founderLabel")}: <span className="font-medium text-fg-muted">{CENTER.founder}</span>{" "}
               · {t("foundedLabel")} {CENTER.established}
