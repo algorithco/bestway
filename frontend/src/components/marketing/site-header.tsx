@@ -3,9 +3,10 @@
 import * as React from "react";
 import { Menu, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Link } from "@/i18n/navigation";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
+import { SpecularButton } from "@/components/ui/specular-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const SECTIONS = [
 
 export function SiteHeader() {
   const t = useTranslations("marketing");
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
 
@@ -62,12 +64,40 @@ export function SiteHeader() {
             <LanguageSwitcher />
             <ThemeToggle />
           </div>
-          <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href="/login">{t("login")}</Link>
-          </Button>
-          <Button asChild size="sm" className="hidden shadow-sm sm:inline-flex">
-            <Link href="/register">{t("heroCta")}</Link>
-          </Button>
+          <SpecularButton
+            size="sm"
+            radius={12}
+            tint="#ffffff"
+            tintOpacity={0}
+            textColor="var(--fg-muted)"
+            lineColor="#128139"
+            baseColor="#e5e7eb"
+            intensity={1}
+            shineSize={10}
+            shineFade={40}
+            thickness={1.2}
+            onClick={() => router.push("/login")}
+            className="hidden sm:inline-flex"
+          >
+            {t("login")}
+          </SpecularButton>
+          <SpecularButton
+            size="sm"
+            radius={12}
+            tint="#128139"
+            tintOpacity={1}
+            textColor="#ffffff"
+            lineColor="#ffffff"
+            baseColor="#0d6a2d"
+            intensity={1.2}
+            shineSize={10}
+            shineFade={40}
+            thickness={1.2}
+            onClick={() => router.push("/register")}
+            className="hidden shadow-sm sm:inline-flex"
+          >
+            {t("heroCta")}
+          </SpecularButton>
 
           {/* Mobil menyu tugmasi */}
           <Button
@@ -104,16 +134,44 @@ export function SiteHeader() {
                 <ThemeToggle />
               </div>
               <div className="flex items-center gap-2">
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/login" onClick={() => setOpen(false)}>
-                    {t("login")}
-                  </Link>
-                </Button>
-                <Button asChild size="sm">
-                  <Link href="/register" onClick={() => setOpen(false)}>
-                    {t("heroCta")}
-                  </Link>
-                </Button>
+                <SpecularButton
+                  size="sm"
+                  radius={12}
+                  tint="#ffffff"
+                  tintOpacity={0}
+                  textColor="var(--fg)"
+                  lineColor="#128139"
+                  baseColor="#d1d5db"
+                  intensity={1}
+                  shineSize={10}
+                  shineFade={40}
+                  thickness={1.2}
+                  onClick={() => {
+                    setOpen(false);
+                    router.push("/login");
+                  }}
+                >
+                  {t("login")}
+                </SpecularButton>
+                <SpecularButton
+                  size="sm"
+                  radius={12}
+                  tint="#128139"
+                  tintOpacity={1}
+                  textColor="#ffffff"
+                  lineColor="#ffffff"
+                  baseColor="#0d6a2d"
+                  intensity={1.2}
+                  shineSize={10}
+                  shineFade={40}
+                  thickness={1.2}
+                  onClick={() => {
+                    setOpen(false);
+                    router.push("/register");
+                  }}
+                >
+                  {t("heroCta")}
+                </SpecularButton>
               </div>
             </div>
           </nav>

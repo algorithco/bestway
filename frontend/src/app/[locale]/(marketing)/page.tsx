@@ -20,6 +20,7 @@ import { TiltCard } from "@/components/ui/tilt-card";
 import { Reveal } from "@/components/marketing/reveal";
 import { CountUp } from "@/components/marketing/count-up";
 import { HeroShowcase } from "@/components/marketing/hero-showcase";
+import { HeroCta } from "@/components/marketing/hero-cta";
 import AccordionGallery from "@/components/ui/accordion-gallery";
 import { getGalleryImages, getLatestArticles, getTeachersPublic } from "@/lib/public-api";
 import { CENTER } from "@/lib/config";
@@ -119,16 +120,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Reveal>
             <Reveal delay={270}>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
-                <Link
-                  href="/register"
-                  className={cn(
-                    buttonVariants({ size: "lg" }),
-                    "shadow-lg shadow-brand/20 transition-all duration-200 hover:scale-[1.03] hover:shadow-xl hover:shadow-brand/30 active:scale-95",
-                  )}
-                >
-                  {t("heroCta")}
-                  <ArrowRight className="transition-transform group-hover:translate-x-1" />
-                </Link>
+                <HeroCta label={t("heroCta")} />
                 <a
                   href="#courses"
                   className={cn(
