@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
+import GooeyNav from "@/components/ui/gooey-nav";
 import { SpecularButton } from "@/components/ui/specular-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -46,18 +47,19 @@ export function SiteHeader() {
           <Brand size="md" />
         </Link>
 
-        {/* Desktop navigatsiya */}
-        <nav className="hidden items-center gap-0.5 lg:flex">
-          {SECTIONS.map((s) => (
-            <Link
-              key={s.hash}
-              href={`/#${s.hash}`}
-              className="rounded-full px-3.5 py-2 text-sm font-medium whitespace-nowrap text-fg-muted transition-colors hover:bg-brand-subtle hover:text-brand-subtle-fg"
-            >
-              {t(s.key)}
-            </Link>
-          ))}
-        </nav>
+        {/* Desktop navigatsiya — GooeyNav (React Bits) */}
+        <div className="hidden lg:flex">
+          <GooeyNav
+            items={SECTIONS.map((s) => ({ label: t(s.key), href: `#${s.hash}` }))}
+            particleCount={15}
+            particleDistances={[90, 10]}
+            particleR={100}
+            initialActiveIndex={0}
+            animationTime={600}
+            timeVariance={300}
+            colors={[1, 2, 3, 1, 2, 3, 1, 4]}
+          />
+        </div>
 
         <div className="flex items-center gap-1.5">
           <div className="hidden items-center gap-1.5 sm:flex">
