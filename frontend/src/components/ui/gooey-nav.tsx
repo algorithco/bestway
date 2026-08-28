@@ -197,7 +197,7 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
             content: "";
             position: absolute;
             inset: 0;
-            background: var(--fg);
+            background: white;
             transform: scale(0);
             opacity: 0;
             z-index: -1;
@@ -279,8 +279,9 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
               opacity: 0;
             }
           }
-          li.active {
-            color: var(--bg);
+          li.active,
+          li.active a {
+            color: black !important;
             text-shadow: none;
           }
           li.active::after {
@@ -292,7 +293,7 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
             position: absolute;
             inset: 0;
             border-radius: 9999px;
-            background: var(--fg);
+            background: white;
             opacity: 0;
             transform: scale(0);
             transition: all 0.3s ease;
