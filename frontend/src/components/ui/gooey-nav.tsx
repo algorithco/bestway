@@ -178,10 +178,13 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
           .effect.text {
             color: white;
             transition: color 0.3s ease;
-            display: none;
+            display: grid;
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
           }
           .effect.text.active {
-            color: black;
+            color: var(--bg);
           }
           .effect.filter {
             filter: blur(7px) contrast(100) blur(0);
@@ -281,7 +284,7 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
           }
           li.active,
           li.active a {
-            color: var(--bg) !important;
+            color: transparent !important;
             text-shadow: none;
           }
           li.active::after {
