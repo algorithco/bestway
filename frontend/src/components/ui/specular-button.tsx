@@ -136,6 +136,7 @@ export function SpecularButton({
   const fxRef = useRef<HTMLSpanElement>(null);
   const propsRef = useRef<ShaderProps>({} as ShaderProps);
 
+  // eslint-disable-next-line react-hooks/refs -- sync props to shader without re-render
   propsRef.current = {
     radius,
     lineColor,
