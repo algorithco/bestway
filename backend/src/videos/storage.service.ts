@@ -75,7 +75,14 @@ export function videoMulterOptions() {
         cb: (error: Error | null, filename: string) => void,
       ) => cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
     }),
-    limits: { fileSize: parseInt(process.env.MAX_UPLOAD_MB ?? '500', 10) * 1024 * 1024 },
+    limits: {
+      fileSize: parseInt(process.env.MAX_UPLOAD_MB ?? '500', 10) * 1024 * 1024,
+      // GHSA-72gw-mp4g-v24j: deeply nested field names DoS — 2.2.0 requires explicit depth
+      fieldNestingDepth: 5,
+      fields: 20,
+      files: 2,
+      fieldSize: 1024 * 1024, // 1 MB per non-file field
+    },
     fileFilter: (
       _req: unknown,
       file: Express.Multer.File,

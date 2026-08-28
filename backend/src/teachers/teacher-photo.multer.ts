@@ -27,7 +27,13 @@ export function teacherPhotoMulterOptions() {
         cb: (error: Error | null, filename: string) => void,
       ) => cb(null, `${randomUUID()}${path.extname(file.originalname).toLowerCase()}`),
     }),
-    limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+    limits: {
+      fileSize: 10 * 1024 * 1024, // 10 MB
+      fieldNestingDepth: 3,
+      fields: 20,
+      files: 1,
+      fieldSize: 1024 * 1024,
+    },
     fileFilter: (
       _req: unknown,
       file: Express.Multer.File,

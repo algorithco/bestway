@@ -78,7 +78,13 @@ function mockDiskStorage() {
 export function mockMediaMulterOptions() {
   return {
     storage: mockDiskStorage(),
-    limits: { fileSize: parseInt(process.env.MAX_UPLOAD_MB ?? '500', 10) * 1024 * 1024 },
+    limits: {
+      fileSize: parseInt(process.env.MAX_UPLOAD_MB ?? '500', 10) * 1024 * 1024,
+      fieldNestingDepth: 5,
+      fields: 20,
+      files: 2,
+      fieldSize: 1024 * 1024,
+    },
     fileFilter: (
       _req: unknown,
       file: Express.Multer.File,
@@ -101,7 +107,13 @@ const SPEAKING_AUDIO_MAX_MB = 25;
 export function speakingAudioMulterOptions() {
   return {
     storage: mockDiskStorage(),
-    limits: { fileSize: SPEAKING_AUDIO_MAX_MB * 1024 * 1024 },
+    limits: {
+      fileSize: SPEAKING_AUDIO_MAX_MB * 1024 * 1024,
+      fieldNestingDepth: 3,
+      fields: 20,
+      files: 1,
+      fieldSize: 1024 * 1024,
+    },
     fileFilter: (
       _req: unknown,
       file: Express.Multer.File,
