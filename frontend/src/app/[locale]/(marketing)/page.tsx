@@ -147,15 +147,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <Reveal delay={270}>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
                 <HeroCta label={t("heroCta")} />
-                <a
-                  href="#courses"
+                <Link
+                  href="/demo"
                   className={cn(
                     buttonVariants({ size: "lg", variant: "outline" }),
                     "transition-all duration-200 hover:scale-[1.03] active:scale-95",
                   )}
                 >
                   {t("heroSecondary")}
-                </a>
+                </Link>
               </div>
             </Reveal>
 

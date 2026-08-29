@@ -7,12 +7,16 @@ import type { Role } from "@/lib/types";
 // Next.js 16: "middleware" -> "proxy" (funksionallik o'zgarmagan)
 const intlProxy = createIntlMiddleware(routing);
 
-/**
+/** Mehmonlar uchun ochiq sahifalar — auth yo'q bo'lsa ham kirish mumkin */
+const PUBLIC_PREFIXES = ["/demo"];
+
+ /**
  * Login talab qiladigan bo'limlar.
  *
  * Diqqat: bu faqat foydalanuvchini keraksiz sahifadan qaytarish uchun (UX).
  * Haqiqiy himoya backendda — har bir endpoint JWT imzosini va rolni tekshiradi.
  * Cookie'ni qo'lda o'zgartirgan odam bu yerdan o'tsa ham, backend uni to'xtatadi.
+ * /demo ataylab yo'q — mehmonlar demo testni ko'ra olishi kerak.
  */
 const PROTECTED_PREFIXES = [
   "/dashboard",
@@ -97,6 +101,10 @@ function decodeRole(token: string | undefined): Role | undefined {
 
 export default function proxy(req: NextRequest) {
   const { locale, path } = splitLocale(req.nextUrl.pathname);
+  // /demo va boshqa ochiq sahifalar — darhol intl middleware'ga o'tkazamiz
+  if (matches(path, PUBLIC_PREFIXES)) {
+    return intlProxy(req);
+  }
   const accessToken = req.cookies.get(COOKIE.access)?.value;
   const roleFromJwt = decodeRole(accessToken);
   const role = (roleFromJwt ?? req.cookies.get(COOKIE.role)?.value) as Role | undefined;

@@ -1,5 +1,5 @@
 import { API_URL } from "./config";
-import type { ApiResponse, Article } from "./types";
+import type { ApiResponse, Article, TestDetail, TestListItem } from "./types";
 
 /**
  * Ochiq (auth talab qilmaydigan) backend so'rovlari — rasmiy sayt uchun.
@@ -32,6 +32,7 @@ async function publicGet<T>(
 export const ARTICLES_TAG = "articles";
 export const GALLERY_TAG = "gallery";
 export const TEACHERS_TAG = "teachers";
+export const TESTS_TAG = "tests";
 
 /** So'nggi yangiliklar (rasmiy sayt bosh sahifasi uchun) */
 export async function getLatestArticles(limit = 3): Promise<Article[]> {
@@ -64,4 +65,20 @@ export async function getTeachersPublic(): Promise<
     { id: string; name: string; specialty: string; achievement?: string | null; photoUrl: string | null; socialUrl?: string | null }[]
   >("/teachers", { tags: [TEACHERS_TAG] });
   return data ?? [];
+}
+
+/** Demo testlar (mehmonlar uchun — faqat isDemo=true) */
+export async function getDemoTests(): Promise<TestListItem[]> {
+  const data = await publicGet<TestListItem[]>("/tests", { revalidate: 60, tags: [TESTS_TAG] });
+  if (!data) return [];
+  // Backend mehmonlarga allaqachon faqat demo qaytaradi, lekin xavfsizlik uchun client-side filtr
+  return data.filter((t) => t.isDemo);
+}
+
+/** Bitta demo test (OptionalAuth bo'lsa mehmon ham ko'radi; 401 bo'lsa null) */
+export async function getDemoTest(id: string): Promise<TestDetail | null> {
+  return publicGet<TestDetail>(`/tests/${encodeURIComponent(id)}`, {
+    revalidate: 60,
+    tags: [TESTS_TAG],
+  });
 }
