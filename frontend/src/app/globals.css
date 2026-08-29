@@ -163,6 +163,7 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
+    overflow-x: clip;
   }
   /* View Transitions compatible smooth scroll — sets via data attribute to avoid disabling Next.js View Transitions */
   html[data-scroll-behavior="smooth"] {
@@ -180,6 +181,8 @@
     background-color: var(--bg);
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+    overflow-wrap: break-word;
   }
 
   /* Raqamlar ustunda tik turishi uchun (jadval, summa, ball) */
@@ -389,6 +392,10 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--border-strong) transparent;
+  }
+
+  .overscroll-x-contain {
+    overscroll-behavior-x: contain;
   }
 }
 
