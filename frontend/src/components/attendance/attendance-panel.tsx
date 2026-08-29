@@ -121,12 +121,44 @@ export function AttendancePanel() {
     return map;
   }, [attendanceQ.data]);
 
-  function commit(studentId: string, date: string, state: AttendanceState) {
-    save.mutate(
-      { studentId, date, state },
-      { onError: () => toast.error(t("saveError")) },
-    );
-  }
+  const commit = React.useCallback(
+    (studentId: string, date: string, state: AttendanceState) => {
+      save.mutate({ studentId, date, state }, { onError: () => toast.error(t("saveError")) });
+    },
+    [save, t],
+  );
+
+  const rows = React.useMemo(
+    () => students.map((s) => ({ id: s.studentId, header: <span className="truncate">{s.name}</span> })),
+    [students],
+  );
+
+  const renderCell = React.useCallback(
+    (studentId: string, date: string) => {
+      const cur = stateMap.get(`${studentId}|${date}`);
+      const isEmpty = isEmptyState(cur);
+      const view = cur && !isEmpty ? STATE_VIEW[cur] : isEmpty ? STATE_VIEW["empty"] : null;
+      const titleKey = !cur ? "notMarked" : isEmpty ? "empty" : cur;
+      return (
+        <StateCell
+          tone={view?.tone ?? "neutral"}
+          title={t(titleKey as never)}
+          onClick={() => commit(studentId, date, nextState(cur))}
+          onKeyDown={(e) => {
+            const k = e.key.toLowerCase();
+            if (k === "k") commit(studentId, date, "present");
+            else if (k === "n") commit(studentId, date, "absent");
+            else if (k === "s") commit(studentId, date, "late");
+            else if (k === "b" || k === "e" || k === "x" || k === "0" || k === " ") commit(studentId, date, "empty");
+            else if (k === "delete" || k === "backspace") commit(studentId, date, "empty");
+          }}
+        >
+          {view ? <view.Icon className={isEmpty ? "opacity-50" : undefined} /> : <span className="text-fg-subtle">·</span>}
+        </StateCell>
+      );
+    },
+    [stateMap, commit, t],
+  );
 
   const monthLabel = `${tMonths(String(Number(month.split("-")[1])))} ${month.split("-")[0]}`;
 
@@ -207,37 +239,7 @@ export function AttendancePanel() {
             <EmptyState icon={Clock} title={tc("empty")} />
           ) : (
             <>
-              <DataGrid
-                columns={columns}
-                rows={students.map((s) => ({
-                  id: s.studentId,
-                  header: <span className="truncate">{s.name}</span>,
-                }))}
-                corner={tc("student")}
-                renderCell={(studentId, date) => {
-                  const cur = stateMap.get(`${studentId}|${date}`);
-                  const isEmpty = isEmptyState(cur);
-                  const view = cur && !isEmpty ? STATE_VIEW[cur] : isEmpty ? STATE_VIEW["empty"] : null;
-                  const titleKey = !cur ? "notMarked" : isEmpty ? "empty" : cur;
-                  return (
-                    <StateCell
-                      tone={view?.tone ?? "neutral"}
-                      title={t(titleKey as never)}
-                      onClick={() => commit(studentId, date, nextState(cur))}
-                      onKeyDown={(e) => {
-                        const k = e.key.toLowerCase();
-                        if (k === "k") commit(studentId, date, "present");
-                        else if (k === "n") commit(studentId, date, "absent");
-                        else if (k === "s") commit(studentId, date, "late");
-                        else if (k === "b" || k === "e" || k === "x" || k === "0" || k === " ") commit(studentId, date, "empty");
-                        else if (k === "delete" || k === "backspace") commit(studentId, date, "empty");
-                      }}
-                    >
-                      {view ? <view.Icon className={isEmpty ? "opacity-50" : undefined} /> : <span className="text-fg-subtle">·</span>}
-                    </StateCell>
-                  );
-                }}
-              />
+              <DataGrid columns={columns} rows={rows} corner={tc("student")} renderCell={renderCell} />
               <p className="mt-3 text-xs text-fg-subtle">{t("keyboardHint")}</p>
             </>
           )}

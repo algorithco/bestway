@@ -34,7 +34,7 @@ interface DataGridProps {
  * ko'p ustun bo'lsa gorizontal aylanadi, strelkalar bilan kataklar orasida yuriladi.
  * Katak ichidagi tugma `data-grid-cell` bilan belgilansa, klaviatura navigatsiyasi ishlaydi.
  */
-export function DataGrid({
+export const DataGrid = React.memo(function DataGrid({
   columns,
   rows,
   renderCell,
@@ -44,33 +44,39 @@ export function DataGrid({
 }: DataGridProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  function focusCell(r: number, c: number) {
-    const root = scrollRef.current;
-    if (!root) return;
-    const td = root.querySelector<HTMLElement>(`td[data-r="${r}"][data-c="${c}"]`);
-    const target = td?.querySelector<HTMLElement>("[data-grid-cell]") ?? td;
-    target?.focus();
-  }
+  const focusCell = React.useCallback(
+    (r: number, c: number) => {
+      const root = scrollRef.current;
+      if (!root) return;
+      const td = root.querySelector<HTMLElement>(`td[data-r="${r}"][data-c="${c}"]`);
+      const target = td?.querySelector<HTMLElement>("[data-grid-cell]") ?? td;
+      target?.focus();
+    },
+    [],
+  );
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
-    if (!keys.includes(e.key)) return;
-    const active = document.activeElement as HTMLElement | null;
-    const td = active?.closest<HTMLElement>("td[data-r]");
-    if (!td) return;
-    const r = Number(td.dataset.r);
-    const c = Number(td.dataset.c);
-    let nr = r;
-    let nc = c;
-    if (e.key === "ArrowUp") nr = Math.max(0, r - 1);
-    else if (e.key === "ArrowDown") nr = Math.min(rows.length - 1, r + 1);
-    else if (e.key === "ArrowLeft") nc = Math.max(0, c - 1);
-    else if (e.key === "ArrowRight") nc = Math.min(columns.length - 1, c + 1);
-    if (nr !== r || nc !== c) {
-      e.preventDefault();
-      focusCell(nr, nc);
-    }
-  }
+  const onKeyDown = React.useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      const keys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
+      if (!keys.includes(e.key)) return;
+      const active = document.activeElement as HTMLElement | null;
+      const td = active?.closest<HTMLElement>("td[data-r]");
+      if (!td) return;
+      const r = Number(td.dataset.r);
+      const c = Number(td.dataset.c);
+      let nr = r;
+      let nc = c;
+      if (e.key === "ArrowUp") nr = Math.max(0, r - 1);
+      else if (e.key === "ArrowDown") nr = Math.min(rows.length - 1, r + 1);
+      else if (e.key === "ArrowLeft") nc = Math.max(0, c - 1);
+      else if (e.key === "ArrowRight") nc = Math.min(columns.length - 1, c + 1);
+      if (nr !== r || nc !== c) {
+        e.preventDefault();
+        focusCell(nr, nc);
+      }
+    },
+    [rows.length, columns.length, focusCell],
+  );
 
   return (
     <div
@@ -136,4 +142,4 @@ export function DataGrid({
       </table>
     </div>
   );
-}
+});

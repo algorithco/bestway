@@ -75,8 +75,15 @@ export function PaymentsPanel() {
   const monthlyFee = settingsQ.data?.monthlyFee ?? 0;
 
   const students = detailQ.data?.students ?? [];
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
+  const currentMonth = React.useMemo(() => new Date().getMonth() + 1, []);
+  const currentYear = React.useMemo(() => new Date().getFullYear(), []);
+
+  const studentsById = React.useMemo(() => new Map(students.map((s) => [s.studentId, s])), [students]);
+
+  const rows = React.useMemo(
+    () => students.map((s) => ({ id: s.studentId, header: <span className="truncate">{s.name}</span> })),
+    [students],
+  );
 
   // "studentId|month" -> PaymentRow
   const rowMap = React.useMemo(() => {
@@ -99,18 +106,57 @@ export function PaymentsPanel() {
     [year, currentYear, currentMonth, tMonthsShort],
   );
 
-  function commit(change: PaymentCellChange) {
-    save.mutate(change, { onError: () => toast.error(tc("unknownError")) });
-  }
+  const commit = React.useCallback(
+    (change: PaymentCellChange) => {
+      save.mutate(change, { onError: () => toast.error(tc("unknownError")) });
+    },
+    [save, tc],
+  );
 
-  function cycle(studentId: string, studentName: string, month: number) {
-    const cur = rowMap.get(`${studentId}|${month}`);
-    const state = nextState(cur?.state);
-    let amount = cur?.amount ?? 0;
-    if (state === "paid") amount = amount > 0 ? amount : monthlyFee;
-    else if (state === "unpaid") amount = 0;
-    commit({ studentId, studentName, month, state, amount, note: cur?.note ?? undefined });
-  }
+  const cycle = React.useCallback(
+    (studentId: string, studentName: string, month: number) => {
+      const cur = rowMap.get(`${studentId}|${month}`);
+      const state = nextState(cur?.state);
+      let amount = cur?.amount ?? 0;
+      if (state === "paid") amount = amount > 0 ? amount : monthlyFee;
+      else if (state === "unpaid") amount = 0;
+      commit({ studentId, studentName, month, state, amount, note: cur?.note ?? undefined });
+    },
+    [rowMap, monthlyFee, commit],
+  );
+
+  const renderCell = React.useCallback(
+    (studentId: string, monthStr: string) => {
+      const month = Number(monthStr);
+      const student = studentsById.get(studentId);
+      const row = rowMap.get(`${studentId}|${month}`);
+      const tone: CellTone = row ? TONE[row.state] : "neutral";
+      const title = row
+        ? `${t(row.state)}${row.amount ? ` · ${formatMoney(row.amount)} ${tc("sum")}` : ""}${row.note ? ` · ${row.note}` : ""}`
+        : t("notMarked");
+      return (
+        <StateCell
+          tone={tone}
+          title={title}
+          onClick={() => cycle(studentId, student?.name ?? "", month)}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            setTarget({
+              studentId,
+              studentName: student?.name ?? "",
+              month,
+              state: row?.state,
+              amount: row?.amount ?? 0,
+              note: row?.note ?? null,
+            });
+          }}
+        >
+          <CellContent row={row} />
+        </StateCell>
+      );
+    },
+    [studentsById, rowMap, t, tc, cycle],
+  );
 
   return (
     <div className="mx-auto max-w-full">
@@ -182,43 +228,7 @@ export function PaymentsPanel() {
             <EmptyState icon={Users} title={tc("empty")} />
           ) : (
             <>
-              <DataGrid
-                columns={columns}
-                corner={tc("student")}
-                rows={students.map((s) => ({
-                  id: s.studentId,
-                  header: <span className="truncate">{s.name}</span>,
-                }))}
-                renderCell={(studentId, monthStr) => {
-                  const month = Number(monthStr);
-                  const student = students.find((s) => s.studentId === studentId);
-                  const row = rowMap.get(`${studentId}|${month}`);
-                  const tone: CellTone = row ? TONE[row.state] : "neutral";
-                  const title = row
-                    ? `${t(row.state)}${row.amount ? ` · ${formatMoney(row.amount)} ${tc("sum")}` : ""}${row.note ? ` · ${row.note}` : ""}`
-                    : t("notMarked");
-                  return (
-                    <StateCell
-                      tone={tone}
-                      title={title}
-                      onClick={() => cycle(studentId, student?.name ?? "", month)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setTarget({
-                          studentId,
-                          studentName: student?.name ?? "",
-                          month,
-                          state: row?.state,
-                          amount: row?.amount ?? 0,
-                          note: row?.note ?? null,
-                        });
-                      }}
-                    >
-                      <CellContent row={row} />
-                    </StateCell>
-                  );
-                }}
-              />
+              <DataGrid columns={columns} corner={tc("student")} rows={rows} renderCell={renderCell} />
               <p className="mt-3 text-xs text-fg-subtle">{t("subtitle")}</p>
             </>
           )}
