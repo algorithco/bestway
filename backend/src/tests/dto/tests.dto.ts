@@ -17,10 +17,17 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination';
 
-export class QueryTestsDto {
+export class QueryTestsDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(TestType)
   type?: TestType;
+}
+
+export class DemoSubmitDto {
+  /** Guest javoblari: questionId -> answer . Writing bo'sh bo'lishi mumkin. */
+  @IsOptional()
+  @IsObject()
+  answers?: Record<string, string>;
 }
 
 export class CreateTestDto {
@@ -116,6 +123,24 @@ export class CreateQuestionDto {
   @Min(1)
   @Max(100)
   maxScore?: number;
+
+  /** Reading/Survey uzun matn */
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  passageText?: string;
+
+  /** Guruh ko'rsatmasi (masalan "Listen and choose...") */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  instructions?: string;
+
+  /** Audio URL/storage key — odatda POST :questionId/audio orqali yuklanadi */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  audioUrl?: string;
 }
 
 export class UpdateQuestionDto {
@@ -147,6 +172,21 @@ export class UpdateQuestionDto {
   @Min(1)
   @Max(100)
   maxScore?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(10000)
+  passageText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  instructions?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  audioUrl?: string;
 }
 
 export class SubmitAnswerDto {

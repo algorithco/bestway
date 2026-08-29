@@ -94,8 +94,8 @@ model User {
   updatedAt      DateTime @updatedAt
 
   studentProfile StudentProfile?
-  parentLinks    ParentStudent[] @relation("ParentLinks")
-  teachingGroups Group[]         @relation("GroupTeacher")
+  parentLinks    ParentStudent[]     @relation("ParentLinks")
+  teachingGroups Group[]             @relation("GroupTeacher")
   refreshTokens  RefreshToken[]
   notifications  Notification[]
   articles       Article[]
@@ -289,6 +289,12 @@ model Question {
   options       Json? // string[] — multiple_choice uchun
   correctAnswer String? // avtomatik baholanadiganlar uchun; variantlar "|" bilan ajratiladi
   maxScore      Int          @default(1)
+  // Comfortable testing: audio/passage/instructions (Survey about shopping kabi)
+  // Migration: npx prisma migrate dev --name add_question_media_fields
+  // Agar DB allaqachon mavjud bo'lsa, quyidagi maydonlar nullable — migrate xavfsiz.
+  audioUrl      String? // storage kaliti, masalan "tests/<uuid>.mp3" — streaming via GET /tests/questions/:id/audio
+  passageText   String? // Reading/Listening uzun matn (masalan Survey matni)
+  instructions  String? // "Listen and answer..." kabi guruh ko'rsatmasi
   createdAt     DateTime     @default(now())
 
   test    Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
@@ -539,19 +545,19 @@ enum MockAttemptMode {
 
 /// Bitta mock imtihon (IELTS Academic/General yoki Multilevel).
 model MockExam {
-  id          String       @id @default(uuid())
-  type        MockExamType
-  title       String
-  description String?
-  level       String? // masalan "Academic", "B1-C1"
-  isPublished Boolean      @default(false)
-  isDemo      Boolean      @default(false) // mehmonlar/ota-ona ko'radigan demo
+  id                String       @id @default(uuid())
+  type              MockExamType
+  title             String
+  description       String?
+  level             String? // masalan "Academic", "B1-C1"
+  isPublished       Boolean      @default(false)
+  isDemo            Boolean      @default(false) // mehmonlar/ota-ona ko'radigan demo
   // --- Pullik kirish (video modeli kabi; oddiy userlar sotib olib ishlatadi) ---
-  price             Int      @default(0) // so'mda; 0 = bepul
-  isFreeForApproved Boolean  @default(true) // tasdiqlangan markaz o'quvchisiga bepulmi
+  price             Int          @default(0) // so'mda; 0 = bepul
+  isFreeForApproved Boolean      @default(true) // tasdiqlangan markaz o'quvchisiga bepulmi
   createdById       String? // yaratgan admin/teacher (User.id)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   sections  MockSection[]
   attempts  MockAttempt[]
