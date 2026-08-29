@@ -15,16 +15,24 @@ import {
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { buttonVariants } from "@/components/ui/button-variants";
+import dynamic from "next/dynamic";
 import { Card } from "@/components/ui/card";
 import { TiltCard } from "@/components/ui/tilt-card";
-import PixelCard from "@/components/ui/pixel-card";
 import { Reveal } from "@/components/marketing/reveal";
 import { CountUp } from "@/components/marketing/count-up";
 import { HeroShowcase } from "@/components/marketing/hero-showcase";
 import { HeroCta } from "@/components/marketing/hero-cta";
 import AccordionGallery from "@/components/ui/accordion-gallery-dynamic";
-import FoldText from "@/components/ui/fold-text";
 import { getGalleryImages, getLatestArticles, getTeachersPublic } from "@/lib/public-api";
+
+const PixelCard = dynamic(() => import("@/components/ui/pixel-card"), {
+  ssr: false,
+  loading: () => <div className="h-[248px] w-full animate-pulse rounded-[12px] border border-border bg-bg-subtle" />,
+});
+const FoldText = dynamic(() => import("@/components/ui/fold-text"), {
+  ssr: false,
+  loading: () => <span className="inline-block h-[1em] w-full animate-pulse bg-bg-subtle" />,
+});
 import { CENTER } from "@/lib/config";
 import { cn, formatPhone } from "@/lib/utils";
 
@@ -74,9 +82,9 @@ const COURSE_PIXEL: Record<
   (typeof COURSES)[number]["key"],
   { variant: "default" | "blue" | "yellow" | "pink"; gap: number; speed: number; colors: string; active: string }
 > = {
-  ielts: { variant: "blue", gap: 8, speed: 32, colors: "#dcfce7,#86efac,#128139", active: "#128139" },
-  multilevel: { variant: "yellow", gap: 6, speed: 28, colors: "#eaf6d8,#b5e48c,#74bd3a", active: "#74bd3a" },
-  general: { variant: "pink", gap: 6, speed: 55, colors: "#ffedd5,#fed7aa,#f2901c", active: "#f2901c" },
+  ielts: { variant: "blue", gap: 12, speed: 32, colors: "#dcfce7,#86efac,#128139", active: "#128139" },
+  multilevel: { variant: "yellow", gap: 10, speed: 28, colors: "#eaf6d8,#b5e48c,#74bd3a", active: "#74bd3a" },
+  general: { variant: "pink", gap: 10, speed: 55, colors: "#ffedd5,#fed7aa,#f2901c", active: "#f2901c" },
 };
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
