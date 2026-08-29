@@ -134,3 +134,34 @@ export function useDeleteQuestion(testId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["test", testId] }),
   });
 }
+
+export function useUpdateQuestion(testId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { questionId: string; input: Partial<CreateQuestionInput> }) =>
+      api.patch(`/tests/questions/${v.questionId}`, v.input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["test", testId] }),
+  });
+}
+
+export function useUploadQuestionAudio(testId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { questionId: string; file: File }) => {
+      const fd = new FormData();
+      fd.append("audio", v.file);
+      // api client handles FormData without JSON header
+      const res = await fetch(`/api/backend/tests/questions/${v.questionId}/audio`, {
+        method: "POST",
+        body: fd,
+      });
+      const json = await res.json() as import("@/lib/types").ApiResponse<{ audioUrl: string; audioEndpoint: string; hasAudio: boolean }>;
+      if (!res.ok || !json.success) {
+        const msg = "error" in json ? json.error.message : "Audio upload failed";
+        throw new Error(msg);
+      }
+      return json.data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["test", testId] }),
+  });
+}

@@ -433,6 +433,11 @@ export interface TestQuestionFull {
   correctAnswer: string | null;
   maxScore: number;
   createdAt: string;
+  /** Comfortable testing: passage / instructions / audio (nullable — legacy rows lack them) */
+  passageText?: string | null;
+  instructions?: string | null;
+  audioUrl?: string | null;
+  hasAudio?: boolean;
 }
 
 export interface TestDetail {
@@ -520,6 +525,9 @@ export interface CreateQuestionInput {
   options?: string[];
   correctAnswer?: string;
   maxScore?: number;
+  passageText?: string;
+  instructions?: string;
+  audioUrl?: string;
 }
 
 /* ── Videos ──────────────────────────────────────────────────────────────── */
