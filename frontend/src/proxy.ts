@@ -86,7 +86,6 @@ function decodeRole(token: string | undefined): Role | undefined {
     if (typeof atob === "function") {
       jsonStr = atob(padded);
     } else {
-      // @ts-expect-error Buffer may not be typed in edge
       jsonStr = Buffer.from(padded, "base64").toString("utf-8");
     }
     const data = JSON.parse(jsonStr) as { role?: Role };

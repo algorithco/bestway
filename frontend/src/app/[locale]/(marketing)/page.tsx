@@ -180,11 +180,11 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
 
         {/* Ko'chib yuruvchi kalit so'zlar */}
-        <div className="relative flex overflow-hidden border-y border-border bg-surface/50 py-3">
+        <div className="relative flex overflow-hidden border-y border-border bg-surface/50 py-3" aria-hidden="true">
           <div className="marquee-track flex shrink-0 items-center gap-3 pr-3">
             {[...MARQUEE, ...MARQUEE].map((m, i) => (
               <span
-                key={i}
+                key={`${m}-${i}`}
                 className="flex items-center gap-3 text-sm font-semibold whitespace-nowrap text-fg-muted"
               >
                 {m}

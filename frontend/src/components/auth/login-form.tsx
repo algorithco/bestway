@@ -105,7 +105,8 @@ export function LoginForm() {
             type="button"
             onClick={() => setShowPass((v) => !v)}
             className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-fg-subtle hover:text-fg"
-            aria-label={showPass ? tc("close") : tc("edit")}
+            aria-label={showPass ? "Hide password" : "Show password"}
+            title={showPass ? "Hide password" : "Show password"}
             tabIndex={-1}
           >
             {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}

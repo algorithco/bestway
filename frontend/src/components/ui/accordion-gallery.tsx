@@ -233,7 +233,7 @@ const AccordionGallery = ({
         const Tag = (item.link ? 'a' : 'div') as 'a';
         return (
           <Tag
-            key={i}
+            key={`${item.image}-${i}`}
             ref={(el: HTMLElement | null) => {
               panelRefs.current[i] = el;
             }}

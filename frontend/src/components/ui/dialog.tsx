@@ -29,7 +29,7 @@ export const DialogContent = React.forwardRef<
         {!hideClose && (
           <DialogPrimitive.Close
             className="absolute right-4 top-4 rounded-[6px] p-1 text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
-            aria-label="Yopish"
+            aria-label="Close"
           >
             <X className="size-4" />
           </DialogPrimitive.Close>
