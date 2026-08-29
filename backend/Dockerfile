@@ -12,7 +12,8 @@ RUN npm run build
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
-RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/* \
+  && useradd -m -u 1001 app && mkdir -p /app/storage && chown -R app:app /app
 COPY package*.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 COPY prisma ./prisma
@@ -20,5 +21,8 @@ RUN npx prisma generate
 COPY --from=build /app/dist ./dist
 # Admin panel (statik fayllar) — /admin manzilida beriladi
 COPY public ./public
+RUN chown -R app:app /app
+USER app
 EXPOSE 3001
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 CMD wget -qO- http://localhost:3001/v1/health || exit 1
+CMD ["sh", "-c", "npx prisma migrate deploy && exec node dist/main.js"]
