@@ -223,7 +223,7 @@ const AccordionGallery = ({
   return (
     <div
       ref={rootRef}
-      className={`flex ${vertical ? 'flex-col' : 'flex-row'} w-full max-w-full [perspective:1400px] max-[520px]:!flex-col max-[520px]:[perspective:none] ${className}`}
+      className={`flex ${vertical ? 'flex-col' : 'flex-row'} w-full max-w-full [perspective:1400px] max-[520px]:!flex-col max-[520px]:!h-auto max-[520px]:[perspective:none] ${className}`}
       style={{ gap: `${gap}px`, height: vertical ? `${Math.round(height * 1.6)}px` : `${height}px` }}
       role="list"
       aria-label="Image accordion gallery"
@@ -264,6 +264,7 @@ const AccordionGallery = ({
                 style={{
                   width: vertical ? '100%' : 'var(--ag-media-size, 320px)',
                   height: vertical ? 'var(--ag-media-size, 320px)' : '100%',
+                  maxWidth: '100%',
                   willChange: 'transform, filter'
                 }}
               >

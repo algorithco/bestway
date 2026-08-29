@@ -61,7 +61,7 @@ export function UserMenu() {
         <ChevronDown className="hidden size-4 text-fg-subtle sm:block" />
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent align="end" className="min-w-56">
+      <DropdownMenuContent align="end" collisionPadding={12} className="w-[calc(100vw-2rem)] max-w-56 sm:min-w-56">
         <DropdownMenuLabel className="flex flex-col gap-0.5">
           <span className="text-sm font-semibold text-fg">{user.name}</span>
           <span className="text-xs font-normal text-fg-muted">{formatPhone(user.phone)}</span>

@@ -189,7 +189,7 @@ export function SiteHeader() {
 
       {/* Mobil ochiladigan panel */}
       {open && (
-        <div className="anim-fade border-t border-border bg-bg/95 backdrop-blur-md xl:hidden" data-state="open">
+        <div className="anim-fade max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-bg/95 backdrop-blur-md xl:hidden" data-state="open">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 sm:px-6">
             {SECTIONS.map((s) => (
               <Link
