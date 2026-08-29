@@ -174,7 +174,7 @@ export function AttendancePanel() {
             )}
             {groupsQ.data && groupsQ.data.length > 0 && (
               <Select value={activeGroupId} onValueChange={setGroupId}>
-                <SelectTrigger className="w-44">
+                <SelectTrigger className="w-full min-w-[9rem] max-w-full sm:w-44">
                   <SelectValue placeholder={t("selectGroup")} />
                 </SelectTrigger>
                 <SelectContent>
@@ -216,7 +216,7 @@ export function AttendancePanel() {
               >
                 <ChevronLeft />
               </Button>
-              <span className="min-w-36 text-center text-sm font-semibold text-fg">
+              <span className="min-w-[9rem] text-center text-sm font-semibold text-fg sm:min-w-36">
                 {monthLabel}
               </span>
               <Button
@@ -258,7 +258,7 @@ function Legend() {
     { state: "empty" },
   ];
   return (
-    <div className="flex items-center gap-3 text-xs text-fg-muted">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-fg-muted">
       {items.map(({ state }) => {
         const { tone, Icon } = STATE_VIEW[state];
         const bg = {

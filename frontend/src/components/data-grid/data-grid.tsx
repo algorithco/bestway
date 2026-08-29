@@ -83,7 +83,7 @@ export const DataGrid = React.memo(function DataGrid({
       ref={scrollRef}
       onKeyDown={onKeyDown}
       className={cn(
-        "scrollbar-thin overflow-x-auto rounded-[12px] border border-border bg-surface",
+        "scrollbar-thin overscroll-x-contain overflow-x-auto rounded-[12px] border border-border bg-surface",
         className,
       )}
     >
@@ -92,8 +92,8 @@ export const DataGrid = React.memo(function DataGrid({
           <tr>
             <th
               scope="col"
-              className="sticky-col top-0 z-30 border-r border-b border-border bg-bg-subtle px-3 py-2.5 text-left text-xs font-semibold text-fg-muted"
-              style={{ minWidth: firstColWidth, width: firstColWidth }}
+              className="sticky-col top-0 z-30 border-r border-b border-border bg-bg-subtle px-2 py-2.5 text-left text-xs font-semibold text-fg-muted sm:px-3"
+              style={{ minWidth: `clamp(120px, 42vw, ${firstColWidth}px)`, width: `clamp(120px, 42vw, ${firstColWidth}px)` }}
             >
               {corner}
             </th>
@@ -118,8 +118,8 @@ export const DataGrid = React.memo(function DataGrid({
             <tr key={row.id} className="group">
               <th
                 scope="row"
-                className="sticky-col z-10 border-r border-b border-border bg-surface px-3 py-2 text-left font-medium text-fg group-hover:bg-surface-hover"
-                style={{ minWidth: firstColWidth, width: firstColWidth }}
+                className="sticky-col z-10 border-r border-b border-border bg-surface px-2 py-2 text-left font-medium text-fg group-hover:bg-surface-hover sm:px-3"
+                style={{ minWidth: `clamp(120px, 42vw, ${firstColWidth}px)`, width: `clamp(120px, 42vw, ${firstColWidth}px)` }}
               >
                 {row.header}
               </th>

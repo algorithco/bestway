@@ -98,7 +98,7 @@ function PaymentCellFields({
     <>
       <DialogBody className="space-y-4">
         <Field label={tc("confirm")}>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {STATES.map((s) => (
               <button
                 key={s}
