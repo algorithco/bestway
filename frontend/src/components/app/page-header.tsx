@@ -30,7 +30,7 @@ export function PageHeader({
           {description && <p className="mt-1 text-sm text-pretty text-fg-muted">{description}</p>}
         </div>
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{actions}</div>}
     </div>
   );
 }

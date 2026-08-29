@@ -13,7 +13,7 @@ export const TabsList = React.forwardRef<
   return (
     <TabsPrimitive.List
       ref={ref}
-      className={cn("flex items-center gap-1 border-b border-border", className)}
+      className={cn("scrollbar-thin flex items-center gap-1 overflow-x-auto border-b border-border [scrollbar-width:none] max-sm:gap-0.5 [&::-webkit-scrollbar]:hidden", className)}
       {...props}
     />
   );
@@ -27,7 +27,7 @@ export const TabsTrigger = React.forwardRef<
     <TabsPrimitive.Trigger
       ref={ref}
       className={cn(
-        "relative -mb-px border-b-2 border-transparent px-3 py-2 text-sm font-medium text-fg-muted transition-colors",
+        "relative -mb-px shrink-0 whitespace-nowrap border-b-2 border-transparent px-3 py-2 text-sm font-medium text-fg-muted transition-colors",
         "hover:text-fg",
         "data-[state=active]:border-brand data-[state=active]:text-fg",
         className,
