@@ -35,8 +35,8 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    // Proxy body'larni xotiraga bufferlaydi (default 10MB) — 500MB gacha yuklashlar uchun
-    proxyClientMaxBodySize: "500mb",
+    // Proxy body'larni xotiraga bufferlaydi — 500MB juda katta (OOM), 10MB yetarli
+    proxyClientMaxBodySize: "10mb",
     serverActions: {
       allowedOrigins: [
         "https://speeches-sports-performances-vitamin.trycloudflare.com",
@@ -47,6 +47,8 @@ const nextConfig: NextConfig = {
       "lucide-react",
       "recharts",
       "date-fns",
+      "gsap",
+      "ogl",
       "@radix-ui/react-dialog",
       "@radix-ui/react-dropdown-menu",
       "@radix-ui/react-select",

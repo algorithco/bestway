@@ -68,6 +68,7 @@ async function refreshSession(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ refreshToken }),
       cache: "no-store",
+      signal: AbortSignal.timeout(5000),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as {
@@ -100,8 +101,9 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
       body: body && body.byteLength > 0 ? body : undefined,
       cache: "no-store",
       redirect: "manual",
+      signal: AbortSignal.timeout(8000),
       ...(body && body.byteLength > 0 ? { duplex: "half" as const } : {}),
-    } as RequestInit & { duplex?: "half" });
+    } as RequestInit & { duplex?: "half"; signal?: AbortSignal });
 
   let upstream: Response;
   try {
