@@ -1,4 +1,51 @@
+# --- OS & editor ---
 .vscode/
 .claude/
 .DS_Store
 Thumbs.db
+.idea/
+
+# --- Logs (root + nested) ---
+*.log
+*.bak
+*.out.log
+*.err.log
+backend-dev.log
+backend-dev2.log
+frontend-dev.log
+frontend-dev2.log
+backend-run.out.log
+backend-run.err.log
+frontend-run.out.log
+frontend-run.err.log
+frontend-run.err.log.bak
+
+# --- Secrets ---
+.env
+.env.*
+!.env.example
+check-user.js
+
+# --- Dependencies & build ---
+node_modules/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+coverage/
+.vercel/
+
+# --- Runtime data ---
+storage/
+backups/
+
+# --- Large binaries / misplaced ---
+logotip-transparent.png
+ru.json
+uz.json
+frontend/public/logo-4k.png
+frontend/public/logo-grabcut.png
+frontend/public/logo-old-transparent.png
+frontend/public/logotip-grabcut.png
