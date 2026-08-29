@@ -158,7 +158,7 @@ function ChildAttendance({ studentId }: { studentId: string }) {
         ) : total === 0 ? (
           <p className="text-sm text-fg-muted">{t("notMarked")}</p>
         ) : (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {(["present", "absent", "late"] as const).map((state) => (
               <div key={state} className="rounded-[8px] bg-bg-subtle px-3 py-2 text-center">
                 <p className={cn("text-xl font-bold tabular-nums", ATT_TONE[state])}>

@@ -160,7 +160,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Reveal>
 
             <Reveal delay={360}>
-              <dl className="mx-auto mt-12 grid max-w-md grid-cols-3 gap-4 lg:mx-0">
+              <dl className="mx-auto mt-12 grid max-w-md grid-cols-3 gap-2 sm:gap-4 lg:mx-0">
                 {STATS.map((s) => (
                   <div key={s.key}>
                     <dt className="bg-gradient-to-br from-brand to-accent bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">

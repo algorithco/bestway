@@ -95,7 +95,7 @@ export function StudentsView() {
       ) : (
         <div className="space-y-2">
           {students.map((s) => (
-            <Card key={s.id} className="flex items-center gap-3 p-3">
+            <Card key={s.id} className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center">
               <Link
                 href={`/students/${s.id}`}
                 className="flex min-w-0 flex-1 items-center gap-3 hover:opacity-80"
@@ -106,7 +106,7 @@ export function StudentsView() {
                   <p className="truncate text-sm text-fg-muted">{formatPhone(s.phone)}</p>
                 </div>
               </Link>
-              <div className="flex shrink-0 items-center gap-3">
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:shrink-0 sm:gap-3">
                 {s.student?.groupName && (
                   <span className="hidden items-center gap-1 text-xs text-fg-muted sm:flex">
                     <BookOpen className="size-3.5" />

@@ -199,7 +199,7 @@ export function StudentDetailView({ studentId }: { studentId: string }) {
             ) : attTotal === 0 ? (
               <p className="text-sm text-fg-muted">{tatt("notMarked")}</p>
             ) : (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-2 max-[360px]:grid-cols-1">
                 {(["present", "absent", "late"] as const).map((s) => (
                   <div key={s} className="rounded-[8px] bg-bg-subtle px-2 py-2 text-center">
                     <p className={cn("text-lg font-bold tabular-nums", ATT_TONE[s])}>{att[s]}</p>

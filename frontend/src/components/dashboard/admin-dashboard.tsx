@@ -53,7 +53,7 @@ export function AdminDashboard() {
           }
         />
       ) : stats.isLoading || !stats.data ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <StatCardSkeleton key={i} />
           ))}
@@ -61,7 +61,7 @@ export function AdminDashboard() {
       ) : (
         <>
           {/* Asosiy ko'rsatkichlar */}
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <StatCard
               label={t("todayAttendance")}
               value={stats.data.today.attendanceRate !== null ? `${stats.data.today.attendanceRate}%` : "—"}
@@ -110,7 +110,7 @@ export function AdminDashboard() {
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-1">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
               <StatCard label={t("groups")} value={stats.data.groups} icon={BookOpen} />
               <StatCard label={t("teachers")} value={stats.data.teachers} icon={GraduationCap} />
               {stats.data.queue.grading > 0 && (
