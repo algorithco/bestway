@@ -232,7 +232,7 @@ function TestFormFields({
           />
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field
             label={tFallback(t, "level", "Level")}
             htmlFor="tlevel"
@@ -283,7 +283,7 @@ function TestFormFields({
               "How many questions to show per section (random pick). Leave empty to use all questions. Helpful for large banks.",
             )}
           </p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {SECTIONS.map((s) => (
               <Field
                 key={s}

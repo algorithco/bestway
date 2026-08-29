@@ -161,7 +161,7 @@ export function GroupDetailView({ groupId }: { groupId: string }) {
             )}
           </div>
           {debounced && (
-            <div className="mt-2 divide-y divide-border">
+            <div className="mt-2 max-h-64 divide-y divide-border overflow-y-auto overscroll-contain">
               {candidates.length === 0 ? (
                 <p className="py-3 text-sm text-fg-muted">{tc("empty")}</p>
               ) : (

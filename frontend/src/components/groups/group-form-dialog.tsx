@@ -167,7 +167,7 @@ function GroupFormFields({
           </div>
         </Field>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t("startTime")} htmlFor="gstart">
             <Input id="gstart" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
           </Field>

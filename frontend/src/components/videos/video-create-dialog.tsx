@@ -79,7 +79,7 @@ function VideoCreateFields({ onClose }: { onClose: () => void }) {
         <Field label={t("description")} htmlFor="vdesc">
           <Textarea id="vdesc" value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={`${t("price")} (${tc("sum")})`} htmlFor="vprice">
             <Input id="vprice" type="number" min={0} value={price} onChange={(e) => setPrice(e.target.value)} />
           </Field>

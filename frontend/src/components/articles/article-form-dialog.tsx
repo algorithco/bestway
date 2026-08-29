@@ -112,7 +112,7 @@ function ArticleFormFields({
         <Field label={t("articleTitle")} htmlFor="atitle">
           <Input id="atitle" value={titleValue} onChange={(e) => setTitle(e.target.value)} autoFocus />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={t("category")} htmlFor="acat">
             <Input
               id="acat"

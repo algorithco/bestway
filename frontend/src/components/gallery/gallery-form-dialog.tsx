@@ -139,7 +139,7 @@ function GalleryFormFields({
             maxLength={120}
           />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={tGallery("link")} htmlFor="glink">
             <Input
               id="glink"
@@ -153,7 +153,7 @@ function GalleryFormFields({
             <Input id="galt" value={alt} onChange={(e) => setAlt(e.target.value)} placeholder={tGallery("altPlaceholder")} maxLength={300} />
           </Field>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label={tGallery("sortOrder")} htmlFor="gsort">
             <Input
               id="gsort"

@@ -209,7 +209,7 @@ function MockQuestionsFields({
   return (
     <>
       <DialogBody className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {(["import", "manual"] as const).map((m) => (
             <button
               key={m}
@@ -269,7 +269,7 @@ function MockQuestionsFields({
           </>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label={t("questionNumber")} htmlFor="mnum">
                 <Input
                   id="mnum"
@@ -322,7 +322,7 @@ function MockQuestionsFields({
                 />
               </Field>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label={t("points")} htmlFor="mpts">
                 <Input
                   id="mpts"
