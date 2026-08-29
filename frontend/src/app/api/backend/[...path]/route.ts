@@ -34,7 +34,7 @@ const ACCESS_COOKIE = {
   sameSite: "lax" as const,
   secure: process.env.NODE_ENV === "production",
   path: "/",
-  maxAge: 60 * 60,
+  maxAge: 15 * 60,
 };
 const REFRESH_COOKIE = {
   httpOnly: true,
@@ -96,10 +96,12 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
     fetch(target, {
       method: req.method,
       headers: forwardHeaders(req, token),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       body: body && body.byteLength > 0 ? body : undefined,
       cache: "no-store",
       redirect: "manual",
-    });
+      ...(body && body.byteLength > 0 ? { duplex: "half" as const } : {}),
+    } as RequestInit & { duplex?: "half" });
 
   let upstream: Response;
   try {

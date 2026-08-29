@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { COOKIE } from "./config";
 import type { Role } from "./types";
 
-const ACCESS_MAX_AGE = 60 * 60; // access token 15 daqiqa yashaydi; cookie biroz uzunroq — muddatini backend hal qiladi
+const ACCESS_MAX_AGE = 15 * 60; // 15 daqiqa — backend JWT_ACCESS_TTL bilan bir xil
 const REFRESH_MAX_AGE = 60 * 60 * 24 * 30; // 30 kun (JWT_REFRESH_TTL_DAYS)
 
 const baseCookie = {
@@ -23,7 +23,9 @@ export function decodeJwt(token: string): { sub?: string; role?: Role; exp?: num
   try {
     const payload = token.split(".")[1];
     if (!payload) return null;
-    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const json = Buffer.from(padded, "base64").toString("utf-8");
     return JSON.parse(json);
   } catch {
     return null;
