@@ -34,6 +34,7 @@ export class AuthController {
 
   /** Access tokenni yangilash */
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('refresh')
   @HttpCode(200)
   refresh(@Body() dto: RefreshDto) {

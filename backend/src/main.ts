@@ -26,11 +26,9 @@ async function bootstrap() {
   if (!process.env.JWT_SECRET) {
     throw new Error("JWT_SECRET .env faylida ko'rsatilishi shart");
   }
-  /* eslint-disable no-console */
   if (process.env.JWT_SECRET.length < 32) {
-    console.warn('JWT_SECRET kamida 32 belgidan iborat bo\'lishi tavsiya etiladi');
+    throw new Error('JWT_SECRET kamida 32 belgidan iborat bo\'lishi shart (xavfsizlik talabi)');
   }
-  /* eslint-enable no-console */
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -67,13 +65,15 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGIN
       ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-      : true,
+      : false,
     credentials: true,
   });
 
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      forbidNonWhitelisted: true,
+      forbidUnknownValues: true,
       transform: true,
       transformOptions: { enableImplicitConversion: true },
       exceptionFactory: (errors) =>

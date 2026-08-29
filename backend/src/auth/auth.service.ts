@@ -99,11 +99,12 @@ export class AuthService {
       await bcrypt.compare(dto.password, DUMMY_PASSWORD_HASH);
       throw new AppException('INVALID_CREDENTIALS', "Telefon raqam yoki parol noto'g'ri", 401);
     }
+    if (!user.isActive) {
+      await bcrypt.compare(dto.password, user.passwordHash);
+      throw new AppException('USER_DEACTIVATED', 'Akkaunt bloklangan. Administratsiyaga murojaat qiling', 403);
+    }
     if (!(await bcrypt.compare(dto.password, user.passwordHash))) {
       throw new AppException('INVALID_CREDENTIALS', "Telefon raqam yoki parol noto'g'ri", 401);
-    }
-    if (!user.isActive) {
-      throw new AppException('USER_DEACTIVATED', 'Akkaunt bloklangan. Administratsiyaga murojaat qiling', 403);
     }
     const tokens = await this.issueTokens(user);
     return { user: this.toPublicUser(user), ...tokens };
@@ -125,7 +126,8 @@ export class AuthService {
       }
       const accessToken = await this.jwt.signAsync({ sub: row.userId, role: row.user.role });
       const refreshToken = randomBytes(48).toString('base64url');
-      const days = parseInt(this.config.get<string>('JWT_REFRESH_TTL_DAYS') ?? '30', 10);
+      const rawDays = parseInt(this.config.get<string>('JWT_REFRESH_TTL_DAYS') ?? '30', 10);
+      const days = Number.isFinite(rawDays) && rawDays > 0 ? rawDays : 30;
       const now = new Date();
       await tx.refreshToken.update({ where: { id: row.id }, data: { revokedAt: now } });
       await tx.refreshToken.create({
@@ -253,7 +255,8 @@ export class AuthService {
   private async issueTokens(user: User) {
     const accessToken = await this.jwt.signAsync({ sub: user.id, role: user.role });
     const refreshToken = randomBytes(48).toString('base64url');
-    const days = parseInt(this.config.get<string>('JWT_REFRESH_TTL_DAYS') ?? '30', 10);
+    const rawDays = parseInt(this.config.get<string>('JWT_REFRESH_TTL_DAYS') ?? '30', 10);
+    const days = Number.isFinite(rawDays) && rawDays > 0 ? rawDays : 30;
     await this.prisma.refreshToken.create({
       data: {
         userId: user.id,

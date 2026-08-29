@@ -7,6 +7,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../common/pagination';
 
@@ -88,11 +89,13 @@ export class UpdateUserDto {
 
   /** student: guruhga biriktirish (null = guruhdan chiqarish) */
   @IsOptional()
+  @ValidateIf((o) => o.groupId !== null)
   @IsString()
   groupId?: string | null;
 
   /** Telegram chat ID — bildirishnomalar Telegramga ham boradi */
   @IsOptional()
+  @ValidateIf((o) => o.telegramChatId !== null)
   @IsString()
   telegramChatId?: string | null;
 }

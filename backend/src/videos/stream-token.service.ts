@@ -12,11 +12,9 @@ export class StreamTokenService {
   private readonly secret: string;
 
   constructor(config: ConfigService) {
-    const secret = config.get<string>('STREAM_TOKEN_SECRET') ?? config.get<string>('JWT_SECRET');
+    const secret = config.get<string>('STREAM_TOKEN_SECRET');
     if (!secret) {
-      throw new Error(
-        "STREAM_TOKEN_SECRET muhit o'zgaruvchisi talab qilinadi (JWT_SECRET ham bo'lishi mumkin)",
-      );
+      throw new Error("STREAM_TOKEN_SECRET .env faylida ko'rsatilishi shart");
     }
     this.secret = secret;
   }

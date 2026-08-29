@@ -119,7 +119,7 @@ export function speakingAudioMulterOptions() {
       file: Express.Multer.File,
       cb: (error: Error | null, acceptFile: boolean) => void,
     ) => {
-      if (!file.mimetype.startsWith('audio/') || file.mimetype.startsWith('video/')) {
+      if (!file.mimetype.startsWith('audio/')) {
         return cb(new AppException('INVALID_FILE_TYPE', 'Audio fayl yuklang (mp3, m4a...)', 400), false);
       }
       cb(null, true);

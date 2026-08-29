@@ -63,6 +63,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         status = 404;
         code = 'NOT_FOUND';
         message = 'Yozuv topilmadi';
+      } else if (exception.code === 'P2003') {
+        status = 400;
+        code = 'FOREIGN_KEY_VIOLATION';
+        message = "Bog'liq yozuv topilmadi";
       } else {
         this.logger.error(`Prisma xatosi ${exception.code}: ${exception.message}`);
       }

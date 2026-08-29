@@ -8,6 +8,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 
@@ -51,6 +52,7 @@ export class UpdateGroupDto {
 
   /** null = o'qituvchini olib tashlash */
   @IsOptional()
+  @ValidateIf((o) => o.teacherId !== null)
   @IsString()
   teacherId?: string | null;
 
