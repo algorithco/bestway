@@ -24,6 +24,7 @@ const PROTECTED_PREFIXES = [
   "/points",
   "/articles",
   "/gallery",
+  "/leaderboard",
   "/notifications",
   "/settings",
   "/audit",
@@ -74,14 +75,37 @@ function matches(path: string, prefixes: string[]): boolean {
   return prefixes.some((p) => path === p || path.startsWith(`${p}/`));
 }
 
+function decodeRole(token: string | undefined): Role | undefined {
+  if (!token) return undefined;
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) return undefined;
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    let jsonStr: string;
+    if (typeof atob === "function") {
+      jsonStr = atob(padded);
+    } else {
+      // @ts-expect-error Buffer may not be typed in edge
+      jsonStr = Buffer.from(padded, "base64").toString("utf-8");
+    }
+    const data = JSON.parse(jsonStr) as { role?: Role };
+    return data.role;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function proxy(req: NextRequest) {
   const { locale, path } = splitLocale(req.nextUrl.pathname);
-  const role = req.cookies.get(COOKIE.role)?.value as Role | undefined;
+  const accessToken = req.cookies.get(COOKIE.access)?.value;
+  const roleFromJwt = decodeRole(accessToken);
+  const role = (roleFromJwt ?? req.cookies.get(COOKIE.role)?.value) as Role | undefined;
 
   if (matches(path, PROTECTED_PREFIXES) && !role) {
     const url = req.nextUrl.clone();
     url.pathname = withLocale(locale, "/login");
-    url.searchParams.set("next", req.nextUrl.pathname);
+    url.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
 

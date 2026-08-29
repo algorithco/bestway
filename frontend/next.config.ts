@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
 
   // 1. Turbopack / Webpack tunnelni bloklamasligi uchun (Terminal so'ragan asosiy sozlama)
   allowedDevOrigins: [
-    'speeches-sports-performances-vitamin.trycloudflare.com',
-    '*.trycloudflare.com'
+    'https://speeches-sports-performances-vitamin.trycloudflare.com',
+    'https://*.trycloudflare.com'
   ],
 
   images: {
@@ -39,8 +39,8 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: "500mb",
     serverActions: {
       allowedOrigins: [
-        "speeches-sports-performances-vitamin.trycloudflare.com",
-        "*.trycloudflare.com"
+        "https://speeches-sports-performances-vitamin.trycloudflare.com",
+        "https://*.trycloudflare.com"
       ],
     },
     optimizePackageImports: [
