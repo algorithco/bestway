@@ -7,18 +7,23 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   Res,
   StreamableFile,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { Response } from 'express';
-import { CurrentUser, OptionalAuth, Roles } from '../common/decorators';
+import { Request, Response } from 'express';
+import { CurrentUser, OptionalAuth, Public, Roles } from '../common/decorators';
 import { AuthUser } from '../common/types';
 import { CertificateService } from './certificate.service';
 import {
   CreateQuestionDto,
   CreateTestDto,
+  DemoSubmitDto,
   FlagCheatDto,
   GradeAnswerDto,
   QueryAttemptsDto,
@@ -29,8 +34,9 @@ import {
 } from './dto/tests.dto';
 import { GradingService } from './grading.service';
 import { TestsService } from './tests.service';
+import { testAudioMulterOptions } from './tests-storage';
 
-// Diqqat: 'attempts/...' va 'questions/...' marshrutlari ':id' dan OLDIN e'lon qilinadi
+// Diqqat: 'attempts/...' va 'questions/...' va 'demo/...' marshrutlari ':id' dan OLDIN e'lon qilinadi
 @ApiTags('tests')
 @Controller('tests')
 export class TestsController {
@@ -40,11 +46,34 @@ export class TestsController {
     private readonly certificates: CertificateService,
   ) {}
 
-  /** Testlar ro'yxati — mehmonlar faqat demo testlarni ko'radi */
+  /** Testlar ro'yxati — mehmonlar faqat demo testlarni ko'radi — paginated (?page=&limit=&type=) */
   @OptionalAuth()
   @Get()
   list(@CurrentUser() user: AuthUser | undefined, @Query() q: QueryTestsDto) {
     return this.tests.list(user, q);
+  }
+
+  // ---------- Demo (guest-friendly, no auth) ----------
+
+  /** Demo testlar — mehmonlar uchun ochiq ro'yxat (?page=&limit=&type=) */
+  @Public()
+  @Get('demo/list')
+  listDemo(@Query() q: QueryTestsDto) {
+    return this.tests.listDemo(q);
+  }
+
+  /** Demo test tafsiloti — mehmonlar uchun (audio/passage bilan, correctAnswer siz) */
+  @Public()
+  @Get('demo/:id')
+  getDemo(@Param('id') id: string) {
+    return this.tests.getDemo(id);
+  }
+
+  /** Demo testni anonim baholash — DB yozmaydi, per-question correctness bilan */
+  @Public()
+  @Post('demo/:id/submit')
+  submitDemo(@Param('id') id: string, @Body() dto: DemoSubmitDto) {
+    return this.tests.scoreDemo(id, dto);
   }
 
   /** Yangi test yaratish */
@@ -143,6 +172,27 @@ export class TestsController {
   }
 
   // ---------- Savollar ----------
+
+  /** Savol audio yuklash — admin; multipart field "audio" (50MB, audio/*) */
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @Roles('admin', 'super_admin')
+  @Post('questions/:questionId/audio')
+  @UseInterceptors(FileInterceptor('audio', testAudioMulterOptions()))
+  uploadQuestionAudio(
+    @CurrentUser() user: AuthUser,
+    @Param('questionId') questionId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.tests.setQuestionAudio(user, questionId, file);
+  }
+
+  /** Savol audiosini oqim bilan olish — demo uchun guest ruxsat, Range qo'llab-quvvatlanadi */
+  @Public()
+  @Get('questions/:questionId/audio')
+  questionAudio(@Param('questionId') questionId: string, @Req() req: Request, @Res() res: Response) {
+    return this.tests.streamQuestionAudio(questionId, req, res);
+  }
 
   /** Savolni tahrirlash */
   @ApiBearerAuth()

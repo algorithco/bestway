@@ -1,19 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Question, TestSection } from '@prisma/client';
 import { randomInt } from 'crypto';
+import { Request, Response } from 'express';
 import { AuditService } from '../audit/audit.service';
 import { AppException } from '../common/app.exception';
+import { Paginated } from '../common/pagination';
 import { AuthUser } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  CreateQuestionDto,
-  CreateTestDto,
-  QueryTestsDto,
-  SubmitAnswerDto,
-  FlagCheatDto,
-  UpdateQuestionDto,
-  UpdateTestDto,
-} from './dto/tests.dto';
+import { DemoSubmitDto, CreateQuestionDto, CreateTestDto, QueryTestsDto, SubmitAnswerDto, FlagCheatDto, UpdateQuestionDto, UpdateTestDto } from './dto/tests.dto';
+import { deleteTestAudio, streamTestAudio, testAudioExists } from './tests-storage';
 
 export const MANUAL_SECTIONS: TestSection[] = ['writing', 'speaking'];
 export const SECTION_ORDER: TestSection[] = ['listening', 'reading', 'writing', 'speaking'];
@@ -101,7 +96,11 @@ export class TestsService {
         options: dto.options ? (dto.options as Prisma.InputJsonValue) : undefined,
         correctAnswer: dto.correctAnswer,
         maxScore: dto.maxScore ?? 1,
-      },
+        // New comfortable testing fields (nullable — safe for old DB)
+        ...(dto.passageText !== undefined ? { passageText: dto.passageText } : {}),
+        ...(dto.instructions !== undefined ? { instructions: dto.instructions } : {}),
+        ...(dto.audioUrl !== undefined ? { audioUrl: dto.audioUrl } : {}),
+      } as any,
     });
     await this.audit.log({
       userId: actor.id,
@@ -127,7 +126,10 @@ export class TestsService {
           : {}),
         ...(dto.correctAnswer !== undefined ? { correctAnswer: dto.correctAnswer } : {}),
         ...(dto.maxScore !== undefined ? { maxScore: dto.maxScore } : {}),
-      },
+        ...(dto.passageText !== undefined ? { passageText: dto.passageText } : {}),
+        ...(dto.instructions !== undefined ? { instructions: dto.instructions } : {}),
+        ...(dto.audioUrl !== undefined ? { audioUrl: dto.audioUrl } : {}),
+      } as any,
     });
     await this.audit.log({
       userId: actor.id,
@@ -142,6 +144,13 @@ export class TestsService {
   async deleteQuestion(actor: AuthUser, questionId: string) {
     const question = await this.prisma.question.findUnique({ where: { id: questionId } });
     if (!question) throw new AppException('QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
+    // Delete associated audio file if exists (best-effort)
+    const qAny = question as any;
+    if (qAny.audioUrl) {
+      try {
+        deleteTestAudio(qAny.audioUrl);
+      } catch {}
+    }
     await this.prisma.question.delete({ where: { id: questionId } });
     await this.audit.log({
       userId: actor.id,
@@ -153,9 +162,56 @@ export class TestsService {
     return { deleted: true };
   }
 
+  // ---------------- Media: Question audio ----------------
+
+  async setQuestionAudio(actor: AuthUser, questionId: string, file: Express.Multer.File) {
+    const question = await this.prisma.question.findUnique({ where: { id: questionId } });
+    if (!question) throw new AppException('QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
+    if (!file) throw new AppException('NO_FILE', 'Audio fayl yuklanmadi', 400);
+    const qAny = question as any;
+    if (qAny.audioUrl) {
+      try {
+        deleteTestAudio(qAny.audioUrl);
+      } catch {}
+    }
+    const key = `tests/${file.filename}`;
+    const updated = await this.prisma.question.update({
+      where: { id: questionId },
+      data: { audioUrl: key } as any,
+    });
+    await this.audit.log({
+      userId: actor.id,
+      action: 'question.audio.upload',
+      entity: 'question',
+      entityId: questionId,
+      newValue: { audioUrl: key },
+    });
+    return {
+      id: updated.id,
+      audioUrl: (updated as any).audioUrl,
+      audioEndpoint: `/v1/tests/questions/${questionId}/audio`,
+      hasAudio: true,
+    };
+  }
+
+  async streamQuestionAudio(questionId: string, req: Request, res: Response) {
+    const question = await this.prisma.question.findUnique({
+      where: { id: questionId },
+      include: { test: { select: { isDemo: true, isActive: true } } },
+    });
+    if (!question) throw new AppException('QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
+    const qAny = question as any;
+    const key: string | null | undefined = qAny.audioUrl;
+    if (!key || !testAudioExists(key)) {
+      throw new AppException('FILE_NOT_FOUND', 'Audio topilmadi', 404);
+    }
+    // Demo test audio is public; non-demo still streams but via same endpoint (auth handled by guard if needed)
+    streamTestAudio(key, req, res);
+  }
+
   // ---------------- Ro'yxat / tafsilot ----------------
 
-  /** Mehmon va ota-ona faqat demo testlarni ko'radi; xodimlar hammasini */
+  /** Mehmon va ota-ona faqat demo testlarni ko'radi; xodimlar hammasini — endi paginated */
   async list(viewer: AuthUser | undefined, q: QueryTestsDto) {
     const isStaff =
       viewer && (viewer.role === 'admin' || viewer.role === 'super_admin' || viewer.role === 'teacher');
@@ -164,11 +220,16 @@ export class TestsService {
       ...(isStaff ? {} : { isActive: true }),
       ...(!viewer || viewer.role === 'parent' ? { isDemo: true } : {}),
     };
-    const tests = await this.prisma.test.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      include: { _count: { select: { questions: true } } },
-    });
+    const [total, tests] = await Promise.all([
+      this.prisma.test.count({ where }),
+      this.prisma.test.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: q.skip,
+        take: q.limit,
+        include: { _count: { select: { questions: true } } },
+      }),
+    ]);
 
     const sections = tests.length
       ? await this.prisma.question.groupBy({
@@ -183,7 +244,7 @@ export class TestsService {
       secMap.set(s.testId, arr);
     }
 
-    return tests.map((t) => ({
+    const items = tests.map((t) => ({
       id: t.id,
       type: t.type,
       title: t.title,
@@ -194,6 +255,150 @@ export class TestsService {
       questionCount: t._count.questions,
       sections: SECTION_ORDER.filter((s) => (secMap.get(t.id) ?? []).includes(s)),
     }));
+    return new Paginated(items, { page: q.page, limit: q.limit, total });
+  }
+
+  /** Demo testlar ro'yxati — faqat isDemo && isActive, guest-friendly */
+  async listDemo(q: QueryTestsDto) {
+    const where: Prisma.TestWhereInput = {
+      isDemo: true,
+      isActive: true,
+      ...(q.type ? { type: q.type } : {}),
+    };
+    const [total, tests] = await Promise.all([
+      this.prisma.test.count({ where }),
+      this.prisma.test.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: q.skip,
+        take: q.limit,
+        include: { _count: { select: { questions: true } } },
+      }),
+    ]);
+    const sections = tests.length
+      ? await this.prisma.question.groupBy({
+          by: ['testId', 'section'],
+          where: { testId: { in: tests.map((t) => t.id) } },
+        })
+      : [];
+    const secMap = new Map<string, TestSection[]>();
+    for (const s of sections) {
+      const arr = secMap.get(s.testId) ?? [];
+      arr.push(s.section);
+      secMap.set(s.testId, arr);
+    }
+    const items = tests.map((t) => ({
+      id: t.id,
+      type: t.type,
+      title: t.title,
+      level: t.level,
+      isDemo: t.isDemo,
+      isActive: t.isActive,
+      durationMinutes: t.durationMinutes,
+      questionCount: t._count.questions,
+      sections: SECTION_ORDER.filter((s) => (secMap.get(t.id) ?? []).includes(s)),
+    }));
+    return new Paginated(items, { page: q.page, limit: q.limit, total });
+  }
+
+  /** Demo test tafsiloti — savollar audio/passage bilan, lekin correctAnswer siz */
+  async getDemo(id: string) {
+    const test = await this.prisma.test.findUnique({
+      where: { id },
+      include: { questions: { orderBy: [{ section: 'asc' }, { createdAt: 'asc' }] } },
+    });
+    if (!test || !test.isDemo || !test.isActive) throw new AppException('TEST_NOT_FOUND', 'Test topilmadi', 404);
+
+    const meta = {
+      id: test.id,
+      type: test.type,
+      title: test.title,
+      level: test.level,
+      isDemo: test.isDemo,
+      isActive: test.isActive,
+      durationMinutes: test.durationMinutes,
+      sectionQuestionCounts: test.sectionQuestionCounts,
+      questionCount: test.questions.length,
+    };
+    // For comfortable testing (Survey passage etc) we bundle questions via sanitize with new fields
+    const questions = test.questions.map((q) => this.sanitize(q));
+    // Also provide section overview
+    const sections = SECTION_ORDER.filter((s) => test.questions.some((qq) => qq.section === s));
+    return { ...meta, sections, questions };
+  }
+
+  /**
+   * Guest demo scoring — DB yozmaydi, faqat autoScore hisoblaydi.
+   * isCorrect mantig'i grading.service bilan bir xil: normalize + pipe split.
+   */
+  async scoreDemo(id: string, dto: DemoSubmitDto) {
+    const test = await this.prisma.test.findUnique({
+      where: { id },
+      include: { questions: true },
+    });
+    if (!test || !test.isDemo || !test.isActive) throw new AppException('TEST_NOT_FOUND', 'Test topilmadi', 404);
+
+    const answers = (dto.answers ?? {}) as Record<string, string>;
+    let autoScore = 0;
+    let totalMax = 0;
+    let autoMax = 0;
+    const perQuestion: Array<{
+      questionId: string;
+      section: string;
+      isCorrect: boolean | null;
+      score: number;
+      maxScore: number;
+      isGraded: boolean;
+    }> = [];
+
+    for (const q of test.questions) {
+      totalMax += q.maxScore;
+      const isManual = MANUAL_SECTIONS.includes(q.section as TestSection);
+      if (isManual) {
+        perQuestion.push({
+          questionId: q.id,
+          section: q.section,
+          isCorrect: null,
+          score: 0,
+          maxScore: q.maxScore,
+          isGraded: false,
+        });
+        continue;
+      }
+      autoMax += q.maxScore;
+      const raw = answers[q.id] ?? '';
+      const correct = q.correctAnswer ? this.isCorrect(String(raw), q.correctAnswer) : false;
+      const score = correct ? q.maxScore : 0;
+      autoScore += score;
+      perQuestion.push({
+        questionId: q.id,
+        section: q.section,
+        isCorrect: correct,
+        score,
+        maxScore: q.maxScore,
+        isGraded: true,
+      });
+    }
+
+    const correctCount = perQuestion.filter((p) => p.isCorrect === true).length;
+    const autoCount = perQuestion.filter((p) => p.isGraded).length;
+    return {
+      testId: id,
+      autoScore,
+      totalScore: autoScore,
+      totalMax,
+      autoMax,
+      correctCount,
+      autoCount,
+      perQuestion,
+      // Bo'lim kesimida ham qulay
+      bySection: SECTION_ORDER.filter((s) => perQuestion.some((p) => p.section === s)).map((sec) => {
+        const slice = perQuestion.filter((p) => p.section === sec);
+        const score = slice.reduce((sum, p) => sum + p.score, 0);
+        const max = slice.reduce((sum, p) => sum + p.maxScore, 0);
+        return { section: sec, score, max, count: slice.length };
+      }),
+    };
   }
 
   /** Xodimlar savollarni to'liq (javoblari bilan) ko'radi; o'quvchi faqat meta */
@@ -348,8 +553,19 @@ export class TestsService {
     if (!minutes || minutes <= 0) return;
     const deadline = attempt.startedAt.getTime() + minutes * 60_000;
     if (Date.now() > deadline) {
-      throw new AppException('MOCK_TIME_UP', 'Vaqt tugadi — imtihonni yakunlang', 400);
+      throw new AppException('TEST_TIME_UP', 'Vaqt tugadi — imtihonni yakunlang', 400);
     }
+  }
+
+  private normalize(s: string): string {
+    return s.toLowerCase().trim().replace(/\s+/g, ' ');
+  }
+
+  /** To'g'ri javob variantlari "|" bilan ajratiladi: "1987|nineteen eighty seven" */
+  private isCorrect(answer: string, correctAnswer: string): boolean {
+    const norm = this.normalize(answer);
+    if (!norm) return false;
+    return correctAnswer.split('|').some((v) => this.normalize(v) === norm);
   }
 
   /** Kriptografik random bilan aralashtirish (Fisher-Yates) */
@@ -362,8 +578,9 @@ export class TestsService {
     return a;
   }
 
-  /** O'quvchiga yuboriladigan savol — to'g'ri javobsiz! */
+  /** O'quvchiga yuboriladigan savol — to'g'ri javobsiz, lekin comfortable testing maydonlari bilan */
   private sanitize(q: Question) {
+    const qAny = q as any;
     return {
       id: q.id,
       section: q.section,
@@ -371,6 +588,11 @@ export class TestsService {
       prompt: q.prompt,
       options: q.options,
       maxScore: q.maxScore,
+      // Comfortable testing: passage/instructions har doim jo'natiladi (audioda URL bermaymiz — endpoint orqali)
+      passageText: qAny.passageText ?? null,
+      instructions: qAny.instructions ?? null,
+      audioUrl: qAny.audioUrl ? `/v1/tests/questions/${q.id}/audio` : null,
+      hasAudio: !!qAny.audioUrl,
     };
   }
 }

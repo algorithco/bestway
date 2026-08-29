@@ -269,6 +269,7 @@ export class GradingService {
         const question = qMap.get(qid);
         if (!question) return null;
         const ans = answerByQ.get(qid);
+        const qAny = question as any;
         return {
           order: i + 1,
           questionId: qid,
@@ -277,6 +278,11 @@ export class GradingService {
           prompt: question.prompt,
           options: question.options,
           maxScore: question.maxScore,
+          // Comfortable testing fields — grading view also needs them
+          passageText: qAny.passageText ?? null,
+          instructions: qAny.instructions ?? null,
+          hasAudio: !!qAny.audioUrl,
+          audioUrl: qAny.audioUrl ? `/v1/tests/questions/${qid}/audio` : null,
           ...(isStaff ? { correctAnswer: question.correctAnswer } : {}),
           answer: ans?.answer ?? null,
           score: ans?.score ?? null,
