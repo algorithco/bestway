@@ -17,6 +17,7 @@ import { Link } from "@/i18n/navigation";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Card } from "@/components/ui/card";
 import { TiltCard } from "@/components/ui/tilt-card";
+import PixelCard from "@/components/ui/pixel-card";
 import { Reveal } from "@/components/marketing/reveal";
 import { CountUp } from "@/components/marketing/count-up";
 import { HeroShowcase } from "@/components/marketing/hero-showcase";
@@ -65,6 +66,17 @@ const TONE_TILE: Record<string, string> = {
   brand: "bg-brand-subtle text-brand-subtle-fg",
   accent: "bg-accent-subtle text-brand",
   orange: "bg-orange-subtle text-orange",
+};
+
+/** PixelCard props per course — each card gets its own variant / colors
+ *  to demonstrate the `variant`, `gap`, `speed` and `colors` props. */
+const COURSE_PIXEL: Record<
+  (typeof COURSES)[number]["key"],
+  { variant: "default" | "blue" | "yellow" | "pink"; gap: number; speed: number; colors: string; active: string }
+> = {
+  ielts: { variant: "blue", gap: 8, speed: 32, colors: "#dcfce7,#86efac,#128139", active: "#128139" },
+  multilevel: { variant: "yellow", gap: 6, speed: 28, colors: "#eaf6d8,#b5e48c,#74bd3a", active: "#74bd3a" },
+  general: { variant: "pink", gap: 6, speed: 55, colors: "#ffedd5,#fed7aa,#f2901c", active: "#f2901c" },
 };
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -190,24 +202,41 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <SectionHeading title={t("coursesTitle")} subtitle={t("coursesSubtitle")} />
           </Reveal>
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {COURSES.map(({ key, Icon, tone }, i) => (
-              <Reveal key={key} delay={i * 90}>
-                <FancyCard>
-                  <span
-                    className={cn(
-                      "inline-flex size-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6",
-                      TONE_TILE[tone],
-                    )}
+            {COURSES.map(({ key, Icon, tone }, i) => {
+              const cfg = COURSE_PIXEL[key];
+              return (
+                <Reveal key={key} delay={i * 90} className="h-full">
+                  <PixelCard
+                    variant={cfg.variant}
+                    gap={cfg.gap}
+                    speed={cfg.speed}
+                    colors={cfg.colors}
+                    className="pixel-card--course group hover-elevate"
+                    style={{ "--pixel-card-active-color": cfg.active } as React.CSSProperties}
                   >
-                    <Icon className="size-6" />
-                  </span>
-                  <h3 className="mt-4 text-lg font-semibold text-fg">{t(`courseList.${key}.name`)}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-fg-muted">
-                    {t(`courseList.${key}.desc`)}
-                  </p>
-                </FancyCard>
-              </Reveal>
-            ))}
+                    {/* top gradient line — replicates FancyCard accent, animates on group-hover */}
+                    <span
+                      aria-hidden
+                      className="absolute inset-x-0 top-0 z-10 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-brand via-accent to-orange transition-transform duration-300 group-hover:scale-x-100 group-focus-within:scale-x-100"
+                    />
+                    <div className="pixel-card__content">
+                      <span
+                        className={cn(
+                          "inline-flex size-12 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6",
+                          TONE_TILE[tone],
+                        )}
+                      >
+                        <Icon className="size-6" />
+                      </span>
+                      <h3 className="mt-4 text-lg font-semibold text-fg">{t(`courseList.${key}.name`)}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-fg-muted">
+                        {t(`courseList.${key}.desc`)}
+                      </p>
+                    </div>
+                  </PixelCard>
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       </section>
