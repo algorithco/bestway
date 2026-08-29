@@ -4,6 +4,14 @@
   display: block;
   position: absolute;
   inset: 0;
+  /* Subtle by default — keeps card content readable */
+  opacity: var(--pixel-canvas-opacity, 0.28);
+  transition: opacity 300ms ease;
+}
+
+.pixel-card:hover .pixel-canvas,
+.pixel-card:focus-within .pixel-canvas {
+  opacity: var(--pixel-canvas-hover-opacity, 0.42);
 }
 
 .pixel-card {
@@ -37,19 +45,28 @@
 
 .pixel-card:hover::before,
 .pixel-card:focus-within::before {
-  opacity: 1;
+  opacity: var(--pixel-card-active-opacity, 0.55);
 }
 
 /* Course-card overrides — when used inside the marketing Courses grid we want
-   flexible, theme-aware sizing instead of the fixed 300×400 demo size. The
-   overrides are applied via the extra `pixel-card--course` class so the
-   default demo dimensions remain intact for standalone usage. */
+    flexible, theme-aware sizing instead of the fixed 300×400 demo size. The
+    overrides are applied via the extra `pixel-card--course` class so the
+    default demo dimensions remain intact for standalone usage. */
 .pixel-card--course {
   width: 100%;
   height: 100%;
   min-height: 248px;
   aspect-ratio: auto;
   border-radius: 12px;
+  /* Much more subtle than the demo — text must stay legible */
+  --pixel-canvas-opacity: 0.14;
+  --pixel-canvas-hover-opacity: 0.28;
+  --pixel-card-active-opacity: 0.22;
+}
+
+.pixel-card--course:hover,
+.pixel-card--course:focus-within {
+  --pixel-card-border: var(--border-strong);
 }
 
 .pixel-card--course .pixel-card__content {
@@ -60,9 +77,15 @@
   display: flex;
   flex-direction: column;
   padding: 1.5rem;
+  /* content sits above canvas — keep it opaque and isolated via stacking context */
+  isolation: isolate;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pixel-canvas {
+    opacity: 0.12 !important;
+  }
+
   .pixel-card::before {
     transition: none;
   }

@@ -211,7 +211,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
                     gap={cfg.gap}
                     speed={cfg.speed}
                     colors={cfg.colors}
-                    className="pixel-card--course group hover-elevate"
+                    className="pixel-card--course group hover-elevate hover:border-border-strong focus-within:border-border-strong"
                     style={{ "--pixel-card-active-color": cfg.active } as React.CSSProperties}
                   >
                     {/* top gradient line — replicates FancyCard accent, animates on group-hover */}
