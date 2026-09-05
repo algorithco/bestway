@@ -1,0 +1,98 @@
+# Microservices architecture for Education Center System
+# Services: postgres (db) + backend (NestJS) + frontend (Next.js)
+# Root compose orchestrates all — each service is independent, communicates via internal network.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: education-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: education_center
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d education_center"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - education-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: education-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Override DB host to use compose service name 'postgres' instead of localhost
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/education_center?schema=public
+      PORT: 3001
+      # Allow frontend (both local and docker internal) to call backend
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3005,http://127.0.0.1:3000,http://127.0.0.1:3005,http://frontend:3000,https://granny-opposite-burner-throw.trycloudflare.com,https://speeches-sports-performances-vitamin.trycloudflare.com
+      PUBLIC_URL: http://localhost:3001
+      NODE_ENV: production
+    env_file:
+      - ./backend/.env
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - backend_storage:/app/storage
+      # Mount storage locally as well for dev inspection (optional)
+      # - ./backend/storage:/app/storage
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/v1/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+    networks:
+      - education-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        API_URL: http://backend:3001/v1
+    container_name: education-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Frontend server must reach backend via internal Docker DNS
+      API_URL: http://backend:3001/v1
+      # No NEXT_PUBLIC_ secrets — API_URL is server-only
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      NODE_ENV: production
+    ports:
+      - "3005:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - education-net
+
+volumes:
+  pgdata:
+    name: education_pgdata
+  backend_storage:
+    name: education_backend_storage
+
+networks:
+  education-net:
+    name: education-net
+    driver: bridge

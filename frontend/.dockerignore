@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+.env
+.env.*
+npm-debug.log
+*.log
+.git
+.gitignore
+.vscode
+.claude
+.idea
+*.tsbuildinfo
+next-env.d.ts
