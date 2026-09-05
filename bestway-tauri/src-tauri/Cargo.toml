@@ -1,5 +1,5 @@
 [package]
-name = "bestway-tauri"
+name = "bestway-app"
 version = "0.1.0"
 edition = "2021"
 authors = ["Bestway"]

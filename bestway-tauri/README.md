@@ -102,6 +102,16 @@ catches it) or shows a code the student pastes back. Code is exchanged at
 
 App layer **cannot** block `Ctrl+Alt+Del`, power button, USB boot, Task Manager kill by admin-rights user, or all macOS/Wayland gestures. Mitigation: non-admin student accounts + physical proctor + heartbeat-loss red flag in roster. True kiosk = Windows Assigned Access / MDM (Phase 2).
 
+## Release (`bestway-app vX.Y.Z`)
+
+Versions live in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` (keep in sync).
+Tag and push — CI builds Windows/macOS/Linux installers and names the GitHub Release `bestway-app vX.Y.Z`:
+
+```bash
+git tag bestway-app-v0.1.0
+git push origin bestway-app-v0.1.0
+```
+
 ## Troubleshooting
 
 - `link.exe not found` on `cargo check` → install MSVC Build Tools (Desktop C++ workload)
