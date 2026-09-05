@@ -146,7 +146,6 @@ All `success` → `{success:true,data,meta?}`, errors → `{success:false,error:
 Seed demo accounts (after `npm run seed`):
 
 ```
-super_admin +998952174868 / bestwayec@2007  (from .env)
 teacher     +998900000003 / Teacher123!
 student     +998900000010 / Student123!
 parent      +998900000020 / Parent123!
