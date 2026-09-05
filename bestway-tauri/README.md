@@ -6,7 +6,8 @@ Secure desktop app for education-center students to take exams. Admin locks ever
 
 ## Features
 
-- Student-only login (phone + password, `role=student`)
+- Student login via **web browser (OAuth-style)** + password fallback (`role=student`)
+- Black pro UI: `ClickSpark` click bursts + `CursorTrail` cursor glow/sparks
 - Tests + Mock exams (IELTS / multilevel, speaking audio)
 - Live remote control: admin Lock / Unlock / Force-submit, roster with online + cheat count
 - Strong app-level lockdown: fullscreen kiosk, always-on-top, no taskbar, shortcut + clipboard block, focus-loss auto-report (`flag-cheat`), 15s heartbeat, timer auto-submit
@@ -26,10 +27,11 @@ bestway-tauri/
   src/
     App.tsx                 # login/exams/runner/locked/result + StatusBar
     pages/                  # Login, Exams, Runner, Locked, Result
-    components/StatusBar.tsx + BatteryIndicator.tsx
+    components/StatusBar.tsx + BatteryIndicator.tsx + ClickSpark.tsx + CursorTrail.tsx
     hooks/useBattery.ts     # Tauri → browser → unknown fallback, 30s poll
     hooks/useLockdown.ts    # fullscreen, shortcut/clipboard block, cheat callback
     lib/api.ts              # direct /v1 client (no Next proxy)
+    lib/oauth.ts            # browser login: authorize URL, deep-link, code exchange
     lib/exam-sessions.ts    # lock/unlock/roster contract
     lib/heartbeat.ts        # 15s POST /exam-desktop/heartbeat
     lib/cheat.ts            # POST .../flag-cheat (tests|mock)
@@ -57,7 +59,21 @@ Env (`bestway-tauri/.env`, never commit):
 
 ```bash
 VITE_API_URL=http://localhost:3001/v1
+VITE_WEB_URL=http://localhost:3000
 ```
+
+| Var | Default | Purpose |
+| --- | ------- | ------- |
+| `VITE_WEB_URL` | `http://localhost:3000` | System-browser login page origin (`/oauth/desktop`) |
+
+## Browser login
+
+`Login → Continue in web browser` opens the OS browser to
+`{WEB_URL}/oauth/desktop?device=…&state=…&redirect=bestway-exam://auth/callback`.
+After web login the backend redirects to `bestway-exam://…` (deep-link plugin
+catches it) or shows a code the student pastes back. Code is exchanged at
+`POST /auth/desktop/exchange`. Backend still needs `GET /oauth/desktop` +
+`POST /auth/desktop/exchange` — until then, password sign-in works.
 
 | Var | Default | Purpose |
 | --- | ------- | ------- |

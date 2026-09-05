@@ -6,6 +6,8 @@ import Locked from "@/pages/Locked";
 import Result from "@/pages/Result";
 import StatusBar from "@/components/StatusBar";
 import BatteryIndicator from "@/components/BatteryIndicator";
+import ClickSpark from "@/components/ClickSpark";
+import CursorTrail from "@/components/CursorTrail";
 
 export type Route = "login" | "exams" | "runner" | "locked" | "result";
 
@@ -25,19 +27,22 @@ export default function App() {
   const activeRoute: Route = studentId ? route : "login";
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12 text-slate-900">
-      <main className="mx-auto max-w-3xl p-4">
-        {activeRoute === "login" && <Login onLogin={handleLogin} />}
-        {activeRoute === "exams" && <Exams onStart={() => navigate("runner")} />}
-        {activeRoute === "runner" && (
-          <Runner
-            onLocked={() => navigate("locked")}
-            onFinish={() => navigate("result")}
-          />
-        )}
-        {activeRoute === "locked" && <Locked onBack={() => navigate("exams")} />}
-        {activeRoute === "result" && <Result onBack={() => navigate("exams")} />}
-      </main>
+    <div className="app-bg app-grid min-h-screen pb-14 text-white">
+      <ClickSpark sparkColor="#38c765" sparkSize={10} sparkRadius={22} sparkCount={8} duration={420}>
+        <CursorTrail sparkColor="#38c765" />
+        <main className="mx-auto w-full max-w-3xl p-4 pt-10">
+          {activeRoute === "login" && <Login onLogin={handleLogin} />}
+          {activeRoute === "exams" && <Exams onStart={() => navigate("runner")} />}
+          {activeRoute === "runner" && (
+            <Runner
+              onLocked={() => navigate("locked")}
+              onFinish={() => navigate("result")}
+            />
+          )}
+          {activeRoute === "locked" && <Locked onBack={() => navigate("exams")} />}
+          {activeRoute === "result" && <Result onBack={() => navigate("exams")} />}
+        </main>
+      </ClickSpark>
       <StatusBar
         sessionLabel={studentId ? `student:${studentId}` : "signed out"}
         rightSlot={<BatteryIndicator standalone={false} compact lang="uz" />}

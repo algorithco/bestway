@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Least-privilege: core:default only; app commands get_battery, set_locked, clear_clipboard exposed via invoke_handler",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "opener:default", "deep-link:default"]
 }

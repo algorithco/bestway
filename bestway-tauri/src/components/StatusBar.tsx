@@ -2,14 +2,17 @@ import type { ReactNode } from "react";
 
 type Props = {
   sessionLabel: string;
-  /** Right-side slot reserved for BatteryIndicator (owned elsewhere — do not implement here). */
+  /** Right-side slot reserved for BatteryIndicator. */
   rightSlot?: ReactNode;
 };
 
 export default function StatusBar({ sessionLabel, rightSlot }: Props) {
   return (
-    <footer className="fixed inset-x-0 bottom-0 flex items-center justify-between border-t bg-white px-4 py-2 text-sm">
-      <span className="text-slate-600">{sessionLabel}</span>
+    <footer className="fixed inset-x-0 bottom-0 z-50 flex items-center justify-between border-t border-white/10 bg-black/80 px-4 py-2 text-sm text-white/80 backdrop-blur">
+      <span className="flex items-center gap-2">
+        <span className="inline-block h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#38c765]" />
+        {sessionLabel}
+      </span>
       <span className="flex items-center gap-2">{rightSlot}</span>
     </footer>
   );
