@@ -49,19 +49,6 @@ const STATS = [
 
 // TEACHERS section now uses AccordionGallery with dynamic data from /gallery (fallback to /teachers)
 
-const MARQUEE = [
-  "IELTS",
-  "Multilevel",
-  "Speaking",
-  "Writing",
-  "Reading",
-  "Listening",
-  "Grammar",
-  "CEFR",
-  "Academic",
-  "Vocabulary",
-];
-
 const TONE_TILE: Record<string, string> = {
   brand: "bg-brand-subtle text-brand-subtle-fg",
   accent: "bg-accent-subtle text-brand",
@@ -177,21 +164,6 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <Reveal delay={120} className="relative order-1 lg:order-2">
             <HeroShowcase />
           </Reveal>
-        </div>
-
-        {/* Ko'chib yuruvchi kalit so'zlar */}
-        <div className="relative flex overflow-hidden border-y border-border bg-surface/50 py-3" aria-hidden="true">
-          <div className="marquee-track flex shrink-0 items-center gap-3 pr-3">
-            {[...MARQUEE, ...MARQUEE].map((m, i) => (
-              <span
-                key={`${m}-${i}`}
-                className="flex items-center gap-3 text-sm font-semibold whitespace-nowrap text-fg-muted"
-              >
-                {m}
-                <Star className="size-3 text-accent" />
-              </span>
-            ))}
-          </div>
         </div>
       </section>
 
