@@ -10,8 +10,7 @@
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-focus",
     "opener:allow-open-url",
-    "deep-link:allow-get-current",
-    "deep-link:allow-on-open-url",
+    "deep-link:default",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-clear"
   ]
