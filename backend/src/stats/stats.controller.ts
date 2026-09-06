@@ -16,6 +16,13 @@ class IncomeQueryDto {
   months?: number;
 }
 
+class ExamActivityQueryDto {
+  @IsOptional()
+  @IsString()
+  @Matches(/^(today|7d|30d|3m|6m|year)$/, { message: "range today|7d|30d|3m|6m|year bo'lsin" })
+  range?: 'today' | '7d' | '30d' | '3m' | '6m' | 'year';
+}
+
 class ExportPaymentsDto {
   @Type(() => Number)
   @IsInt()
@@ -74,6 +81,13 @@ export class StatsController {
   @Get('income')
   income(@Query() q: IncomeQueryDto) {
     return this.stats.income(q.months ?? 6);
+  }
+
+  /** Imtihon faolligi: davr kesimida urinishlar + o'rtacha bal (combo chart) */
+  @Roles('admin', 'super_admin')
+  @Get('exam-activity')
+  examActivity(@Query() q: ExamActivityQueryDto) {
+    return this.stats.examActivity(q.range ?? '7d');
   }
 
   // ---------- CSV eksport ----------
