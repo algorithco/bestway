@@ -18,31 +18,24 @@ const ClickSpark = ({
     const canvas: any = canvasRef.current;
     if (!canvas) return;
 
-    const parent = canvas.parentElement;
-    if (!parent) return;
-
-    let resizeTimeout: any;
-
     const resizeCanvas = () => {
-      const { width, height } = parent.getBoundingClientRect();
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
       }
     };
 
+    resizeCanvas();
+    let resizeTimeout: any;
     const handleResize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(resizeCanvas, 100);
     };
-
-    const ro = new (window as any).ResizeObserver(handleResize);
-    ro.observe(parent);
-
-    resizeCanvas();
-
+    window.addEventListener("resize", handleResize);
     return () => {
-      ro.disconnect();
+      window.removeEventListener("resize", handleResize);
       clearTimeout(resizeTimeout);
     };
   }, []);
@@ -114,12 +107,8 @@ const ClickSpark = ({
   }, [sparkColor, sparkSize, sparkRadius, sparkCount, duration, easeFunc, extraScale]);
 
   const handleClick = (e: any) => {
-    const canvas: any = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
+    const x = e.clientX;
+    const y = e.clientY;
     const now = performance.now();
     const newSparks = Array.from({ length: sparkCount }, (_, i) => ({
       x,
@@ -127,9 +116,15 @@ const ClickSpark = ({
       angle: (2 * Math.PI * i) / sparkCount,
       startTime: now
     }));
-
     sparksRef.current.push(...newSparks);
   };
+
+  // Global listener so sparks fire on every click, not only blank space (capture phase)
+  useEffect(() => {
+    const onGlobalClick = (e: MouseEvent) => handleClick(e as any);
+    window.addEventListener("click", onGlobalClick, true);
+    return () => window.removeEventListener("click", onGlobalClick, true);
+  }, [sparkCount]);
 
   return (
     <div
@@ -138,19 +133,19 @@ const ClickSpark = ({
         width: '100%',
         height: '100%'
       }}
-      onClick={handleClick}
     >
       <canvas
         ref={canvasRef}
         style={{
-          width: '100%',
-          height: '100%',
+          width: '100vw',
+          height: '100vh',
           display: 'block',
           userSelect: 'none',
-          position: 'absolute',
+          position: 'fixed',
           top: 0,
           left: 0,
-          pointerEvents: 'none'
+          pointerEvents: 'none',
+          zIndex: 9999
         }}
       />
       {children}
