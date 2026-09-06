@@ -14,7 +14,12 @@ async function main() {
   const title = 'IELTS Academic — Real Mock #1';
   const existing = await prisma.mockExam.findFirst({ where: { title } });
   if (existing) {
-    console.log(`"${title}" allaqachon mavjud (id=${existing.id}). O'tkazib yuborildi.`);
+    // Eski seed dagi guruhlarni full-test maydonlari bilan yangilash (idempotent upgrade).
+    await prisma.mockQuestionGroup.updateMany({
+      where: { section: { examId: existing.id, skill: 'listening' } },
+      data: { partNumber: 1, audioDurationSec: 1800, audioPlayLimit: 1 },
+    });
+    console.log(`"${title}" allaqachon mavjud (id=${existing.id}). Listening guruhlari full-test maydonlari bilan yangilandi.`);
     return;
   }
 
@@ -42,6 +47,10 @@ async function main() {
                   title: 'Questions 1–8',
                   instructions:
                     'Complete the notes. Write ONE WORD AND/OR A NUMBER for each answer.',
+                  // Full-test (v2026.1): Listening part raqami + dynamic audio muddati + once-only.
+                  partNumber: 1,
+                  audioDurationSec: 1800, // ~30 min (deadline = duration + 120s review)
+                  audioPlayLimit: 1, // exam da 1 marta, practice da cheksiz
                   questions: {
                     create: [
                       { number: 1, sortOrder: 0, type: 'note_completion', prompt: "Caller's surname: ______", correctAnswers: ['Thompson'], points: 1 },
@@ -79,7 +88,7 @@ async function main() {
                       { number: 10, sortOrder: 1, type: 'true_false_notgiven', prompt: 'Hives can now be found in Tokyo.', options: ['TRUE', 'FALSE', 'NOT GIVEN'], correctAnswers: ['TRUE'], points: 1 },
                       { number: 11, sortOrder: 2, type: 'true_false_notgiven', prompt: 'Most researchers are opposed to urban beekeeping.', options: ['TRUE', 'FALSE', 'NOT GIVEN'], correctAnswers: ['NOT GIVEN'], points: 1 },
                       { number: 12, sortOrder: 3, type: 'multiple_choice', prompt: 'According to critics, a risk of too many hives is ______.', options: ['better pollination', 'insufficient forage', 'cheaper honey'], correctAnswers: ['insufficient forage'], points: 1 },
-                      { number: 13, sortOrder: 4, type: 'sentence_completion', prompt: 'Researchers recommend planting more bee-friendly ______.', correctAnswers: ['flowers'], points: 1, wordLimit: 1 },
+                      { number: 13, sortOrder: 4, type: 'sentence_completion', prompt: 'Researchers recommend planting more bee-friendly ______.', correctAnswers: ['flowers'], acceptedVariants: ['flower'], points: 1, wordLimit: 1 },
                       { number: 14, sortOrder: 5, type: 'short_answer', prompt: 'Where do hives now commonly appear in cities? (TWO WORDS)', correctAnswers: ['city rooftops', 'rooftops'], points: 1, wordLimit: 2 },
                       { number: 15, sortOrder: 6, type: 'matching_headings', prompt: 'Choose the best heading for the passage.', options: ['A history of honey', 'The rise and risks of urban beekeeping', 'How to build a hive'], correctAnswers: ['The rise and risks of urban beekeeping'], points: 1 },
                     ],
@@ -102,6 +111,8 @@ async function main() {
                   title: 'Writing Tasks',
                   questions: {
                     create: [
+                      // Diqqat: essay larda wordLimit QO'YILMAYDI — wordLimit "NO MORE THAN X"
+                      // (oshsa 0) degani; essay minimumlari (150/250) frontend da soft warning.
                       { number: 16, sortOrder: 0, type: 'essay_task1', prompt: 'Task 1: The chart below shows the number of urban hives in three cities between 2010 and 2020. Summarise the information by selecting and reporting the main features. Write at least 150 words.', points: 9 },
                       { number: 17, sortOrder: 1, type: 'essay_task2', prompt: 'Task 2: Some people think cities should encourage beekeeping, while others believe it causes problems. Discuss both views and give your own opinion. Write at least 250 words.', points: 9 },
                     ],

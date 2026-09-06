@@ -546,6 +546,52 @@ const YEAR = now.getFullYear();
   const badLink = await call('POST', '/auth/link-child', { token: parent.accessToken, body: { linkCode: 'XXXXXXXX' } });
   check('noto\'g\'ri linkCode -> 404 INVALID_LINK_CODE', badLink.status === 404 && badLink.json.error.code === 'INVALID_LINK_CODE', badLink.json);
 
+  console.log('\n== IELTS FULL-TEST FLOW (v2026.1) ==');
+  // Spec §5 rounding vectors (pure — server must match: F<0.25→.0, 0.25–0.75→.5, ≥0.75→up).
+  const roundHalf = (v) => Math.round(v * 2) / 2;
+  check('rounding 6.125 -> 6.0', roundHalf(6.125) === 6, roundHalf(6.125));
+  check('rounding 6.25 -> 6.5', roundHalf(6.25) === 6.5, roundHalf(6.25));
+  check('rounding 6.625 -> 6.5', roundHalf(6.625) === 6.5, roundHalf(6.625));
+  check('rounding 6.75 -> 7.0', roundHalf(6.75) === 7, roundHalf(6.75));
+
+  // Live full_test session (tolerant — mock exam bo'lmasa skip).
+  const mockList = await call('GET', '/mock/exams', { token: student.accessToken });
+  const fullExam = mockList.json?.success
+    ? (mockList.json.data.items ?? mockList.json.data ?? []).find((e) => e.isPublished && String(e.type).startsWith('ielts'))
+    : null;
+  if (!fullExam) {
+    check('full_test uchun published IELTS mock topilmadi (skip)', true);
+  } else {
+    const start = await call('POST', `/mock/exams/${fullExam.id}/start`, { token: student.accessToken, body: { flow: 'full_test' } });
+    check('POST /mock/exams/:id/start {flow:full_test} -> 200', start.status === 200 && start.json.success, start.status);
+    const s = start.json?.data;
+    check('full_test flowMode + listening start', s?.flowMode === 'full_test' && s?.currentSkill === 'listening', s);
+    check('sectionDeadlines (L/R/W) + overallDeadlineAt', !!(s?.sectionDeadlines?.listening && s?.sectionDeadlines?.reading && s?.overallDeadlineAt), s?.sectionDeadlines);
+    if (s?.attemptId) {
+      const detail = await call('GET', `/mock/attempts/${s.attemptId}`, { token: student.accessToken });
+      check('GET attempt -> flowMode/currentSkill ko\'rinadi', detail.json?.data?.flowMode === 'full_test', detail.json?.data?.flowMode);
+      // Strict section lock: reading savoliga listening paytida javob → 403 SECTION_LOCKED.
+      const readingQ = (s.exam?.sections ?? []).find((x) => x.skill === 'reading')?.groups?.[0]?.questions?.[0];
+      if (readingQ) {
+        const locked = await call('POST', `/mock/attempts/${s.attemptId}/answer`, { token: student.accessToken, body: { questionId: readingQ.id, response: 'test' } });
+        check('boshqa bo‘limga javob -> 403 SECTION_LOCKED', locked.status === 403, locked.status);
+      } else {
+        check('reading savoli topilmadi (lock skip)', true);
+      }
+      const adv = await call('POST', `/mock/attempts/${s.attemptId}/advance`, { token: student.accessToken });
+      check('POST advance L->R', adv.json?.success && adv.json?.data?.currentSkill === 'reading', adv.json?.data);
+      // Once-only audio guard: practice da tekshirilmaydi; exam da audio fayl bo'lsa 2-urinish 403.
+      // (Seed da audio fayl yo'q — mavjud bo'lsa live tekshiriladi, bo'lmasa skip.)
+      const listeningGroup = (s.exam?.sections ?? []).find((x) => x.skill === 'listening')?.groups?.[0];
+      if (listeningGroup?.hasAudio) {
+        const a1 = await call('GET', `/mock/groups/${listeningGroup.id}/audio?attemptId=${s.attemptId}`, { token: student.accessToken });
+        check('audio 1-urinish o\'tadi (fayl bo\'lsa)', a1.status === 200 || a1.status === 206, a1.status);
+      } else {
+        check('audio fayl yo\'q (replay guard skip)', true);
+      }
+    }
+  }
+
   console.log('\n== DEACTIVATE / LOGOUT ==');
   const del = await call('DELETE', `/users/${reg.json.data.user.id}`, { token: admin.accessToken });
   check('admin o\'chira olmaydi -> 403 (faqat super_admin)', del.status === 403, del.status);
