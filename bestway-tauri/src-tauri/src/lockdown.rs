@@ -3,7 +3,7 @@
 /// Shared entry point is [`set_kiosk`], which toggles fullscreen + alwaysOnTop.
 /// OS-specific hardening below is intentionally best-effort stubs: a userspace
 /// exam client can never fully lock down the OS (see Windows note).
-pub fn set_kiosk(window: &tauri::Window, locked: bool) -> Result<(), String> {
+pub fn set_kiosk(window: &tauri::WebviewWindow, locked: bool) -> Result<(), String> {
     window.set_fullscreen(locked).map_err(|e| e.to_string())?;
     window
         .set_always_on_top(locked)
