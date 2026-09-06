@@ -3,7 +3,9 @@ import { clearSession, login } from "@/lib/api";
 import {
   clearBrowserLoginState,
   listenDeepLink,
+  listenSingleInstance,
   parseAuthCallbackUrl,
+  parseManualCallbackInput,
   exchangeCode,
   readBrowserLoginState,
   readInitialDeepLink,
@@ -54,6 +56,11 @@ export default function Login({ onLogin }: Props) {
       setBusy("idle");
       return;
     }
+    if (p.error && !p.code) {
+      setError(p.error);
+      setBusy("idle");
+      return;
+    }
     if (!p.code) {
       setError(p.error ?? "No code in callback URL.");
       setBusy("idle");
@@ -64,14 +71,21 @@ export default function Login({ onLogin }: Props) {
     try {
       const session = await exchangeCode(p.code, s.verifier, s.deviceId);
       clearBrowserLoginState();
+      // Fail-closed role gate: missing role must NOT pass.
       const role = String((session.user as { role?: unknown } | undefined)?.role ?? "");
-      if (role && role !== "student") {
+      if (role !== "student") {
         clearSession();
         setError("This app is for students only.");
         setBusy("idle");
         return;
       }
-      const id = (session.user?.id as string | undefined) ?? "student";
+      const id = (session.user?.id as string | undefined) ?? null;
+      if (!id) {
+        clearSession();
+        setError("Login failed: server returned no user id.");
+        setBusy("idle");
+        return;
+      }
       onLoginRef.current(id);
     } catch (e) {
       setError(friendlyExchangeError(e));
@@ -79,26 +93,56 @@ export default function Login({ onLogin }: Props) {
     }
   }
 
-  // Catch deep links: cold-start (app launched by URL) + live events.
+  // Catch deep links: cold-start (app launched by URL) + live events
+  // + Windows/Linux second-instance forwards (see src-tauri/src/main.rs).
   useEffect(() => {
     let dead = false;
-    let unlisten: (() => void) | undefined;
+    const unlistens: Array<() => void> = [];
+    const seen = new Set<string>();
+    const handleOnce = (url: string, s: BrowserLoginState | null) => {
+      if (seen.has(url)) return;
+      seen.add(url);
+      void handleCallback(url, s);
+    };
     void readInitialDeepLink().then((urls) => {
       if (dead) return;
-      const hit = urls[0];
-      if (hit) void handleCallback(hit, pendingRef.current ?? readBrowserLoginState());
+      for (const hit of urls) handleOnce(hit, pendingRef.current ?? readBrowserLoginState());
     });
-    listenDeepLink((url) => void handleCallback(url, pendingRef.current ?? readBrowserLoginState()))
+    const onUrl = (url: string) => handleOnce(url, pendingRef.current ?? readBrowserLoginState());
+    listenDeepLink(onUrl)
       .then((u) => {
         if (dead) u();
-        else unlisten = u;
+        else unlistens.push(u);
       })
       .catch(() => {
         if (!dead) setError("Deep-link plugin unavailable — use the manual paste below.");
       });
+    // Second-instance argv forwarded by Rust as `single-instance` event.
+    listenSingleInstance(onUrl)
+      .then((u) => {
+        if (dead) u();
+        else unlistens.push(u);
+      })
+      .catch(() => {
+        /* event plugin always present in Tauri; ignore outside Tauri */
+      });
+    // Don't hang forever on "Waiting for browser login…" — hint at manual paste.
+    const timer = window.setTimeout(() => {
+      if (!dead) {
+        // Only nudge; the listeners stay alive until Cancel.
+        setError((prev) => prev ?? "Still waiting — if the browser didn't return, paste the callback URL or code below.");
+      }
+    }, 120_000);
     return () => {
       dead = true;
-      unlisten?.();
+      window.clearTimeout(timer);
+      for (const u of unlistens) {
+        try {
+          u();
+        } catch {
+          /* ignore */
+        }
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -133,11 +177,26 @@ export default function Login({ onLogin }: Props) {
   async function handleManualUrl(e: React.FormEvent) {
     e.preventDefault();
     const s = pendingRef.current ?? readBrowserLoginState();
-    if (!manualUrl.trim() || !s) {
-      setError("Paste the full callback URL from the browser first.");
+    const raw = manualUrl.trim();
+    if (!raw) {
+      setError("Paste the full callback URL or code from the browser first.");
       return;
     }
-    await handleCallback(manualUrl.trim(), s);
+    if (!s) {
+      setError("Login session expired. Start browser login again.");
+      return;
+    }
+    // Accept FULL callback URL (preferred) or RAW code (web "copy code" fallback).
+    const parsed = parseManualCallbackInput(raw, s);
+    if (parsed.error && !parsed.code) {
+      setError(parsed.error);
+      return;
+    }
+    const url =
+      raw.includes("://") || raw.toLowerCase().startsWith("bestway-exam:")
+        ? raw
+        : `bestway-exam://auth/callback?code=${encodeURIComponent(parsed.code!)}&state=${encodeURIComponent(parsed.state!)}`;
+    await handleCallback(url, s);
   }
 
   async function handlePassword(e: React.FormEvent) {
@@ -146,10 +205,17 @@ export default function Login({ onLogin }: Props) {
     setError(null);
     try {
       const session = await login(phone.trim(), password);
-      const role = String(session.user?.role ?? "student");
+      // Fail-closed: missing/unknown role must NOT default to student.
+      const role = String(session.user?.role ?? "");
       if (role !== "student") {
         clearSession();
         setError("This app is for students only.");
+        setBusy("idle");
+        return;
+      }
+      if (!session.user?.id) {
+        clearSession();
+        setError("Login failed: server returned no user id.");
         setBusy("idle");
         return;
       }
@@ -180,20 +246,44 @@ export default function Login({ onLogin }: Props) {
               Approve the request in the opened browser tab, then return here. The app continues automatically.
             </p>
             {authorizeUrl && (
-              <p className="mt-2 break-all text-[11px] text-white/40">
-                Browser didn&apos;t open? Copy this link manually:{" "}
-                <span className="font-mono text-emerald-300">{authorizeUrl}</span>
-              </p>
+              <div className="mt-2">
+                <p className="break-all text-[11px] text-white/40">
+                  Browser didn&apos;t open? Copy this link manually:
+                </p>
+                <div className="mt-1 flex gap-2">
+                  <input
+                    readOnly
+                    value={authorizeUrl}
+                    onFocus={(e) => e.target.select()}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="field min-w-0 flex-1 rounded-lg px-3 py-2 font-mono text-[11px] text-emerald-300"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void navigator.clipboard?.writeText(authorizeUrl).catch(() => undefined)}
+                    className="btn-ghost shrink-0 rounded-lg px-3 py-2 text-xs text-white"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <a
+                  href={authorizeUrl}
+                  className="mt-1 inline-block text-[11px] text-emerald-300 underline"
+                >
+                  Open login link
+                </a>
+              </div>
             )}
             <form onSubmit={handleManualUrl} className="mt-3">
               <p className="text-[11px] text-white/50">
-                App didn&apos;t continue? Paste the FULL callback URL from the web page:
+                App didn&apos;t continue? Paste the FULL callback URL — or just the code — from the web page:
               </p>
               <div className="mt-2 flex gap-2">
                 <input
                   value={manualUrl}
                   onChange={(e) => setManualUrl(e.target.value)}
-                  placeholder="bestway-exam://auth/callback?code=…&state=…"
+                  placeholder="bestway-exam://auth/callback?code=…&state=… or paste code"
                   autoComplete="off"
                   spellCheck={false}
                   className="field min-w-0 flex-1 rounded-lg px-3 py-2 font-mono text-xs"
@@ -242,7 +332,8 @@ export default function Login({ onLogin }: Props) {
             placeholder="+998 __ ___ __ __"
             inputMode="tel"
             autoComplete="tel"
-            className="field w-full rounded-xl px-4 py-2.5 text-sm"
+            disabled={busy === "password" || busy === "exchange"}
+            className="field w-full rounded-xl px-4 py-2.5 text-sm disabled:opacity-60"
           />
           <input
             value={password}
@@ -250,11 +341,12 @@ export default function Login({ onLogin }: Props) {
             placeholder="Password"
             type="password"
             autoComplete="current-password"
-            className="field w-full rounded-xl px-4 py-2.5 text-sm"
+            disabled={busy === "password" || busy === "exchange"}
+            className="field w-full rounded-xl px-4 py-2.5 text-sm disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={busy !== "idle"}
+            disabled={busy === "password" || busy === "exchange"}
             className="btn-ghost w-full rounded-xl px-4 py-2.5 text-sm font-medium text-white disabled:opacity-60"
           >
             {busy === "password" || busy === "exchange" ? "Signing in…" : "Sign in"}
@@ -279,6 +371,10 @@ function friendlyExchangeError(e: unknown): string {
     typeof e === "object" && e !== null
       ? ((e as { code?: unknown }).code as string | undefined)
       : undefined;
+  const message =
+    typeof e === "object" && e !== null
+      ? ((e as { message?: unknown }).message as string | undefined)
+      : undefined;
   const status =
     typeof e === "object" && e !== null
       ? ((e as { status?: unknown }).status as number | undefined)
@@ -286,11 +382,15 @@ function friendlyExchangeError(e: unknown): string {
   if (status === 404 || code === "HTTP_404") {
     return "Backend is too old: needs POST /auth/desktop/exchange. Update the server or sign in with password.";
   }
+  if (code === "INVALID_DESKTOP_CODE") return "Invalid code. Start browser login again.";
+  if (code === "INVALID_REDIRECT") return "App/Server redirect mismatch. Update both to bestway-exam://auth/callback.";
   if (code === "DESKTOP_CODE_EXPIRED") return "Code expired (5 min). Start browser login again.";
   if (code === "DESKTOP_CODE_USED") return "Code already used. Start browser login again.";
   if (code === "DEVICE_MISMATCH") return "Code was created for another device. Start again on this device.";
   if (code === "INVALID_VERIFIER") return "Security check failed. Start browser login again.";
   if (code === "NOT_A_STUDENT") return "This app is for students only.";
+  if (code === "USER_DEACTIVATED") return "Account blocked. Contact administration.";
+  if (typeof message === "string" && message && code) return `${message} (${code})`;
   if (e instanceof Error && e.message) return e.message;
   return "Code exchange failed. Check connection and try again.";
 }

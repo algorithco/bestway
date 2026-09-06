@@ -370,13 +370,14 @@
     "loginButton": "Tizimga kirish",
     "invalidParams": "Havola noto‘g‘ri yoki eskirgan. Desktop ilovada qaytadan urinib ko‘ring.",
     "successTitle": "Tayyor! Ilovaga qayting.",
-    "successHint": "Ilova avtomatik ochilmasa, quyidagi kodni desktop oynasiga kiriting (5 daqiqa amal qiladi).",
+    "successHint": "Ilova avtomatik ochilmasa, quyidagi kodni yoki to‘liq havolani desktop oynasiga joylashtiring (5 daqiqa amal qiladi).",
     "codeLabel": "Bir martalik kod",
     "copyButton": "Nusxalash",
     "copied": "Nusxalandi",
     "openAppButton": "Ilovani qayta ochish",
     "retryButton": "Qaytadan urinish",
-    "backToDashboard": "Boshqaruv paneliga qaytish"
+    "backToDashboard": "Boshqaruv paneliga qaytish",
+    "callbackLabel": "To‘liq qaytish havolasi"
   },
   "attendance": {
     "title": "Davomat",

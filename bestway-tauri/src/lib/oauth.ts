@@ -58,9 +58,23 @@ export interface BrowserLoginState {
   createdAt: number;
 }
 
-/** Login attempt lifetime — stale attempts are rejected (10 min). */
-export const OAUTH_STATE_TTL_MS = 10 * 60_000;
+/** Login attempt lifetime — must stay <= backend 5-min code TTL. */
+export const OAUTH_STATE_TTL_MS = 5 * 60_000;
 const STORAGE_KEY = "bestway.oauth";
+
+function oauthStorage(): Storage | null {
+  try {
+    if (typeof localStorage !== "undefined") return localStorage;
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (typeof sessionStorage !== "undefined") return sessionStorage;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
 
 export function newBrowserLoginState(): BrowserLoginState {
   const s: BrowserLoginState = {
@@ -70,7 +84,10 @@ export function newBrowserLoginState(): BrowserLoginState {
     createdAt: Date.now(),
   };
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    // localStorage survives app restarts / deep-link cold-starts.
+    // sessionStorage would vanish when the webview reloads or the app
+    // is relaunched by the OS URL handler.
+    oauthStorage()?.setItem(STORAGE_KEY, JSON.stringify(s));
   } catch {
     /* private mode — caller keeps `s` in memory */
   }
@@ -79,7 +96,7 @@ export function newBrowserLoginState(): BrowserLoginState {
 
 export function readBrowserLoginState(): BrowserLoginState | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = oauthStorage()?.getItem(STORAGE_KEY);
     if (!raw) return null;
     const s = JSON.parse(raw) as BrowserLoginState;
     if (!s?.state || !s?.verifier || !s?.deviceId) return null;
@@ -95,7 +112,13 @@ export function readBrowserLoginState(): BrowserLoginState | null {
 
 export function clearBrowserLoginState(): void {
   try {
-    sessionStorage.removeItem(STORAGE_KEY);
+    oauthStorage()?.removeItem(STORAGE_KEY);
+    // Clean legacy sessionStorage entry if the state was stored there before.
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
   } catch {
     /* ignore */
   }
@@ -180,6 +203,46 @@ export function parseAuthCallbackUrl(url: string): AuthCallbackParams {
   }
 }
 
+/**
+ * True only for our OAuth callback, not any URL with our scheme.
+ * Accepts `bestway-exam://auth/callback?...` and the opaque
+ * `bestway-exam:auth/callback?...` shape some platforms deliver.
+ */
+export function isDesktopCallbackUrl(url: string): boolean {
+  try {
+    const normalized = url.replace(/^([a-z][a-z0-9+.-]*):(?!\/\/)/i, "$1://");
+    const u = new URL(normalized);
+    return (
+      u.protocol.replace(/:$/, "").toLowerCase() === DESKTOP_SCHEME.toLowerCase() &&
+      `${u.host}${u.pathname}`.replace(/\/+$/, "").toLowerCase() === "auth/callback"
+    );
+  } catch {
+    return url.trim().toLowerCase().startsWith(`${DESKTOP_SCHEME.toLowerCase()}:`);
+  }
+}
+
+/**
+ * Manual-paste helper: accepts either the FULL callback URL
+ * (`bestway-exam://auth/callback?code=..&state=..`) or a RAW code
+ * (what the web "copy code" button puts on the clipboard).
+ * Raw codes are combined with the stored `state` for CSRF protection.
+ */
+export function parseManualCallbackInput(
+  input: string,
+  stored: BrowserLoginState | null,
+): AuthCallbackParams {
+  const trimmed = input.trim();
+  if (!trimmed) return { error: "Paste the full callback URL from the browser first." };
+  if (!trimmed.includes("://") && !trimmed.toLowerCase().startsWith(`${DESKTOP_SCHEME}:`)) {
+    // Raw code paste — web shows code-only fallback.
+    const code = trimmed.split(/\s+/)[0];
+    if (!code) return { error: "No code in callback URL." };
+    if (!stored?.state) return { error: "Login session expired. Start browser login again." };
+    return { code, state: stored.state };
+  }
+  return parseAuthCallbackUrl(trimmed);
+}
+
 export type DeepLinkUnlisten = () => void;
 
 /**
@@ -190,8 +253,10 @@ export async function readInitialDeepLink(): Promise<string[]> {
   try {
     const mod = await import("@tauri-apps/plugin-deep-link");
     if (typeof mod.getCurrent !== "function") return [];
-    const urls = await mod.getCurrent();
-    return (urls ?? []).filter((u) => u.startsWith(`${DESKTOP_SCHEME}:`));
+    const raw: unknown = await mod.getCurrent();
+    // Plugin versions differ: string[] | string | null.
+    const urls: string[] = Array.isArray(raw) ? raw : typeof raw === "string" && raw ? [raw] : [];
+    return urls.filter((u) => typeof u === "string" && isDesktopCallbackUrl(u));
   } catch {
     return [];
   }
@@ -223,7 +288,7 @@ export async function waitForDeepLink(timeoutMs = 120_000): Promise<string> {
     }, timeoutMs);
 
     void Promise.resolve(mod.onOpenUrl((urls) => {
-      const hit = urls.find((u) => u.startsWith(`${DESKTOP_SCHEME}:`));
+      const hit = (urls ?? []).find((u) => typeof u === "string" && isDesktopCallbackUrl(u));
       if (hit) finish(() => resolve(hit));
     })).then(
       (u) => {
@@ -246,8 +311,25 @@ export async function waitForDeepLink(timeoutMs = 120_000): Promise<string> {
 export function listenDeepLink(cb: (url: string) => void): Promise<DeepLinkUnlisten> {
   return import("@tauri-apps/plugin-deep-link").then((mod) =>
     mod.onOpenUrl((urls) => {
-      const hit = urls.find((u) => u.startsWith(`${DESKTOP_SCHEME}:`));
-      if (hit) cb(hit);
+      for (const u of urls ?? []) {
+        if (typeof u === "string" && isDesktopCallbackUrl(u)) cb(u);
+      }
+    }),
+  );
+}
+
+/**
+ * Windows/Linux second-instance fallback: when the app is already running,
+ * the OS launches a second process with the callback URL as argv. Rust
+ * forwards it via the `single-instance` event (see src-tauri/src/main.rs).
+ * Without this, warm-start logins hang forever on "Waiting for browser…".
+ */
+export function listenSingleInstance(cb: (url: string) => void): Promise<DeepLinkUnlisten> {
+  return import("@tauri-apps/api/event").then((mod) =>
+    mod.listen<string[]>("single-instance", (e) => {
+      for (const u of e.payload ?? []) {
+        if (typeof u === "string" && isDesktopCallbackUrl(u)) cb(u);
+      }
     }),
   );
 }

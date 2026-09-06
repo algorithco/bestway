@@ -61,6 +61,7 @@ export function DesktopAuthorize() {
   async function authorize() {
     setPhase({ name: "authorizing" });
     setCopied(false);
+    setCopiedUrl(false);
     try {
       const data = await api.post<AuthorizeResponse>("/auth/desktop/authorize", {
         deviceId: device,
@@ -84,12 +85,23 @@ export function DesktopAuthorize() {
     }
   }
 
+  const [copiedUrl, setCopiedUrl] = React.useState(false);
+
   async function copyCode(code: string) {
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
     } catch {
       setCopied(false);
+    }
+  }
+
+  async function copyCallbackUrl(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(true);
+    } catch {
+      setCopiedUrl(false);
     }
   }
 
@@ -181,6 +193,25 @@ export function DesktopAuthorize() {
               >
                 {copied ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
                 {copied ? t("copied") : t("copyButton")}
+              </button>
+            </div>
+          </Field>
+          <Field label={t("callbackLabel")} htmlFor="desktop-callback-url">
+            <div className="flex gap-2">
+              <Input
+                id="desktop-callback-url"
+                readOnly
+                value={phase.callbackUrl}
+                className="font-mono text-xs"
+                onFocus={(e) => e.target.select()}
+              />
+              <button
+                type="button"
+                onClick={() => copyCallbackUrl(phase.callbackUrl)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-[8px] border border-border px-3 text-sm text-fg hover:bg-surface"
+              >
+                {copiedUrl ? <Check className="size-4" aria-hidden="true" /> : <Copy className="size-4" aria-hidden="true" />}
+                {copiedUrl ? t("copied") : t("copyButton")}
               </button>
             </div>
           </Field>

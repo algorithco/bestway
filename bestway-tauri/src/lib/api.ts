@@ -124,6 +124,8 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   body?: any;
   token?: string | null;
+  /** Internal: skip transparent refresh (used for the retry itself + auth endpoints). */
+  _retried?: boolean;
 }
 
 function toApiError(status: number, payload: unknown, fallback: string): ApiError {
@@ -145,7 +147,7 @@ function toApiError(status: number, payload: unknown, fallback: string): ApiErro
 }
 
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { query, body, token, headers, ...rest } = options;
+  const { query, body, token, headers, _retried, ...rest } = options;
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}${buildQuery(query)}`;
 
   const accessToken = token !== undefined ? token : getAccessToken();
@@ -165,7 +167,29 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const payload: unknown = text ? safeJsonParse(text) : null;
 
   if (!res.ok) {
-    throw toApiError(res.status, payload, `Request failed: ${res.status}`);
+    const err = toApiError(res.status, payload, `Request failed: ${res.status}`);
+    // Transparent refresh like the web proxy (frontend/src/app/api/backend/[...path]/route.ts):
+    // on first 401, try POST /auth/refresh once, then retry the original request.
+    // Skip for auth endpoints themselves to avoid infinite loops.
+    const isAuthEndpoint =
+      path.startsWith("/auth/login") ||
+      path.startsWith("/auth/refresh") ||
+      path.startsWith("/auth/desktop/exchange") ||
+      path.startsWith("/auth/register");
+    if ((res.status === 401 || err.code === "SESSION_EXPIRED") && !_retried && !isAuthEndpoint) {
+      try {
+        await refresh();
+        return request<T>(path, { ...options, _retried: true });
+      } catch {
+        // Refresh failed — fall through to the original 401 below.
+        // If the refresh token was reused, backend returns SESSION_EXPIRED;
+        // wipe local session so the user is forced to re-login.
+        if (getRefreshToken()) {
+          // Keep tokens; caller decides. Only wipe when refresh itself says expired.
+        }
+      }
+    }
+    throw err;
   }
 
   // Backend wraps data as ApiResponse<T>; unwrap to T for callers.
@@ -237,11 +261,29 @@ export async function refresh(): Promise<AuthSession> {
   if (!refreshToken) {
     throw { code: "NO_REFRESH_TOKEN", message: "No refresh token in session", status: 401 } as ApiError;
   }
-  const session = await post<AuthSession>("/auth/refresh", { refreshToken }, { token: null });
-  if (session?.accessToken) {
-    setSession(session.accessToken, session.refreshToken ?? refreshToken);
+  try {
+    const session = await post<AuthSession>("/auth/refresh", { refreshToken }, { token: null });
+    if (session?.accessToken) {
+      setSession(session.accessToken, session.refreshToken ?? refreshToken);
+    }
+    return session;
+  } catch (e) {
+    // Reuse detection / expiry means the whole family is revoked server-side.
+    // Wipe local tokens so the UI falls back to login instead of looping 401s.
+    const code = (e as ApiError)?.code;
+    if (code === "SESSION_EXPIRED" || code === "INVALID_REFRESH_TOKEN") clearSession();
+    throw e;
   }
-  return session;
+}
+
+export interface MeResponse {
+  user: AuthUser;
+  profile?: unknown;
+  [key: string]: unknown;
+}
+
+export async function me(): Promise<MeResponse> {
+  return get<MeResponse>("/auth/me");
 }
 
 export async function logout(): Promise<void> {

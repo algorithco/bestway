@@ -5,7 +5,7 @@ mod lockdown;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 /// Shared exam-lock flag. When true, close requests are vetoed.
@@ -52,9 +52,26 @@ fn clear_clipboard(app: tauri::AppHandle) -> Result<(), String> {
 fn main() {
     tauri::Builder::default()
         .manage(LockState(AtomicBool::new(false)))
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(window) = app.get_webview_window("main") {
+                let _ = window.unminimize();
+                let _ = window.show();
                 let _ = window.set_focus();
+            }
+            // OAuth callback arrives as second-instance argv on Win/Linux
+            // (e.g. `bestway-app.exe bestway-exam://auth/callback?code=..`).
+            // Forward it so the frontend `onOpenUrl` + `single-instance`
+            // listeners can complete the exchange.
+            let urls: Vec<String> = args
+                .into_iter()
+                .filter(|a| a.starts_with("bestway-exam:"))
+                .collect();
+            if !urls.is_empty() {
+                for url in urls.clone() {
+                    // Triggers JS `onOpenUrl` when deep-link plugin listens.
+                    let _ = app.emit("deep-link://new-url", url);
+                }
+                let _ = app.emit("single-instance", urls);
             }
         }))
         .plugin(tauri_plugin_opener::init())

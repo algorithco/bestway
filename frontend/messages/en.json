@@ -370,13 +370,14 @@
     "loginButton": "Sign in",
     "invalidParams": "This link is invalid or outdated. Try again from the desktop app.",
     "successTitle": "Done! Go back to the app.",
-    "successHint": "If the app did not open automatically, enter this code in the desktop window (valid for 5 minutes).",
+    "successHint": "If the app did not open automatically, paste this code or the full URL into the desktop window (valid for 5 minutes).",
     "codeLabel": "One-time code",
     "copyButton": "Copy",
     "copied": "Copied",
     "openAppButton": "Reopen the app",
     "retryButton": "Try again",
-    "backToDashboard": "Back to dashboard"
+    "backToDashboard": "Back to dashboard",
+    "callbackLabel": "Full callback URL"
   },
   "attendance": {
     "title": "Attendance",

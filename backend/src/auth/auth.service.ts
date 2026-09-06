@@ -22,8 +22,17 @@ const LINK_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const DUMMY_PASSWORD_HASH = '$2a$10$S0DkiNylcFUhAIuwhOeOz.jS/i48bFSlu6E0mrcE/jVrZ9Ph9i6Zy';
 /** Desktop kirish kodining yashash muddati (daqiqa) */
 const DESKTOP_CODE_TTL_MIN = 5;
-/** Desktop deep-link manzili — faqat shu manzilga yo'naltiriladi */
-const DESKTOP_CALLBACK = 'bestway-exam://auth/callback';
+/** Desktop deep-link manzili — faqat shu manzil(lar)ga yo'naltiriladi */
+const DEFAULT_DESKTOP_CALLBACK = 'bestway-exam://auth/callback';
+
+function allowedDesktopRedirects(config: ConfigService): string[] {
+  const raw = config.get<string>('DESKTOP_REDIRECT_URIS') ?? '';
+  const list = raw
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return list.length > 0 ? list : [DEFAULT_DESKTOP_CALLBACK];
+}
 
 @Injectable()
 export class AuthService {
@@ -177,7 +186,7 @@ export class AuthService {
    * desktopga uzatiladi va `/auth/desktop/exchange` da sessiyaga almashadi.
    */
   async authorizeDesktop(user: AuthUser, dto: DesktopAuthorizeDto) {
-    if (dto.redirect !== DESKTOP_CALLBACK) {
+    if (!allowedDesktopRedirects(this.config).includes(dto.redirect)) {
       throw new AppException('INVALID_REDIRECT', 'Ruxsat etilmagan qaytish manzili', 400);
     }
     const dbUser = await this.prisma.user.findUnique({ where: { id: user.id } });

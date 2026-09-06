@@ -62,10 +62,27 @@ async function bootstrap() {
 
   // Admin panel (statik): http://localhost:3001/admin
   app.useStaticAssets(join(__dirname, '..', 'public', 'admin'), { prefix: '/admin' });
+  const corsEnv = (process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // Tauri desktop webview origins (prod: tauri://localhost, dev: http://localhost:1420).
+  // Without these, POST /auth/login + POST /auth/desktop/exchange fail preflight
+  // and OAuth "does not work at all" in the packaged app.
+  const tauriOrigins = [
+    'tauri://localhost',
+    'http://tauri.localhost',
+    'https://tauri.localhost',
+    'http://localhost:1420',
+  ];
+  const allowedOrigins = Array.from(new Set([...corsEnv, ...tauriOrigins]));
   app.enableCors({
-    origin: process.env.CORS_ORIGIN
-      ? process.env.CORS_ORIGIN.split(',').map((s) => s.trim())
-      : false,
+    origin: (origin, cb) => {
+      // No Origin (Tauri opener redirects, curl, native) — allow.
+      if (!origin) return cb(null, true);
+      if (allowedOrigins.includes(origin)) return cb(null, true);
+      return cb(null, false);
+    },
     credentials: true,
   });
 
