@@ -212,6 +212,29 @@ export function defaultSections(): BuilderSection[] {
   return [listening, reading, writing, speaking];
 }
 
+/** Types whose backend contract requires at least 2 options. */
+export const OPTION_TYPES: MockQuestionType[] = [
+  "multiple_choice",
+  "multi_select",
+  "matching",
+  "matching_headings",
+];
+
+const OPTION_TYPE_SET: ReadonlySet<MockQuestionType> = new Set(OPTION_TYPES);
+
+/** Types with a backend-representable word limit (NO MORE THAN X). Never set on essays/speaking. */
+export const WORD_LIMIT_TYPES: MockQuestionType[] = [
+  "short_answer",
+  "sentence_completion",
+  "note_completion",
+  "summary_completion",
+  "table_completion",
+];
+
+function nonEmpty(values: string[]): string[] {
+  return values.filter((v) => v.trim() !== "");
+}
+
 export function validatePart(skill: MockSkill, part: BuilderPart): string[] {
   const errors: string[] = [];
   if (skill === "writing" || skill === "speaking") {
@@ -229,8 +252,18 @@ export function validatePart(skill: MockSkill, part: BuilderPart): string[] {
   }
   for (const q of part.questions) {
     if (!q.prompt.trim()) errors.push(`Question ${q.number}: prompt is required`);
-    if (isAutoType(q.type) && q.correctAnswers.length === 0) {
+    // Type-aware: options required only for option types (backend OPTIONS_REQUIRED).
+    if (OPTION_TYPE_SET.has(q.type) && nonEmpty(q.options).length < 2) {
+      errors.push(`Question ${q.number}: choice questions need at least 2 options`);
+    }
+    if (isAutoType(q.type) && nonEmpty(q.correctAnswers).length === 0) {
       errors.push(`Question ${q.number}: add at least one correct answer`);
+    }
+    if (q.wordLimit != null && (!Number.isInteger(q.wordLimit) || q.wordLimit < 1 || q.wordLimit > 50)) {
+      errors.push(`Question ${q.number}: word limit must be between 1 and 50`);
+    }
+    if (!Number.isInteger(q.points) || q.points < 1 || q.points > 20) {
+      errors.push(`Question ${q.number}: points must be between 1 and 20`);
     }
   }
   return errors;

@@ -37,6 +37,7 @@ const PROTECTED_PREFIXES = [
   "/children",
   "/tests",
   "/mock",
+  "/exam-builder",
   "/videos",
 ];
 
@@ -53,6 +54,7 @@ const ROUTE_ROLES: [string, Role[]][] = [
   ["/articles", ["admin", "super_admin"]],
   ["/gallery", ["admin", "super_admin"]],
   ["/mock", ["student", "teacher", "admin", "super_admin"]],
+  ["/exam-builder", ["teacher", "admin", "super_admin"]],
   ["/settings", ["super_admin"]],
   ["/audit", ["super_admin"]],
   ["/my", ["student", "parent"]],

@@ -1,7 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { getSessionRole } from "@/lib/auth";
+import { redirect } from "@/i18n/navigation";
 import { MockExamDetailView } from "@/components/mock/mock-exam-detail-view";
-import { MockManageView } from "@/components/mock/mock-manage-view";
 
 export default async function MockExamPage({
   params,
@@ -12,5 +12,7 @@ export default async function MockExamPage({
   setRequestLocale(locale);
   const role = await getSessionRole();
   if (role === "student" || role === "parent") return <MockExamDetailView examId={id} />;
-  return <MockManageView examId={id} />;
+  // Staff authoring lives in the unified Exam Builder — one authoring model.
+  // Student/parent detail view above is preserved; attempt routes untouched.
+  redirect({ href: `/exam-builder/${id}`, locale });
 }

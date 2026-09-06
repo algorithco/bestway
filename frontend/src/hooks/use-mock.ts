@@ -319,7 +319,20 @@ export function useImportMockQuestions(examId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: { groupId: string; text: string; answers?: Record<string, string>; points?: number }) =>
-      api.post<{ added: number }>(`/mock/groups/${v.groupId}/questions/import`, {
+      api.post<{
+        added: number;
+        questions?: Array<{
+          id: string;
+          number: number;
+          type: string;
+          prompt: string;
+          options?: string[] | null;
+          correctAnswers?: string[] | null;
+          acceptedVariants?: string[] | null;
+          points?: number;
+          wordLimit?: number | null;
+        }>;
+      }>(`/mock/groups/${v.groupId}/questions/import`, {
         text: v.text,
         answers: v.answers,
         points: v.points,

@@ -17,15 +17,13 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter } from "@/i18n/navigation";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
-import { ExamBuilderWizard } from "@/components/mock/exam-builder/ExamBuilderWizard";
 import {
   useConfirmMockPurchase,
   useMockAttempts,
@@ -56,9 +54,6 @@ export function MockExamsView() {
   const isStudent = role === "student";
 
   const [tab, setTab] = React.useState<Tab>("exams");
-  const [createOpen, setCreateOpen] = React.useState(false);
-  const router = useRouter();
-  const qc = useQueryClient();
   const examsQ = useMockExams();
   const purchase = usePurchaseMock();
 
@@ -76,10 +71,12 @@ export function MockExamsView() {
         description={t("subtitle")}
         actions={
           isStaff ? (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
-              <Plus />
-              {t("create")}
-            </Button>
+            <Link href="/exam-builder/new">
+              <Button size="sm">
+                <Plus />
+                {t("create")}
+              </Button>
+            </Link>
           ) : undefined
         }
       />
@@ -130,18 +127,11 @@ export function MockExamsView() {
         </div>
       )}
 
-      {createOpen && (
-        <ExamBuilderWizard
-          open={createOpen}
-          examId={null}
-          onClose={() => setCreateOpen(false)}
-          onCreated={(id) => {
-            setCreateOpen(false);
-            qc.invalidateQueries({ queryKey: ["mock-exams"] });
-            router.push(`/mock/${id}`);
-          }}
-        />
-      )}
+      {/*
+        Creation moved to the unified Exam Builder (/exam-builder/new).
+        The wizard dialog stays in the codebase for reference but is no longer
+        opened from here — one primary authoring workflow.
+      */}
     </div>
   );
 }
