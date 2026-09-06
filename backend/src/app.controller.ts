@@ -11,4 +11,18 @@ export class AppController {
   health() {
     return { status: 'ok', time: new Date().toISOString() };
   }
+
+  /**
+   * Desktop ilova ishga tushganda yangilanish bor-yo'qligini tekshiradi.
+   * Ochiq endpoint (auth shart emas). Qiymatlar ENV dan olinadi;
+   * `DESKTOP_LATEST_VERSION` hozirgi relizga teng bo'lsa — bildirishnoma chiqmaydi.
+   */
+  @Public()
+  @Get('desktop-version')
+  desktopVersion() {
+    return {
+      version: process.env.DESKTOP_LATEST_VERSION?.trim() || '0.1.9',
+      downloadUrl: process.env.DESKTOP_DOWNLOAD_URL?.trim() || null,
+    };
+  }
 }
