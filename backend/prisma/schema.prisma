@@ -613,6 +613,10 @@ model MockQuestionGroup {
   passageText  String? // Reading matni / Listening transkripti
   audioKey     String? // Listening audio (storage kaliti)
   imageKey     String? // Map/diagram labelling uchun rasm
+  // --- IELTS full-test (v2026.1): Listening 4 part, dynamic audio muddati ---
+  partNumber       Int? // Listening uchun 1..4 (Reading/Writing da null)
+  audioPlayLimit   Int  @default(1) // exam rejimda 1, practice da cheksiz (service tekshiradi)
+  audioDurationSec Int? // audio davomiyligi (sekund); deadline = duration + 120s review
   createdAt    DateTime @default(now())
 
   section   MockSection    @relation(fields: [sectionId], references: [id], onDelete: Cascade)
@@ -632,6 +636,7 @@ model MockQuestion {
   correctAnswers Json? // string[] — qabul qilinadigan to'g'ri javoblar (auto-baholash)
   points         Int              @default(1)
   wordLimit      Int? // "NO MORE THAN X WORDS" cheklovi (ixtiyoriy)
+  acceptedVariants Json? // British/American imlo variantlari: string[] (masalan ["colour","color"])
   createdAt      DateTime         @default(now())
 
   group   MockQuestionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
@@ -656,6 +661,13 @@ model MockAttempt {
   mode           MockAttemptMode   @default(practice) // practice=vaqtsiz, timed=vaqtli
   deadlineAt     DateTime? // timed rejimda tugash vaqti (startedAt + davomiylik)
   annotations    Json? // o'quvchining highlight/eslatmalari (frontend uchun saqlanadi)
+  // --- IELTS full-test flow (v2026.1): L→R→W ketma-ket, server-soat ---
+  flowMode           String? // "full_test" | "single_skill" (null = single_skill, eski yozuvlar)
+  currentSkill       MockSkill? // full_test da joriy bo'lim (listening→reading→writing)
+  sectionDeadlines   Json? // {"listening": ISO, "reading": ISO, "writing": ISO}
+  overallDeadlineAt  DateTime? // full_test umumiy deadline (oxirgi bo'lim tugashi)
+  audioPlays         Json? // {"groupId": count} — Listening once-only nazorati
+  submittedSections  Json? // ["listening", ...] — yakunlangan bo'limlar
 
   exam        MockExam         @relation(fields: [examId], references: [id], onDelete: Cascade)
   student     StudentProfile   @relation(fields: [studentId], references: [userId], onDelete: Cascade)
@@ -678,6 +690,7 @@ model MockAnswer {
   isGraded   Boolean  @default(false)
   gradedById String? // writing/speaking ni baholagan o'qituvchi (User.id)
   feedback   String?
+  rubricScores Json? // 4 mezon: writing {TA,CC,LR,GRA} / speaking {fluency,lexical,grammar,pronun} 0..9
   updatedAt  DateTime @updatedAt
 
   attempt  MockAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
