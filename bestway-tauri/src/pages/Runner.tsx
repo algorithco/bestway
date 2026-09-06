@@ -310,7 +310,7 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col">
+    <section className="flex min-h-0 flex-1 flex-col">
       {/* Compact exam header */}
       <header className="flex shrink-0 items-center gap-4 border-b border-white/10 bg-[#101512]/90 px-5 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
