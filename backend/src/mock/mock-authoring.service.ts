@@ -96,6 +96,13 @@ export class MockAuthoringService {
   async updateExam(actor: AuthUser, id: string, dto: UpdateMockExamDto) {
     await this.examOrThrow(id);
     await this.assertCanAuthor(actor, id);
+    if (dto.isPublished === true) {
+      const ready = await this.readiness(actor, id);
+      if (!ready.ready) {
+        const bad = ready.items.filter((i) => !i.ok).map((i) => i.detail || i.key).join('; ');
+        throw new AppException('MOCK_NOT_READY', `Exam not ready to publish: ${bad}`, 400);
+      }
+    }
     const updated = await this.prisma.mockExam.update({
       where: { id },
       data: {
@@ -498,6 +505,24 @@ export class MockAuthoringService {
     if (parsed.questions.length === 0) {
       throw new AppException('NO_QUESTIONS_PARSED', 'Matndan savol topilmadi', 400);
     }
+    // Validate numbers 1..200 and duplicates within paste
+    const nums = parsed.questions.map((q) => q.number);
+    const invalid = nums.filter((n) => !Number.isInteger(n) || n < 1 || n > 200);
+    if (invalid.length) throw new AppException('VALIDATION_ERROR', `Invalid question numbers: ${[...new Set(invalid)].join(', ')} (must be 1-200)`, 400);
+    const dupInPaste = nums.filter((n, i) => nums.indexOf(n) !== i);
+    if (dupInPaste.length) throw new AppException('VALIDATION_ERROR', `Duplicate numbers in pasted text: ${[...new Set(dupInPaste)].join(', ')}`, 400);
+    // Exam-wide duplicate check (existing DB numbers)
+    const sectionRow = await this.prisma.mockSection.findUnique({ where: { id: group.sectionId }, select: { examId: true } });
+    const existingNums = new Set<number>();
+    if (sectionRow) {
+      const allQs = await this.prisma.mockQuestion.findMany({
+        where: { group: { section: { examId: sectionRow.examId } } },
+        select: { number: true },
+      });
+      for (const q of allQs) existingNums.add(q.number);
+      const collisions = nums.filter((n) => existingNums.has(n));
+      if (collisions.length) throw new AppException('VALIDATION_ERROR', `Already used in this exam: ${[...new Set(collisions)].join(', ')}`, 400);
+    }
     const isAuto = AUTO_SKILLS.includes(group.section.skill);
     const answers = dto.answers ?? {};
     const missing: number[] = [];
@@ -563,6 +588,18 @@ export class MockAuthoringService {
     const base = await this.prisma.mockQuestion.count({ where: { groupId } });
 
     dto.questions.forEach((q, i) => this.validateQuestion(q, isAuto, i));
+    // Duplicate numbers within batch
+    const batchNums = dto.questions.map((q) => q.number);
+    const batchDups = batchNums.filter((n, i) => batchNums.indexOf(n) !== i);
+    if (batchDups.length) throw new AppException('VALIDATION_ERROR', `Duplicate numbers in batch: ${[...new Set(batchDups)].join(', ')}`, 400);
+    // Exam-wide duplicates
+    const secRow = await this.prisma.mockSection.findUnique({ where: { id: group.sectionId }, select: { examId: true } });
+    if (secRow) {
+      const existing = await this.prisma.mockQuestion.findMany({ where: { group: { section: { examId: secRow.examId } } }, select: { number: true } });
+      const used = new Set(existing.map((x) => x.number));
+      const coll = batchNums.filter((n) => used.has(n));
+      if (coll.length) throw new AppException('VALIDATION_ERROR', `Already used in this exam: ${[...new Set(coll)].join(', ')}`, 400);
+    }
 
     await this.prisma.mockQuestion.createMany({
       data: dto.questions.map((q, i) => ({
@@ -801,13 +838,22 @@ export class MockAuthoringService {
         const parts = new Set(groups.map((g) => g.partNumber).filter((p) => p != null));
         items.push({
           key: 'listening_parts',
-          ok: parts.size >= 4 || groups.length >= 4,
+          ok: groups.length >= 4 && parts.size >= 4,
           detail: `${groups.length} groups, parts: ${[...parts].sort().join(',') || '—'}`,
         });
         items.push({
           key: 'listening_audio',
           ok: groups.length > 0 && groups.every((g) => !!g.audioKey),
           detail: `${groups.filter((g) => g.audioKey).length}/${groups.length} groups with audio`,
+        });
+      }
+      if (skill === 'reading') {
+        const groups = section.groups as Array<{ passageText: string | null; questions: unknown[] }>;
+        const missingPassage = groups.filter((g) => g.questions.length > 0 && !g.passageText?.trim()).length;
+        items.push({
+          key: 'reading_passage',
+          ok: missingPassage === 0,
+          detail: missingPassage === 0 ? 'all passages have text' : `${missingPassage} passage(s) without text`,
         });
       }
       if (skill === 'writing') {
@@ -824,17 +870,23 @@ export class MockAuthoringService {
       }
     }
 
-    // Auto savollarda javob kaliti bormi
+    // Auto savollarda javob kaliti bormi (trim empty)
     let missingKeys = 0;
     let manualBadPoints = 0;
     const ielts = exam.type === 'ielts_academic' || exam.type === 'ielts_general';
+    const seenNumbers = new Map<number, number>();
+    let duplicateCount = 0;
     for (const s of exam.sections) {
       const auto = AUTO_SKILLS.includes(s.skill);
       for (const g of s.groups) {
         for (const q of g.questions) {
-          const keys = q.correctAnswers as string[] | null;
-          if (auto && (!keys || keys.length === 0)) missingKeys++;
+          const keys = (q.correctAnswers as string[] | null) ?? [];
+          const nonEmpty = keys.filter((a) => a.trim() !== '');
+          if (auto && nonEmpty.length === 0) missingKeys++;
           if (ielts && !auto && q.points !== IELTS_MANUAL_POINTS) manualBadPoints++;
+          const c = seenNumbers.get(q.number) ?? 0;
+          if (c === 1) duplicateCount++;
+          seenNumbers.set(q.number, c + 1);
         }
       }
     }
@@ -844,6 +896,7 @@ export class MockAuthoringService {
       ok: !ielts || manualBadPoints === 0,
       detail: ielts ? `${manualBadPoints} W/S Q not 9pt` : 'n/a (multilevel)',
     });
+    items.push({ key: 'duplicate_numbers', ok: duplicateCount === 0, detail: duplicateCount === 0 ? 'no duplicates' : `${duplicateCount} duplicate number(s)` });
 
     const total = countQs('listening') + countQs('reading') + countQs('writing');
     items.push({ key: 'total_questions', ok: total > 0, detail: `${total} L+R+W questions` });
@@ -870,20 +923,28 @@ export class MockAuthoringService {
   // ─────────────────────────── Helpers ───────────────────────────
 
   private validateQuestion(
-    q: { type: MockQuestionType; options?: string[]; correctAnswers?: string[] },
+    q: { type: MockQuestionType; options?: string[]; correctAnswers?: string[]; wordLimit?: number; points?: number },
     isAuto: boolean,
     index: number,
   ): void {
     const at = `#${index + 1}-savol: `;
-    if (OPTION_TYPES.has(q.type) && (!q.options || q.options.length < 2)) {
+    const opts = (q.options ?? []).filter((o) => o.trim() !== '');
+    const keys = (q.correctAnswers ?? []).filter((a) => a.trim() !== '');
+    if (OPTION_TYPES.has(q.type) && opts.length < 2) {
       throw new AppException('OPTIONS_REQUIRED', `${at}variantlar kamida 2 ta bo'lsin`, 400);
     }
-    if (isAuto && (!q.correctAnswers || q.correctAnswers.length === 0)) {
+    if (isAuto && keys.length === 0) {
       throw new AppException(
         'CORRECT_ANSWER_REQUIRED',
         `${at}Listening/Reading savoli uchun to'g'ri javob majburiy`,
         400,
       );
+    }
+    if (q.wordLimit != null && (!Number.isInteger(q.wordLimit) || q.wordLimit < 1 || q.wordLimit > 50)) {
+      throw new AppException('VALIDATION_ERROR', `${at}word limit 1-50 bo'lsin`, 400);
+    }
+    if (q.points != null && (!Number.isInteger(q.points) || q.points < 1 || q.points > 20)) {
+      throw new AppException('VALIDATION_ERROR', `${at}points 1-20 bo'lsin`, 400);
     }
   }
 
