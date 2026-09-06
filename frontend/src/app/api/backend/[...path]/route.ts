@@ -93,15 +93,19 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   const body = hasBody ? await req.arrayBuffer() : undefined;
 
+  // Audio/rasm uploadlar o'nlab MB bo'ladi va 2 hop'dan o'tadi
+  // (brauzer→Next→backend) — 8s default ularga yetmaydi.
+  const isUpload = (req.headers.get("content-type") ?? "").includes("multipart/form-data");
+  const timeoutMs = isUpload ? 120_000 : 8_000;
+
   const send = (token?: string) =>
     fetch(target, {
       method: req.method,
       headers: forwardHeaders(req, token),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       body: body && body.byteLength > 0 ? body : undefined,
       cache: "no-store",
       redirect: "manual",
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(timeoutMs),
       ...(body && body.byteLength > 0 ? { duplex: "half" as const } : {}),
     } as RequestInit & { duplex?: "half"; signal?: AbortSignal });
 

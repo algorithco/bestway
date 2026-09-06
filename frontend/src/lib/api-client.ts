@@ -49,7 +49,18 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     body: body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
   });
 
-  const json = (await res.json()) as ApiResponse<T>;
+  // Uploadlar (audio/rasm) katta bo'lganda oraliq server JSON emas, oddiy
+  // xatolik qaytarishi mumkin — res.json() crash bo'lmasligi uchun.
+  let json: ApiResponse<T>;
+  try {
+    json = (await res.json()) as ApiResponse<T>;
+  } catch {
+    throw new ApiError(
+      res.status === 413 ? "FILE_TOO_LARGE" : "UPSTREAM",
+      res.statusText ? `${res.statusText} (${res.status})` : `Server error (${res.status})`,
+      res.status,
+    );
+  }
 
   if (!res.ok || !json.success) {
     const error = "error" in json ? json.error : undefined;

@@ -524,6 +524,7 @@ function WizardSetup({
 }) {
   const t = useTranslations("mock");
   const tc = useTranslations("common");
+  const tw = useTranslations("wizard");
   const create = useCreateMockExam();
 
   const [type, setType] = React.useState<MockExamType>("ielts_academic");
@@ -534,7 +535,8 @@ function WizardSetup({
 
   function submit() {
     setError(null);
-    if (title.trim().length < 3) return setError(tc("unknownError"));
+    // Raqamlar ruxsat — faqat minimal uzunlik tekshiriladi (backend: min 3).
+    if (title.trim().length < 3) return setError(tw("titleTooShort"));
     create.mutate(
       {
         type,
@@ -560,12 +562,12 @@ function WizardSetup({
             {error}
           </div>
         )}
-        <Field label={tc("name")} htmlFor="wtitle">
+        <Field label={tc("name")} hint={tw("examTitleHint")} htmlFor="wtitle">
           <Input
             id="wtitle"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="IELTS Academic Mock #1"
+            placeholder="IELTS Mock 1"
             autoFocus
           />
         </Field>
