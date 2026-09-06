@@ -1,9 +1,41 @@
+import { useState } from "react";
+import { getConfirmBeforeSubmit, setConfirmBeforeSubmit } from "@/lib/exam-prefs";
+
 type Props = {
   name: string | null;
   phone: string | null;
   onLogout: () => void;
   stats?: { attempts: number; completed: number; avgScore: number | null } | null;
 };
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={() => onChange(!checked)}
+      className={`relative h-6 w-11 shrink-0 rounded-full transition ${
+        checked ? "bg-[#19D36B]" : "bg-white/15"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+          checked ? "left-[22px]" : "left-0.5"
+        }`}
+      />
+    </button>
+  );
+}
 
 function LogoutIcon() {
   return (
@@ -16,10 +48,16 @@ function LogoutIcon() {
   );
 }
 
-/** Student profile: identity + stats + session — coherent centered layout, no volume. */
+/** Student profile: identity + stats + preferences + session — unified account page. */
 export default function Profile({ name, phone, onLogout, stats }: Props) {
   const display = name ?? "Student";
   const initial = display.trim().charAt(0).toUpperCase() || "?";
+  const [confirmSubmit, setConfirmSubmit] = useState(() => getConfirmBeforeSubmit());
+
+  function handleConfirmToggle(next: boolean) {
+    setConfirmSubmit(next);
+    setConfirmBeforeSubmit(next);
+  }
   return (
     <section className="mx-auto w-full max-w-[640px]">
       {/* Header */}
@@ -75,6 +113,28 @@ export default function Profile({ name, phone, onLogout, stats }: Props) {
             </div>
             <p className="mt-2.5 text-center text-[11px] text-white/30 sm:text-left">
               Detailed stats load when you open History.
+            </p>
+          </div>
+
+          {/* Divider */}
+          <div className="my-6 h-px bg-white/[0.06]" aria-hidden="true" />
+
+          {/* Preferences — moved from Settings */}
+          <div>
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/45">Preferences</h3>
+            <div className="mt-3 flex items-center gap-3 rounded-xl bg-black/30 px-3.5 py-3 ring-1 ring-white/10">
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-white">Confirm before submitting</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-white/40">
+                  {confirmSubmit
+                    ? "The app asks you to confirm before an exam is submitted."
+                    : "Exams submit immediately with no confirmation step."}
+                </p>
+              </div>
+              <Toggle checked={confirmSubmit} onChange={handleConfirmToggle} label="Confirm before submitting" />
+            </div>
+            <p className="mt-2 text-center text-[11px] leading-relaxed text-white/30 sm:text-left">
+              Answers save automatically while you work — this only controls the final submit step.
             </p>
           </div>
         </div>

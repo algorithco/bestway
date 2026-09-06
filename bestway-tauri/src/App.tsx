@@ -5,7 +5,6 @@ import Dashboard from "@/pages/Dashboard";
 import Exams from "@/pages/Exams";
 import History from "@/pages/History";
 import Profile from "@/pages/Profile";
-import Settings from "@/pages/Settings";
 import Runner from "@/pages/Runner";
 import Locked from "@/pages/Locked";
 import Result from "@/pages/Result";
@@ -26,7 +25,6 @@ export type Route =
   | "exams"
   | "history"
   | "profile"
-  | "settings"
   | "runner"
   | "locked"
   | "result";
@@ -42,7 +40,6 @@ const TITLES: Record<Exclude<Route, "login">, string> = {
   exams: "Exams",
   history: "History",
   profile: "Profile",
-  settings: "Settings",
   runner: "Exam runner",
   locked: "Locked",
   result: "Result",
@@ -332,13 +329,6 @@ export default function App() {
                   name={student?.name ?? null}
                   phone={student?.phone ?? null}
                   stats={stats}
-                  onLogout={() => void handleLogout()}
-                />
-              )}
-              {activeRoute === "settings" && (
-                <Settings
-                  studentName={student?.name ?? null}
-                  studentPhone={student?.phone ?? null}
                   onLogout={() => void handleLogout()}
                 />
               )}
