@@ -224,6 +224,15 @@ export function useCreateMockSection(examId: string) {
   });
 }
 
+export function useUpdateMockSection(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { sectionId: string; input: Partial<CreateMockSectionInput> }) =>
+      api.patch(`/mock/sections/${v.sectionId}`, v.input),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
 export function useDeleteMockSection(examId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -306,5 +315,40 @@ export function useSetMockGroupMedia(examId: string) {
     mutationFn: (v: { groupId: string; form: FormData }) =>
       api.post(`/mock/groups/${v.groupId}/media`, v.form),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exam", examId] }),
+  });
+}
+
+/* ── Clone / readiness / preview (staff) ─────────────────────────────── */
+
+export interface MockReadinessItem {
+  key: string;
+  ok: boolean;
+  detail: string;
+}
+
+export function useCloneMockExam() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (examId: string) => api.post<{ id: string }>(`/mock/exams/${examId}/clone`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
+  });
+}
+
+export function useMockReadiness(examId: string) {
+  return useQuery({
+    queryKey: ["mock-readiness", examId],
+    queryFn: () =>
+      api.get<{ examId: string; ready: boolean; items: MockReadinessItem[] }>(
+        `/mock/exams/${examId}/readiness`,
+      ),
+    enabled: !!examId,
+  });
+}
+
+export function useMockPreview(examId: string, enabled = false) {
+  return useQuery({
+    queryKey: ["mock-preview", examId],
+    queryFn: () => api.get(`/mock/exams/${examId}/preview`),
+    enabled: !!examId && enabled,
   });
 }

@@ -145,6 +145,7 @@ function MockQuestionsFields({
   const [mPrompt, setMPrompt] = React.useState("");
   const [mOptions, setMOptions] = React.useState("");
   const [mCorrect, setMCorrect] = React.useState("");
+  const [mVariants, setMVariants] = React.useState("");
   const [mPoints, setMPoints] = React.useState(isAuto ? "1" : "9");
   const [mWordLimit, setMWordLimit] = React.useState("");
 
@@ -179,6 +180,9 @@ function MockQuestionsFields({
     const correctAnswers = isAuto
       ? mCorrect.split(/[|,]/).map((s) => s.trim()).filter(Boolean)
       : undefined;
+    const acceptedVariants = isAuto
+      ? mVariants.split(/[|,]/).map((s) => s.trim()).filter(Boolean)
+      : undefined;
     addMut.mutate(
       {
         groupId,
@@ -189,6 +193,7 @@ function MockQuestionsFields({
             prompt: mPrompt.trim(),
             options,
             correctAnswers,
+            acceptedVariants: acceptedVariants?.length ? acceptedVariants : undefined,
             points: Number(mPoints) || 1,
             wordLimit: mWordLimit ? Number(mWordLimit) : undefined,
           },
@@ -319,6 +324,20 @@ function MockQuestionsFields({
                   value={mCorrect}
                   onChange={(e) => setMCorrect(e.target.value)}
                   placeholder="B  ·  flowers|flower"
+                />
+              </Field>
+            )}
+            {isAuto && (
+              <Field
+                label="Accepted variants (Br/Am)"
+                hint="Extra accepted spellings, separated by |"
+                htmlFor="mvar"
+              >
+                <Input
+                  id="mvar"
+                  value={mVariants}
+                  onChange={(e) => setMVariants(e.target.value)}
+                  placeholder="colour|color"
                 />
               </Field>
             )}

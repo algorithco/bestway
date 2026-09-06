@@ -627,6 +627,7 @@ export interface MockQuestion {
   points: number;
   wordLimit: number | null;
   correctAnswers?: string[] | null;
+  acceptedVariants?: string[] | null;
 }
 
 export interface MockGroup {
@@ -638,6 +639,9 @@ export interface MockGroup {
   hasAudio: boolean;
   audioUrl: string | null;
   imageUrl: string | null;
+  partNumber: number | null;
+  audioDurationSec: number | null;
+  audioPlayLimit: number;
   questions: MockQuestion[];
 }
 
@@ -813,6 +817,9 @@ export interface MockGroupInput {
   title?: string;
   instructions?: string;
   passageText?: string;
+  partNumber?: number;
+  audioDurationSec?: number;
+  audioPlayLimit?: number;
 }
 
 export interface MockQuestionInput {
@@ -822,6 +829,7 @@ export interface MockQuestionInput {
   prompt: string;
   options?: string[];
   correctAnswers?: string[];
+  acceptedVariants?: string[];
   points?: number;
   wordLimit?: number;
 }
