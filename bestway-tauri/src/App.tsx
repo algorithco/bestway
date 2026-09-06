@@ -13,6 +13,7 @@ import Sidebar from "@/components/Sidebar";
 import BootSplash from "@/components/BootSplash";
 import Particles from "@/components/Particles";
 import UpdateNotifier from "@/components/UpdateNotifier";
+import ExitConfirmModal from "@/components/ExitConfirmModal";
 import { checkForUpdate, getDismissedVersion, type UpdateInfo } from "@/lib/version";
 import ClickSpark from "@/components/ClickSpark";
 import CursorTrail from "@/components/CursorTrail";
@@ -82,6 +83,7 @@ export default function App() {
   const [activeStart, setActiveStart] = useState<StartResult | null>(null);
   const [lastScore, setLastScore] = useState<{ autoScore: number | null } | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [stats, setStats] = useState<{
     attempts: number;
     completed: number;
@@ -196,8 +198,14 @@ export default function App() {
   };
 
   const handleExitExam = () => {
-    if (!confirm("Leave the exam? Answers are saved — you can resume from Dashboard or Exams.")) return;
+    setShowExitConfirm(true);
+  };
+  const handleConfirmExit = () => {
+    setShowExitConfirm(false);
     handleBackToExams();
+  };
+  const handleCancelExit = () => {
+    setShowExitConfirm(false);
   };
 
   const handleLogin = (s: Student) => {
@@ -362,6 +370,7 @@ export default function App() {
     </div>
     {update && <UpdateNotifier update={update} onClose={() => setUpdate(null)} />}
     {showSplash && <BootSplash exiting={introLeaving} />}
+    <ExitConfirmModal open={showExitConfirm} onCancel={handleCancelExit} onConfirm={handleConfirmExit} />
     </>
   );
 }
