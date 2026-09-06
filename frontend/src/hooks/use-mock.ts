@@ -202,7 +202,7 @@ export function useUploadMockSpeaking(attemptId: string) {
 export function useGradeMock(attemptId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { questionId: string; score: number; feedback?: string }) =>
+    mutationFn: (v: { questionId: string; score: number; feedback?: string; rubricScores?: Record<string, number> }) =>
       api.post<{ saved: boolean; status: MockAttemptStatus }>(
         `/mock/attempts/${attemptId}/grade`,
         v,
@@ -210,6 +210,43 @@ export function useGradeMock(attemptId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] });
       qc.invalidateQueries({ queryKey: ["mock-attempts"] });
+    },
+  });
+}
+
+/* ── Staff attempt control ───────────────────────────────────────────── */
+
+export function useForceSubmitMock(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/mock/attempts/${attemptId}/force-submit`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] }),
+  });
+}
+
+export function useExtendMockDeadline(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (minutes: number) => api.post(`/mock/attempts/${attemptId}/extend`, { minutes }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] }),
+  });
+}
+
+export function useReopenMock(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post(`/mock/attempts/${attemptId}/reopen`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] }),
+  });
+}
+
+export function useDeleteMockAttempt() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (attemptId: string) => api.delete(`/mock/attempts/${attemptId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-attempts"] });
+      qc.invalidateQueries({ queryKey: ["mock-attempts-mine"] });
     },
   });
 }

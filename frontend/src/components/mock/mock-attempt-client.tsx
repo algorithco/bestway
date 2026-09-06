@@ -4,12 +4,16 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ErrorState, Skeleton } from "@/components/ui/feedback";
 import { useMockAttempt } from "@/hooks/use-mock";
+import { useMe } from "@/hooks/use-me";
 import { MockRunner } from "@/components/mock/mock-runner";
 import { MockResultView } from "@/components/mock/mock-result-view";
 
 export function MockAttemptClient({ attemptId }: { attemptId: string }) {
   const tc = useTranslations("common");
   const { data, isLoading, isError, refetch } = useMockAttempt(attemptId);
+  const { data: me } = useMe();
+  const role = me?.user.role;
+  const isStaff = role === "teacher" || role === "admin" || role === "super_admin";
 
   if (isError) {
     return (
@@ -33,6 +37,7 @@ export function MockAttemptClient({ attemptId }: { attemptId: string }) {
       </div>
     );
   }
-  if (data.status === "in_progress") return <MockRunner attempt={data} />;
+  // Xodimga runner emas, kuzatuv + boshqaruv (force-submit/extend/reopen/delete) ko'rinadi.
+  if (data.status === "in_progress" && !isStaff) return <MockRunner attempt={data} />;
   return <MockResultView attempt={data} />;
 }

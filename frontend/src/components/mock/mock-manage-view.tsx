@@ -162,6 +162,12 @@ export function MockManageView({ examId }: { examId: string }) {
         exam={exam}
       />
 
+      {exam.isPublished && (
+        <p className="mt-3 rounded-[8px] border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning">
+          Published — edits affect live students immediately. Unpublish first for structural changes.
+        </p>
+      )}
+
       {/* Nashr-readiness */}
       <ReadinessPanel examId={exam.id} />
 

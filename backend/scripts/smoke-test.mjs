@@ -592,6 +592,42 @@ const YEAR = now.getFullYear();
     }
   }
 
+  console.log('\n== MOCK AUTHORING (admin control) ==');
+  const smokeTitle = `SMOKE Exam ${Date.now()}`;
+  const mkExam = await call('POST', '/mock/exams', { token: admin.accessToken, body: { type: 'multilevel', title: smokeTitle } });
+  check('POST /mock/exams (admin) -> draft', mkExam.status === 201 && mkExam.json.success && mkExam.json.data.isPublished === false, mkExam.status);
+  const mkId = mkExam.json?.data?.id;
+  if (!mkId) {
+    check('authoring exam id olindi', false, mkExam.json);
+  } else {
+    const mkSec = await call('POST', `/mock/exams/${mkId}/sections`, { token: admin.accessToken, body: { skill: 'reading', durationMinutes: 10 } });
+    check('POST section reading', mkSec.json?.success === true, mkSec.status);
+    const secId = mkSec.json?.data?.id;
+    const mkGrp = secId ? await call('POST', `/mock/sections/${secId}/groups`, { token: admin.accessToken, body: { title: 'G1', instructions: 'Answer.', partNumber: 1, audioPlayLimit: 1 } }) : null;
+    check('POST group (+part/audio fields)', mkGrp?.json?.success === true && mkGrp?.json?.data?.audioPlayLimit === 1, mkGrp?.json?.data);
+    const grpId = mkGrp?.json?.data?.id;
+    const mkQ = grpId ? await call('POST', `/mock/groups/${grpId}/questions`, { token: admin.accessToken, body: { questions: [{ number: 1, type: 'short_answer', prompt: 'Smoke?', correctAnswers: ['yes'], acceptedVariants: ['yeah'], points: 1, wordLimit: 2 }] } }) : null;
+    check('POST question (+variants/wordLimit)', mkQ?.json?.success === true || mkQ?.json?.data?.added === 1, mkQ?.status);
+    const ready = await call('GET', `/mock/exams/${mkId}/readiness`, { token: admin.accessToken });
+    check('GET readiness -> items[]', ready.json?.success && Array.isArray(ready.json?.data?.items), ready.json?.data);
+    const clone = await call('POST', `/mock/exams/${mkId}/clone`, { token: admin.accessToken });
+    check('POST clone -> draft copy', clone.json?.success === true && clone.json?.data?.isPublished === false, clone.json?.data);
+    const cloneId = clone.json?.data?.id;
+    const prev = await call('GET', `/mock/exams/${mkId}/preview`, { token: admin.accessToken });
+    const prevQs = prev.json?.data?.sections?.[0]?.groups?.[0]?.questions ?? [];
+    check('GET preview -> kalitsiz (no correctAnswers)', prev.json?.success && prevQs.length > 0 && prevQs[0].correctAnswers === undefined, prevQs[0]);
+    // Teacher ownership: o'zganing imtihonini teacher tahrirlay olmaydi -> 403.
+    const ownBlock = await call('PATCH', `/mock/exams/${mkId}`, { token: teacher.accessToken, body: { title: 'Hijack' } });
+    check("teacher boshqaning examini edit -> 403 MOCK_NOT_OWNER", ownBlock.status === 403, ownBlock.status);
+    // Tozalash (faqat super_admin o'chira oladi).
+    if (cloneId) {
+      const delClone = await call('DELETE', `/mock/exams/${cloneId}`, { token: superA.accessToken });
+      check('DELETE clone (super_admin)', delClone.json?.success === true, delClone.status);
+    }
+    const delMk = await call('DELETE', `/mock/exams/${mkId}`, { token: superA.accessToken });
+    check('DELETE smoke exam (super_admin)', delMk.json?.success === true, delMk.status);
+  }
+
   console.log('\n== DEACTIVATE / LOGOUT ==');
   const del = await call('DELETE', `/users/${reg.json.data.user.id}`, { token: admin.accessToken });
   check('admin o\'chira olmaydi -> 403 (faqat super_admin)', del.status === 403, del.status);

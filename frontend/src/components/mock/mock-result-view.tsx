@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, Check, Download, X } from "lucide-react";
+import { ArrowLeft, Check, Download, Trash2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Link } from "@/i18n/navigation";
@@ -9,7 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
-import { useGradeMock } from "@/hooks/use-mock";
+import {
+  useDeleteMockAttempt,
+  useExtendMockDeadline,
+  useForceSubmitMock,
+  useGradeMock,
+  useReopenMock,
+} from "@/hooks/use-mock";
 import { useMe } from "@/hooks/use-me";
 import type { MockAttemptDetail, MockAttemptQuestion, MockSkill } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -36,6 +42,8 @@ export function MockResultView({ attempt }: { attempt: MockAttemptDetail }) {
         <ArrowLeft className="size-4" />
         {t("title")}
       </Link>
+
+      {isStaff && !completed && <AttemptActions attemptId={attempt.id} status={attempt.status} isAdmin={role === "admin" || role === "super_admin"} />}
 
       {/* Natija sarlavhasi */}
       <Card className="p-6 text-center">
@@ -110,6 +118,7 @@ export function MockResultView({ attempt }: { attempt: MockAttemptDetail }) {
                     <ReviewRow
                       key={q.id}
                       q={q}
+                      skill={s.skill}
                       attemptId={attempt.id}
                       canGrade={canGrade}
                       grade={grade}
@@ -125,13 +134,82 @@ export function MockResultView({ attempt }: { attempt: MockAttemptDetail }) {
   );
 }
 
-function ReviewRow({
-  q,
+/** Xodim urinish boshqaruvi: force-submit / extend / reopen / delete */
+function AttemptActions({
+  attemptId,
+  status,
+  isAdmin,
+}: {
+  attemptId: string;
+  status: string;
+  isAdmin: boolean;
+}) {
+  const tc = useTranslations("common");
+  const force = useForceSubmitMock(attemptId);
+  const extend = useExtendMockDeadline(attemptId);
+  const reopen = useReopenMock(attemptId);
+  const del = useDeleteMockAttempt();
+
+  function onExtend() {
+    const raw = prompt("Extra minutes (1–180):", "15");
+    if (raw == null) return;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < 1 || n > 180) {
+      toast.error("1–180");
+      return;
+    }
+    extend.mutate(n, {
+      onSuccess: () => toast.success(tc("saved")),
+      onError: () => toast.error(tc("unknownError")),
+    });
+  }
+
+  return (
+    <Card className="mb-4 flex flex-wrap gap-2 p-3">
+      {status === "in_progress" && (
+        <>
+          <Button size="sm" variant="outline" loading={force.isPending} onClick={() => force.mutate(undefined, { onSuccess: () => toast.success(tc("saved")), onError: () => toast.error(tc("unknownError")) })}>
+            Force submit
+          </Button>
+          <Button size="sm" variant="outline" loading={extend.isPending} onClick={onExtend}>
+            + Extend time
+          </Button>
+        </>
+      )}
+      {status === "grading" && (
+        <Button size="sm" variant="outline" loading={reopen.isPending} onClick={() => reopen.mutate(undefined, { onSuccess: () => toast.success(tc("saved")), onError: () => toast.error(tc("unknownError")) })}>
+          Reopen
+        </Button>
+      )}
+      {isAdmin && (
+        <Button
+          size="sm"
+          variant="ghost"
+          loading={del.isPending}
+          onClick={() => {
+            if (!confirm(tc("delete") + "?")) return;
+            del.mutate(attemptId, {
+              onSuccess: () => toast.success(tc("saved")),
+              onError: () => toast.error(tc("unknownError")),
+            });
+          }}
+        >
+          <Trash2 className="text-danger" />
+          {tc("delete")}
+        </Button>
+      )}
+    </Card>
+  );
+}
+
+function ReviewRow({  q,
+  skill,
   attemptId,
   canGrade,
   grade,
 }: {
   q: MockAttemptQuestion;
+  skill: MockSkill;
   attemptId: string;
   canGrade: boolean;
   grade: ReturnType<typeof useGradeMock>;
@@ -205,27 +283,60 @@ function ReviewRow({
               {q.feedback}
             </p>
           )}
+          {q.rubricScores && !canGrade && (
+            <p className="mt-1 text-xs text-fg-subtle tabular-nums">
+              {Object.entries(q.rubricScores)
+                .map(([k, v]) => `${k.toUpperCase()}: ${v}`)
+                .join(" · ")}
+            </p>
+          )}
 
           {/* Baholash formasi (xodim) */}
-          {canGrade && <GradeForm q={q} grade={grade} />}
+          {canGrade && <GradeForm q={q} skill={skill} grade={grade} />}
         </div>
       </div>
     </Card>
   );
 }
 
+const RUBRICS: Record<string, Array<{ key: string; label: string }>> = {
+  writing: [
+    { key: "ta", label: "Task Achievement" },
+    { key: "cc", label: "Coherence & Cohesion" },
+    { key: "lr", label: "Lexical Resource" },
+    { key: "gra", label: "Grammar Range & Accuracy" },
+  ],
+  speaking: [
+    { key: "fluency", label: "Fluency & Coherence" },
+    { key: "lexical", label: "Lexical Resource" },
+    { key: "grammar", label: "Grammar Range & Accuracy" },
+    { key: "pronunciation", label: "Pronunciation" },
+  ],
+};
+
 function GradeForm({
   q,
+  skill,
   grade,
 }: {
   q: MockAttemptQuestion;
+  skill: MockSkill;
   grade: ReturnType<typeof useGradeMock>;
 }) {
   const t = useTranslations("mock");
   const tc = useTranslations("common");
   const [score, setScore] = React.useState(q.score != null ? String(q.score) : "");
   const [feedback, setFeedback] = React.useState(q.feedback ?? "");
+  const [rubrics, setRubrics] = React.useState<Record<string, string>>(
+    () => Object.fromEntries(Object.entries(q.rubricScores ?? {}).map(([k, v]) => [k, String(v)])),
+  );
   const saving = grade.isPending && grade.variables?.questionId === q.id;
+  const rubricDefs = RUBRICS[skill] ?? [];
+  const rubricAvg =
+    rubricDefs.length > 0 &&
+    rubricDefs.every((r) => rubrics[r.key] !== undefined && rubrics[r.key] !== "" && !Number.isNaN(Number(rubrics[r.key])))
+      ? rubricDefs.reduce((s, r) => s + Number(rubrics[r.key]), 0) / rubricDefs.length
+      : null;
 
   function save() {
     const n = Number(score);
@@ -233,8 +344,24 @@ function GradeForm({
       toast.error(`${t("score")}: 0–${q.points}`);
       return;
     }
+    const rubricScores: Record<string, number> = {};
+    for (const r of rubricDefs) {
+      const raw = rubrics[r.key];
+      if (raw === undefined || raw === "") continue;
+      const v = Number(raw);
+      if (Number.isNaN(v) || v < 0 || v > 9) {
+        toast.error(`${r.label}: 0–9`);
+        return;
+      }
+      rubricScores[r.key] = v;
+    }
     grade.mutate(
-      { questionId: q.id, score: n, feedback: feedback.trim() || undefined },
+      {
+        questionId: q.id,
+        score: n,
+        feedback: feedback.trim() || undefined,
+        rubricScores: Object.keys(rubricScores).length ? rubricScores : undefined,
+      },
       {
         onSuccess: () => toast.success(tc("saved")),
         onError: () => toast.error(tc("unknownError")),
@@ -258,7 +385,31 @@ function GradeForm({
           className="h-9 w-24"
         />
         {q.isGraded && <Badge variant="success">✓</Badge>}
+        {rubricAvg != null && (
+          <span className="ml-auto text-xs text-fg-muted tabular-nums">
+            Rubrics avg: {Math.round(rubricAvg * 2) / 2}
+          </span>
+        )}
       </div>
+      {rubricDefs.length > 0 && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {rubricDefs.map((r) => (
+            <label key={r.key} className="flex items-center gap-2 text-xs text-fg-muted">
+              <span className="min-w-0 flex-1 truncate">{r.label}</span>
+              <Input
+                type="number"
+                min={0}
+                max={9}
+                step={0.5}
+                value={rubrics[r.key] ?? ""}
+                onChange={(e) => setRubrics((m) => ({ ...m, [r.key]: e.target.value }))}
+                className="h-8 w-20"
+                aria-label={r.label}
+              />
+            </label>
+          ))}
+        </div>
+      )}
       <Textarea
         value={feedback}
         onChange={(e) => setFeedback(e.target.value)}
