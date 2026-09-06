@@ -8,6 +8,7 @@ import {
   type StartResult,
   type TestListItem,
 } from "@/lib/tests";
+import { listMockExams } from "@/lib/mocks";
 
 type Props = {
   studentName: string | null;
@@ -37,27 +38,65 @@ export default function Dashboard({ studentName, onNavigate, onStart }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [resumingId, setResumingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     setError(null);
     try {
-      const [t, a] = await Promise.all([listTests(), myAttempts()]);
-      setTests(t);
+      const [t, a, m] = await Promise.all([
+        listTests().catch(() => [] as TestListItem[]),
+        myAttempts().catch(() => [] as AttemptSummary[]),
+        listMockExams().catch(() => []),
+      ]);
+      // Include live mock count in assigned so new mocks appear without manual refresh
+      // For overview stats we count tests + published mocks as assigned
+      const publishedMocks = m.filter((x) => x.isPublished || x.isDemo);
+      // Merge for display purposes: tests are primary, mocks are additive for stats
+      // Keep tests separate for resume logic; mocks only affect assigned/ready counts
+      setTests([...t, ...publishedMocks.map((mm) => ({
+        id: mm.id,
+        type: mm.type === "multilevel" ? "multilevel" : "ielts",
+        title: mm.title,
+        level: mm.level,
+        isDemo: mm.isDemo,
+        isActive: mm.isPublished,
+        durationMinutes: mm.durationMinutes,
+        questionCount: mm.questionCount,
+        sections: mm.skills as unknown as TestListItem["sections"],
+        // marker for mock-origin so resume won't try to find it in tests
+        _isMock: true,
+      } as unknown as TestListItem))]);
       setAttempts(a);
     } catch {
-      setError("Could not load overview. Check connection and press Retry.");
+      setError("Could not load overview. Retrying automatically…");
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(true);
+    const interval = window.setInterval(() => void load(false), 30000);
+    const onFocus = () => void load(false);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void load(false);
+    };
+    const onOnline = () => void load(false);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onOnline);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onOnline);
+    };
   }, [load]);
 
   async function handleResume(a: AttemptSummary) {
     const test = tests?.find((t) => t.id === a.testId);
     if (!test) return;
+    // Mock attempts are not resumable via test endpoint – they use mock flow on web
+    if ((test as unknown as { _isMock?: boolean })._isMock) return;
     setResumingId(a.id);
     try {
       const start = await startTest(test.id);
@@ -103,18 +142,16 @@ export default function Dashboard({ studentName, onNavigate, onStart }: Props) {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <span className="hidden items-center gap-1.5 text-[11px] text-white/35 sm:inline-flex" aria-live="polite">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" aria-hidden />
+            Auto-sync
+          </span>
           <button
             onClick={() => onNavigate("exams")}
             className="btn-brand rounded-xl px-4 py-2 text-sm font-bold"
           >
             Browse exams →
-          </button>
-          <button
-            onClick={() => void load()}
-            className="btn-ghost rounded-xl px-4 py-2 text-sm text-white"
-          >
-            Refresh
           </button>
         </div>
       </div>
@@ -131,9 +168,7 @@ export default function Dashboard({ studentName, onNavigate, onStart }: Props) {
       ) : error ? (
         <div className="card mt-5 rounded-2xl border border-red-500/30 p-5">
           <p className="text-sm font-medium text-red-300">{error}</p>
-          <button onClick={() => void load()} className="btn-brand mt-3 rounded-xl px-4 py-2 text-sm font-semibold">
-            Retry
-          </button>
+          <p className="mt-1 text-[11px] text-white/30">Retrying automatically… check your connection.</p>
         </div>
       ) : (
         <>
