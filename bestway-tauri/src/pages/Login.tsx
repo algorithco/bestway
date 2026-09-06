@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { clearSession, login } from "@/lib/api";
 import {
+  buildAuthorizeUrl,
   clearBrowserLoginState,
   listenDeepLink,
   listenSingleInstance,
+  newBrowserLoginState,
+  openInBrowser,
   parseAuthCallbackUrl,
   parseManualCallbackInput,
   exchangeCode,
   readBrowserLoginState,
   readInitialDeepLink,
-  startBrowserLogin,
   type BrowserLoginState,
 } from "@/lib/oauth";
 
@@ -151,16 +153,29 @@ export default function Login({ onLogin }: Props) {
     setBusy("browser");
     setError(null);
     setAuthorizeUrl(null);
+    // Build state + URL FIRST so an opener failure never loses the link.
+    // The old code threw the URL away inside startBrowserLogin() and fell
+    // back to idle with "copy the link below" but no link shown.
+    let s: BrowserLoginState;
+    let url: string;
     try {
-      const { state: s, authorizeUrl: url } = await startBrowserLogin();
-      // Sync ref immediately — a fast deep link may arrive before re-render.
-      pendingRef.current = s;
-      setPending(s);
-      setAuthorizeUrl(url);
-      // busy stays "browser" until the callback (or cancel) resolves it.
+      s = newBrowserLoginState();
+      url = await buildAuthorizeUrl(s);
     } catch {
-      setError("Could not open the system browser. Copy the login link below manually.");
+      setError("Could not create the login link. Check connection and try again.");
       setBusy("idle");
+      return;
+    }
+    // Sync ref immediately — a fast deep link may arrive before re-render.
+    pendingRef.current = s;
+    setPending(s);
+    setAuthorizeUrl(url);
+    // busy stays "browser" until the callback (or cancel) resolves it —
+    // even when auto-open fails, so the copy/paste fallback stays visible.
+    try {
+      await openInBrowser(url);
+    } catch {
+      setError("Could not open the system browser automatically. Copy the login link below manually.");
     }
   }
 

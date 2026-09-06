@@ -135,12 +135,32 @@ export async function buildAuthorizeUrl(s: BrowserLoginState): Promise<string> {
   return `${webBaseUrl()}/oauth/desktop?${q.toString()}`;
 }
 
+function isTauriRuntime(): boolean {
+  try {
+    return (
+      typeof window !== "undefined" &&
+      ("__TAURI_INTERNALS__" in window || "__TAURI__" in window)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Open the system browser (Tauri opener). Never falls back to `window.open`:
- * inside the kiosk webview that would trap the login page — instead the
- * caller shows the authorize URL for manual copy.
+ * Open the system browser (Tauri opener).
+ * Inside the real Tauri kiosk webview it never falls back to `window.open`
+ * (that would trap the login page) — the caller shows the authorize URL
+ * for manual copy instead. Outside Tauri (vite dev in a plain browser)
+ * the opener IPC always fails, so fall back to a new tab.
  */
 export async function openInBrowser(url: string): Promise<void> {
+  if (!isTauriRuntime()) {
+    // Dev/preview in a normal browser: opener plugin has no IPC backend.
+    const w = window.open(url, "_blank", "noopener,noreferrer");
+    if (w) return;
+    // Popup blocked — let the caller show the manual-copy UI.
+    throw new Error("Popup blocked. Copy the login link manually.");
+  }
   const mod = await import("@tauri-apps/plugin-opener");
   await mod.openUrl(url);
 }
