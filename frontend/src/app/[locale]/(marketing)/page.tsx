@@ -21,7 +21,8 @@ import { Reveal } from "@/components/marketing/reveal";
 import { CountUp } from "@/components/marketing/count-up";
 import { HeroShowcase } from "@/components/marketing/hero-showcase";
 import { HeroCta } from "@/components/marketing/hero-cta";
-import AccordionGallery from "@/components/ui/accordion-gallery-dynamic";
+import { TeachersCarousel } from "@/components/marketing/teachers-carousel";
+import type { TeacherProfile } from "@/components/marketing/teacher-card";
 import PixelCard from "@/components/ui/pixel-card-dynamic";
 import FoldText from "@/components/ui/fold-text-dynamic";
 import { getGalleryImages, getLatestArticles, getTeachersPublic } from "@/lib/public-api";
@@ -47,7 +48,7 @@ const STATS = [
   { num: 17, suffix: "+", key: "statsYears" },
 ] as const;
 
-// TEACHERS section now uses AccordionGallery with dynamic data from /gallery (fallback to /teachers)
+// TEACHERS section renders TeacherProfileCard carousel from gallery / teachers API data.
 
 const TONE_TILE: Record<string, string> = {
   brand: "bg-brand-subtle text-brand-subtle-fg",
@@ -78,17 +79,28 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
     getGalleryImages(),
   ]);
   const teachersFallback = galleryImages.length === 0 ? await getTeachersPublic() : [];
-  const galleryItems =
+  // Teacher cards render from real CMS data: gallery labels ("Name — IELTS 8.5")
+  // or `/teachers` records (name / specialty / achievement / photo).
+  const teachers: TeacherProfile[] =
     galleryImages.length > 0
-      ? galleryImages.map((g) => ({ image: g.image, label: g.label, link: g.link, alt: g.alt }))
-      : teachersFallback.length > 0
-        ? teachersFallback.map((teacher) => ({
-            image: teacher.photoUrl ?? `https://picsum.photos/seed/${teacher.id}/900/1200`,
-            label: teacher.name,
-            link: teacher.socialUrl ?? undefined,
-            alt: teacher.specialty,
-          }))
-        : undefined;
+      ? galleryImages.map((g) => {
+          const { name, achievement } = splitGalleryLabel(g.label);
+          return {
+            id: g.id,
+            name: name || t("teachersDefaultName"),
+            achievement,
+            photoUrl: g.image,
+            profileUrl: g.link,
+          };
+        })
+      : teachersFallback.map((teacher) => ({
+          id: teacher.id,
+          name: teacher.name,
+          title: teacher.specialty,
+          achievement: teacher.achievement,
+          photoUrl: teacher.photoUrl,
+          profileUrl: teacher.socialUrl,
+        }));
 
   return (
     <>
@@ -102,7 +114,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
 
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-2 lg:gap-8 lg:py-24">
-          <div className="order-2 text-center lg:order-1 lg:text-left">
+          <div className="order-1 text-center lg:order-1 lg:text-left">
             <Reveal>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/80 px-3 py-1 text-xs font-medium text-fg-muted backdrop-blur">
                 <Sparkles className="size-3.5 animate-pulse text-orange" />
@@ -160,8 +172,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Reveal>
           </div>
 
-          {/* Logotip ko'rgazmasi — 3D, vektor emblema */}
-          <Reveal delay={120} className="relative order-1 lg:order-2">
+          {/* Learning progress visual — mobile: after stats; desktop: right column */}
+          <Reveal delay={120} className="relative order-2 lg:order-2">
             <HeroShowcase />
           </Reveal>
         </div>
@@ -213,33 +225,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
         </div>
       </section>
 
-      {/* ── O'qituvchilar galereyasi (AccordionGallery) ───────────────────── */}
-      <section id="teachers" className="scroll-mt-16">
+      {/* ── O'qituvchilar (TeacherProfileCard carousel) ─────────────────────── */}
+      <section id="teachers" className="scroll-mt-16 overflow-x-clip">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <SectionHeading title={t("teachersTitle")} subtitle={t("teachersSubtitle")} />
           </Reveal>
           <Reveal delay={120}>
-            <div className="mt-12">
-              <AccordionGallery
-                items={galleryItems}
-                defaultIndex={2}
-                expandRatio={0.52}
-                trigger="hover"
-                height={460}
-                gap={10}
-                radius={16}
-                grayscale
-                showLabels
-                accentColor="#ffffff"
-                overlayColor="#060010"
-                textColor="#ffffff"
-                duration={0.6}
-                ease="power3.out"
-                parallax={0.5}
-                tilt={8}
-                stagger={0.06}
-              />
+            <div className="mt-10">
+              <TeachersCarousel teachers={teachers} />
             </div>
           </Reveal>
         </div>
@@ -439,6 +433,14 @@ function ContactCard({
       </div>
     </FancyCard>
   );
+}
+/** Gallery labels look like "Sardor Karimov — IELTS 8.5": name + proof. */
+function splitGalleryLabel(label?: string): { name: string; achievement?: string } {
+  if (!label) return { name: "" };
+  const parts = label.split(/\s+[—–-]\s+/).map((p) => p.trim());
+  const [name, ...rest] = parts;
+  const achievement = rest.join(" — ").trim();
+  return { name: name ?? "", achievement: achievement || undefined };
 }
 
 function SectionHeading({

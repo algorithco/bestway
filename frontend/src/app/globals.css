@@ -316,6 +316,17 @@
   }
 }
 
+/* Hero progress badges — barely-there vertical drift (no rotation) */
+@keyframes bw-float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
 @keyframes bw-gradient-pan {
   0% {
     background-position: 0% 50%;
@@ -353,6 +364,9 @@
   .anim-float-slow {
     animation: bw-float-slow 9s ease-in-out infinite;
   }
+  .anim-float-soft {
+    animation: bw-float-soft 5.5s ease-in-out infinite;
+  }
 
   .anim-gradient {
     background-size: 200% 200%;
@@ -368,6 +382,7 @@
     .reveal.is-visible,
     .anim-float,
     .anim-float-slow,
+    .anim-float-soft,
     .anim-gradient,
     .marquee-track {
       animation: none !important;
