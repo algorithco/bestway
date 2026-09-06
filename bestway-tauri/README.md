@@ -59,12 +59,12 @@ Env (`bestway-tauri/.env`, never commit):
 
 ```bash
 VITE_API_URL=http://localhost:3001/v1
-VITE_WEB_URL=http://localhost:3000
+VITE_WEB_URL=http://localhost:3005
 ```
 
 | Var | Default | Purpose |
 | --- | ------- | ------- |
-| `VITE_WEB_URL` | `http://localhost:3000` | System-browser login page origin (`/oauth/desktop`) |
+| `VITE_WEB_URL` | `http://localhost:3005` | System-browser login page origin (`/oauth/desktop`, Docker frontend host port; `:3000` is taken by escrow-bot, no local `next dev`) |
 
 ## Browser login
 

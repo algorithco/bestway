@@ -8,13 +8,14 @@ import StatusBar from "@/components/StatusBar";
 import BatteryIndicator from "@/components/BatteryIndicator";
 import ClickSpark from "@/components/ClickSpark";
 import CursorTrail from "@/components/CursorTrail";
-import { clearSession, getAccessToken, getRefreshToken, me, refresh } from "@/lib/api";
+import { clearSession, getAccessToken, getRefreshToken, logout, me, refresh } from "@/lib/api";
 
 export type Route = "login" | "exams" | "runner" | "locked" | "result";
 
 export default function App() {
   const [route, setRoute] = useState<Route>("login");
   const [studentId, setStudentId] = useState<string | null>(null);
+  const [studentName, setStudentName] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(true);
 
   // Restore persisted session (api.ts stores tokens in localStorage).
@@ -35,6 +36,9 @@ export default function App() {
           if (!dead) {
             if (profile?.user?.role === "student" && profile.user.id) {
               setStudentId(profile.user.id);
+              setStudentName(
+                typeof profile.user.name === "string" ? profile.user.name : null,
+              );
               setRoute("exams");
             } else {
               clearSession();
@@ -59,9 +63,21 @@ export default function App() {
 
   const navigate = (next: Route) => setRoute(next);
 
-  const handleLogin = (id: string) => {
-    setStudentId(id);
+  const handleLogin = (student: { id: string; name: string | null }) => {
+    setStudentId(student.id);
+    setStudentName(student.name);
     setRoute("exams");
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } finally {
+      clearSession();
+      setStudentId(null);
+      setStudentName(null);
+      setRoute("login");
+    }
   };
 
   // Student-only gate: force login when unauthenticated.
@@ -95,7 +111,8 @@ export default function App() {
         </main>
       </ClickSpark>
       <StatusBar
-        sessionLabel={studentId ? `student:${studentId}` : "signed out"}
+        sessionLabel={studentId ? (studentName ?? "Student") : "signed out"}
+        onLogout={studentId ? handleLogout : undefined}
         rightSlot={<BatteryIndicator standalone={false} compact lang="uz" />}
       />
     </div>

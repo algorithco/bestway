@@ -23,14 +23,16 @@ import { ensureDeviceId } from "./session";
 export const DESKTOP_SCHEME = "bestway-exam";
 export const DESKTOP_CALLBACK = `${DESKTOP_SCHEME}://auth/callback`;
 
-/** Web origin — NEVER derived from the API URL (api.* vs app.* differ in prod). */
+/** Web origin — NEVER derived from the API URL (api.* vs app.* differ in prod).
+ * Default is the Docker frontend host port (:3005). :3000 is reserved by
+ * another project (escrow-bot-backend) — do not use local `next dev`. */
 function webBaseUrl(): string {
   const fromEnv =
     typeof import.meta !== "undefined"
       ? ((import.meta.env?.BESTWAY_WEB_URL as string | undefined) ??
         (import.meta.env?.VITE_WEB_URL as string | undefined))
       : undefined;
-  const raw = (fromEnv ?? "http://localhost:3000").trim().replace(/\/+$/, "");
+  const raw = (fromEnv ?? "http://localhost:3005").trim().replace(/\/+$/, "");
   return raw;
 }
 

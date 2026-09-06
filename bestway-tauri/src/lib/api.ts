@@ -249,7 +249,10 @@ export interface AuthSession {
 }
 
 export async function login(phone: string, password: string): Promise<AuthSession> {
-  const session = await post<AuthSession>("/auth/login", { phone, password }, { token: null });
+  // Defense-in-depth: strip spaces like web login-form.tsx so UI callers
+  // can't break lookup with "+998 90 ..." vs stored "+99890...".
+  const normalizedPhone = phone.replace(/\s/g, "");
+  const session = await post<AuthSession>("/auth/login", { phone: normalizedPhone, password }, { token: null });
   if (session?.accessToken) {
     setSession(session.accessToken, session.refreshToken ?? null);
   }

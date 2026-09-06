@@ -16,7 +16,7 @@ import {
 } from "@/lib/oauth";
 
 type Props = {
-  onLogin: (studentId: string) => void;
+  onLogin: (student: { id: string; name: string | null }) => void;
 };
 
 type Busy = "idle" | "browser" | "password" | "exchange";
@@ -88,7 +88,11 @@ export default function Login({ onLogin }: Props) {
         setBusy("idle");
         return;
       }
-      onLoginRef.current(id);
+      const name =
+        typeof (session.user as unknown as { name?: unknown })?.name === "string"
+          ? ((session.user as unknown as { name: string }).name as string)
+          : null;
+      onLoginRef.current({ id, name });
     } catch (e) {
       setError(friendlyExchangeError(e));
       setBusy("idle");
@@ -216,10 +220,17 @@ export default function Login({ onLogin }: Props) {
 
   async function handlePassword(e: React.FormEvent) {
     e.preventDefault();
+    // Normalize like web (login-form.tsx): strip spaces so
+    // "+998 90 123 45 67" matches stored "+998901234567".
+    const normalizedPhone = phone.replace(/\s/g, "");
+    if (!normalizedPhone || !password) {
+      setError("Enter phone number and password.");
+      return;
+    }
     setBusy("password");
     setError(null);
     try {
-      const session = await login(phone.trim(), password);
+      const session = await login(normalizedPhone, password);
       // Fail-closed: missing/unknown role must NOT default to student.
       const role = String(session.user?.role ?? "");
       if (role !== "student") {
@@ -234,9 +245,18 @@ export default function Login({ onLogin }: Props) {
         setBusy("idle");
         return;
       }
-      onLogin(session.user.id);
+      onLogin({ id: session.user.id, name: session.user.name ?? null });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed. Check phone/password.");
+      const apiErr = err as { code?: string; message?: string } | null;
+      const msg =
+        typeof apiErr?.message === "string" && apiErr.message
+          ? apiErr.code
+            ? `${apiErr.message} (${apiErr.code})`
+            : apiErr.message
+          : err instanceof Error
+            ? err.message
+            : "Login failed. Check phone/password.";
+      setError(msg);
       setBusy("idle");
     }
   }
