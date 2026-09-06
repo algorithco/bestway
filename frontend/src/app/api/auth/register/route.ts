@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { user, accessToken, refreshToken } = json.data;
-  await setSessionCookies({ accessToken, refreshToken, role: user.role });
+  await setSessionCookies({ accessToken, refreshToken, role: user.role }, req);
 
   return NextResponse.json({ success: true, data: { user } });
 }

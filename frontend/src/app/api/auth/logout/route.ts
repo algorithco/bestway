@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { API_URL } from "@/lib/config";
 import { clearSessionCookies, getAccessToken, getRefreshToken } from "@/lib/auth";
 
 /** Chiqish — backendda refresh tokenni bekor qilamiz va cookie'larni tozalaymiz */
-export async function POST() {
+export async function POST(req: NextRequest) {
   const accessToken = await getAccessToken();
   const refreshToken = await getRefreshToken();
 
@@ -21,6 +21,6 @@ export async function POST() {
     }).catch(() => undefined);
   }
 
-  await clearSessionCookies();
+  await clearSessionCookies(req);
   return NextResponse.json({ success: true, data: { loggedOut: true } });
 }

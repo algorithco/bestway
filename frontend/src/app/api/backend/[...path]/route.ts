@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { API_URL, COOKIE } from "@/lib/config";
+import { sessionCookieOptions } from "@/lib/auth";
 
 /**
  * Backend uchun proxy.
@@ -29,20 +30,8 @@ const STRIPPED_REQUEST_HEADERS = new Set([
   "cookie",
 ]);
 
-const ACCESS_COOKIE = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: 15 * 60,
-};
-const REFRESH_COOKIE = {
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env.NODE_ENV === "production",
-  path: "/",
-  maxAge: 60 * 60 * 24 * 30,
-};
+const ACCESS_MAX_AGE = 15 * 60;
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 30;
 
 function buildTargetUrl(path: string[], search: string): string {
   const suffix = path.map(encodeURIComponent).join("/");
@@ -154,18 +143,28 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   });
 
   if (renewed) {
-    response.cookies.set(COOKIE.access, renewed.accessToken, ACCESS_COOKIE);
+    response.cookies.set(
+      COOKIE.access,
+      renewed.accessToken,
+      sessionCookieOptions(req, ACCESS_MAX_AGE),
+    );
     if (renewed.refreshToken) {
-      response.cookies.set(COOKIE.refresh, renewed.refreshToken, REFRESH_COOKIE);
+      response.cookies.set(
+        COOKIE.refresh,
+        renewed.refreshToken,
+        sessionCookieOptions(req, REFRESH_MAX_AGE),
+      );
     }
   }
 
   // Refresh ham o'lgan — sessiya tugagan, cookie'larni tozalaymiz.
   // Client `SESSION_EXPIRED` ni ko'rib login sahifasiga o'tadi.
+  // O'chirishda yaratishdagi atributlar (secure/path) takrorlanadi,
+  // aks holda brauzer Secure cookie'ni o'chirmaydi.
   if (sessionExpired) {
-    response.cookies.delete(COOKIE.access);
-    response.cookies.delete(COOKIE.refresh);
-    response.cookies.delete(COOKIE.role);
+    response.cookies.set(COOKIE.access, "", sessionCookieOptions(req, 0));
+    response.cookies.set(COOKIE.refresh, "", sessionCookieOptions(req, 0));
+    response.cookies.set(COOKIE.role, "", sessionCookieOptions(req, 0));
   }
 
   return response;
