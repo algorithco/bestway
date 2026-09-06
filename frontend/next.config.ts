@@ -10,9 +10,11 @@ const nextConfig: NextConfig = {
   productionBrowserSourceMaps: false,
 
   // 1. Turbopack / Webpack tunnelni bloklamasligi uchun (Terminal so'ragan asosiy sozlama)
+  // Diqqat: BARE host yoziladi (sxemasiz) — 'https://' bilan hech qachon match bo'lmaydi.
+  // Quick-tunnel host har safar random bo'lgani uchun wildcard shart.
   allowedDevOrigins: [
-    'https://speeches-sports-performances-vitamin.trycloudflare.com',
-    'https://*.trycloudflare.com'
+    'speeches-sports-performances-vitamin.trycloudflare.com',
+    '*.trycloudflare.com'
   ],
 
   images: {
@@ -39,8 +41,8 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: "10mb",
     serverActions: {
       allowedOrigins: [
-        "https://speeches-sports-performances-vitamin.trycloudflare.com",
-        "https://*.trycloudflare.com"
+        "speeches-sports-performances-vitamin.trycloudflare.com",
+        "*.trycloudflare.com"
       ],
     },
     optimizePackageImports: [
