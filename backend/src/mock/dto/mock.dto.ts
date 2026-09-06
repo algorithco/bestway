@@ -426,6 +426,15 @@ export class FlagCheatDto {
   event: string;
 }
 
+export class ExtendDeadlineDto {
+  /** Qo'shimcha daqiqalar (1..180) — barcha muddatlar shuncha siljiydi */
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(180)
+  minutes: number;
+}
+
 export class GradeMockAnswerDto {
   @IsString()
   @IsNotEmpty()

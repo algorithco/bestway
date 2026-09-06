@@ -28,6 +28,7 @@ import {
   CreateGroupDto,
   CreateMockExamDto,
   CreateSectionDto,
+  ExtendDeadlineDto,
   FlagCheatDto,
   GradeMockAnswerDto,
   ImportQuestionsDto,
@@ -202,6 +203,38 @@ export class MockController {
   @Post('attempts/:attemptId/submit')
   submit(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string) {
     return this.grading.submit(user, attemptId);
+  }
+
+  /** Xodim: qotib qolgan urinishni majburan yakunlash */
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Post('attempts/:attemptId/force-submit')
+  forceSubmit(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string) {
+    return this.grading.forceSubmit(user, attemptId);
+  }
+
+  /** Xodim: deadline uzaytirish (+minutes barcha muddatlarga) */
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Post('attempts/:attemptId/extend')
+  extend(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string, @Body() dto: ExtendDeadlineDto) {
+    return this.grading.extendDeadline(user, attemptId, dto.minutes);
+  }
+
+  /** Xodim: baholanayotgan urinishni qayta ochish */
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Post('attempts/:attemptId/reopen')
+  reopen(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string) {
+    return this.grading.reopen(user, attemptId);
+  }
+
+  /** Admin: urinishni to'liq o'chirish */
+  @ApiBearerAuth()
+  @Roles('admin', 'super_admin')
+  @Delete('attempts/:attemptId')
+  deleteAttempt(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string) {
+    return this.grading.deleteAttempt(user, attemptId);
   }
 
   /** Full-test: joriy bo'limni yakunlab keyingisiga o'tish (L→R→W, orqaga yo'q) */
@@ -467,6 +500,18 @@ export class MockController {
     @Body() dto: ConfirmPurchaseDto,
   ) {
     return this.access.confirmPurchase(user, id, dto.userId);
+  }
+
+  /** Admin xarid so'rovini rad etadi */
+  @ApiBearerAuth()
+  @Roles('admin', 'super_admin')
+  @Post('exams/:id/reject-purchase')
+  rejectPurchase(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: ConfirmPurchaseDto,
+  ) {
+    return this.access.rejectPurchase(user, id, dto.userId);
   }
 
   /** Imtihonni boshlash — rejim (practice/timed) bilan */

@@ -157,6 +157,31 @@ export class MockAccessService {
     );
   }
 
+  /** Admin xarid so'rovini rad etadi (kutilayotgan yozuv o'chadi, o'quvchiga xabar boradi) */
+  async rejectPurchase(admin: AuthUser, examId: string, userId: string) {
+    const purchase = await this.prisma.mockPurchase.findUnique({
+      where: { userId_examId: { userId, examId } },
+      include: { exam: { select: { title: true } } },
+    });
+    if (!purchase || purchase.status !== 'pending_confirmation') {
+      throw new AppException('MOCK_PURCHASE_NOT_PENDING', 'Kutilayotgan xarid topilmadi', 404);
+    }
+    await this.prisma.mockPurchase.delete({ where: { id: purchase.id } });
+    await this.audit.log({
+      userId: admin.id,
+      action: 'mock.purchase.reject',
+      entity: 'mockPurchase',
+      entityId: purchase.id,
+      newValue: { userId, examId },
+    });
+    await this.notifications.notify(
+      userId,
+      'announcement',
+      `"${purchase.exam.title}" mock imtihoni xarid so'rovingiz rad etildi. Tafsilotlar uchun admin bilan bog'laning.`,
+    );
+    return { rejected: true };
+  }
+
   /** Admin xaridni qo'lda tasdiqlaydi (pul naqd/bank orqali olingan) */
   async confirmPurchase(admin: AuthUser, examId: string, userId: string) {
     const exam = await this.prisma.mockExam.findUnique({ where: { id: examId } });

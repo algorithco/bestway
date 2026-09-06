@@ -78,9 +78,116 @@ export class MockGradingService {
     return result;
   }
 
-  /** POST /mock/attempts/:attemptId/grade — Writing/Speaking qo'lda baholash */
-  async grade(teacher: AuthUser, attemptId: string, dto: GradeMockAnswerDto) {
+  // ─────────────────── Staff attempt control ───────────────────
+
+  /** Xodim qotib qolgan urinishni majburan yakunlaydi (deadline o'tgan bo'lsa ham). */
+  async forceSubmit(staff: AuthUser, attemptId: string) {
     const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
+    if (!attempt) throw new AppException('MOCK_ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
+    await this.access.assertCanViewStudent(staff, attempt.studentId);
+    if (attempt.status !== 'in_progress') {
+      throw new AppException('MOCK_ATTEMPT_FINISHED', 'Bu urinish allaqachon yakunlangan', 400);
+    }
+    const result = await this.gradeAndCompute(attemptId, true);
+    await this.audit.log({
+      userId: staff.id,
+      action: 'mock.attempt.force_submit',
+      entity: 'mockAttempt',
+      entityId: attemptId,
+      newValue: { status: result.status },
+    });
+    if (result.status === 'completed') {
+      await this.notifyResult(attemptId);
+    } else {
+      await this.notifyTeacherPending(attemptId);
+    }
+    return result;
+  }
+
+  /** Deadline uzaytirish — barcha muddatlar (bo'lim + umumiy) +minutes siljiydi. */
+  async extendDeadline(staff: AuthUser, attemptId: string, minutes: number) {
+    if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) {
+      throw new AppException('VALIDATION_ERROR', 'Minutes 1 dan 180 gacha bo‘lsin', 400);
+    }
+    const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
+    if (!attempt) throw new AppException('MOCK_ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
+    await this.access.assertCanViewStudent(staff, attempt.studentId);
+    if (attempt.status !== 'in_progress') {
+      throw new AppException('MOCK_ATTEMPT_FINISHED', 'Bu urinish allaqachon yakunlangan', 400);
+    }
+    const shift = (d: Date | null) => (d ? new Date(d.getTime() + minutes * 60_000) : d);
+    const deadlines = (attempt.sectionDeadlines as Record<string, string> | null) ?? null;
+    const shifted: Record<string, string> | null = deadlines
+      ? Object.fromEntries(
+          Object.entries(deadlines).map(([k, v]) => [k, new Date(new Date(v).getTime() + minutes * 60_000).toISOString()]),
+        )
+      : null;
+    const updated = await this.prisma.mockAttempt.update({
+      where: { id: attemptId },
+      data: {
+        deadlineAt: shift(attempt.deadlineAt),
+        overallDeadlineAt: shift(attempt.overallDeadlineAt),
+        ...(shifted ? { sectionDeadlines: shifted as unknown as Prisma.InputJsonValue } : {}),
+      },
+    });
+    await this.audit.log({
+      userId: staff.id,
+      action: 'mock.attempt.extend',
+      entity: 'mockAttempt',
+      entityId: attemptId,
+      newValue: { minutes },
+    });
+    return {
+      saved: true,
+      deadlineAt: updated.deadlineAt,
+      overallDeadlineAt: updated.overallDeadlineAt,
+      sectionDeadlines: updated.sectionDeadlines,
+      serverTime: new Date(),
+    };
+  }
+
+  /** Baholashdagi urinishni qayta ochish (grading → in_progress). */
+  async reopen(staff: AuthUser, attemptId: string) {
+    const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
+    if (!attempt) throw new AppException('MOCK_ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
+    await this.access.assertCanViewStudent(staff, attempt.studentId);
+    if (attempt.status !== 'grading') {
+      throw new AppException('MOCK_CANNOT_REOPEN', 'Faqat baholanayotgan urinish qayta ochiladi', 400);
+    }
+    await this.prisma.mockAttempt.update({
+      where: { id: attemptId },
+      data: { status: 'in_progress', submittedAt: null },
+    });
+    await this.audit.log({
+      userId: staff.id,
+      action: 'mock.attempt.reopen',
+      entity: 'mockAttempt',
+      entityId: attemptId,
+    });
+    return { saved: true, status: 'in_progress' as const };
+  }
+
+  /** Urinishni to'liq o'chirish (javoblar + cheat-log bilan) — admin only. */
+  async deleteAttempt(admin: AuthUser, attemptId: string) {
+    const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
+    if (!attempt) throw new AppException('MOCK_ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
+    await this.prisma.$transaction([
+      this.prisma.mockAnswer.deleteMany({ where: { attemptId } }),
+      this.prisma.mockCheatEvent.deleteMany({ where: { attemptId } }),
+      this.prisma.mockAttempt.delete({ where: { id: attemptId } }),
+    ]);
+    await this.audit.log({
+      userId: admin.id,
+      action: 'mock.attempt.delete',
+      entity: 'mockAttempt',
+      entityId: attemptId,
+      oldValue: { studentId: attempt.studentId, examId: attempt.examId },
+    });
+    return { deleted: true };
+  }
+
+  /** POST /mock/attempts/:attemptId/grade — Writing/Speaking qo'lda baholash */
+  async grade(teacher: AuthUser, attemptId: string, dto: GradeMockAnswerDto) {    const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
     if (!attempt) throw new AppException('MOCK_ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
     if (attempt.status === 'in_progress') {
       throw new AppException('MOCK_ATTEMPT_NOT_SUBMITTED', 'Imtihon hali topshirilmagan', 400);
