@@ -73,14 +73,34 @@ export function Field({
   children: React.ReactNode;
   className?: string;
 }) {
+  const errorId = error && htmlFor ? `${htmlFor}-error` : undefined;
+  const hintId = !error && hint && htmlFor ? `${htmlFor}-hint` : undefined;
+  const describedBy = errorId ?? hintId;
+  const enhancedChildren = describedBy
+    ? React.Children.map(children, (child) => {
+        if (React.isValidElement(child)) {
+          const existing = (child.props as Record<string, unknown>)['aria-describedby'] as string | undefined;
+          const merged = existing ? `${existing} ${describedBy}` : describedBy;
+          return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+            'aria-describedby': merged,
+            'aria-invalid': error ? true : (child.props as Record<string, unknown>)['aria-invalid'],
+          });
+        }
+        return child;
+      })
+    : children;
   return (
     <div className={cn("space-y-1.5", className)}>
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
-      {children}
+      {enhancedChildren}
       {error ? (
-        <p className="text-xs text-danger">{error}</p>
+        <p id={errorId} className="text-xs text-danger" role={error ? 'alert' : undefined}>
+          {error}
+        </p>
       ) : hint ? (
-        <p className="text-xs text-fg-muted">{hint}</p>
+        <p id={hintId} className="text-xs text-fg-muted">
+          {hint}
+        </p>
       ) : null}
     </div>
   );

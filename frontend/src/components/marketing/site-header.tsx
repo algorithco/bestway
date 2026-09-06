@@ -107,7 +107,9 @@ export function SiteHeader() {
         <div className="hidden min-w-0 flex-1 justify-center overflow-hidden xl:flex">
           <div className="max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <GooeyNav
-              items={SECTIONS.map((s) => ({ label: t(s.key), href: `#${s.hash}` }))}
+              // Home-anchored hashes ("/#news"), NOT bare "#news": bare hashes
+              // resolve against the current URL and die on sub-pages like /news.
+              items={SECTIONS.map((s) => ({ label: t(s.key), href: `/#${s.hash}` }))}
               particleCount={8}
               particleDistances={[60, 10]}
               particleR={100}

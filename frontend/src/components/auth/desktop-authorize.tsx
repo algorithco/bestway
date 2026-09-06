@@ -36,6 +36,21 @@ export function DesktopAuthorize() {
   const params = useSearchParams();
   const [phase, setPhase] = React.useState<Phase>({ name: "ready" });
   const [copied, setCopied] = React.useState(false);
+  // Explicit consent gate: the Allow button stays disabled until checked.
+  const [agreed, setAgreed] = React.useState(false);
+  // The border-beam animation pauses for reduced-motion users.
+  const [reducedMotion, setReducedMotion] = React.useState<boolean>(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  React.useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   const device = params.get("device") ?? "";
   const state = params.get("state") ?? "";
@@ -112,7 +127,6 @@ export function DesktopAuthorize() {
           <MonitorSmartphone className="size-6" aria-hidden="true" />
         </div>
         <h1 className="text-xl font-bold tracking-tight text-fg">{t("title")}</h1>
-        <p className="mt-1.5 text-sm text-fg-muted">{t("subtitle")}</p>
       </div>
 
       {phase.name === "invalid" && (
@@ -135,7 +149,27 @@ export function DesktopAuthorize() {
 
       {phase.name === "ready" && (
         <div className="space-y-4">
-          <p className="text-sm text-fg-muted">{t("consent", { device: device.slice(0, 8) })}</p>
+          <p className="flex justify-center">
+            <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-black/20 px-3 py-1 font-mono text-xs text-fg-muted">
+              <span className="size-1.5 rounded-full bg-brand" aria-hidden="true" />
+              {t("deviceLabel")} · {device.slice(0, 8)}…
+            </span>
+          </p>
+          <label className="flex cursor-pointer items-start gap-3 rounded-[12px] border border-border/70 bg-black/20 px-3.5 py-3 text-left transition hover:border-brand/40 has-checked:border-brand/60 has-checked:bg-brand/5">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+              className="peer sr-only"
+            />
+            <span
+              aria-hidden="true"
+              className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-border bg-white/5 text-transparent transition peer-checked:border-brand peer-checked:bg-brand peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-surface"
+            >
+              <Check className="size-3.5" aria-hidden="true" />
+            </span>
+            <span className="text-sm text-fg-muted">{t("consentCheck")}</span>
+          </label>
           <SpecularButton
             type="button"
             size="lg"
@@ -149,6 +183,9 @@ export function DesktopAuthorize() {
             shineSize={10}
             shineFade={40}
             thickness={1.5}
+            speed={0.55}
+            autoAnimate={!reducedMotion}
+            disabled={!agreed}
             onClick={authorize}
             className="w-full"
           >

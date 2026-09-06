@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
-import { Newspaper } from "lucide-react";
+import { ArrowLeft, Newspaper } from "lucide-react";
 import { getFormatter, getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
+import { buttonVariants } from "@/components/ui/button-variants";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/feedback";
 import { getArticles } from "@/lib/public-api";
+import { cn } from "@/lib/utils";
 
 export async function generateMetadata({
   params,
@@ -21,11 +23,16 @@ export default async function NewsPage({ params }: { params: Promise<{ locale: s
   setRequestLocale(locale);
 
   const t = await getTranslations("marketing");
+  const tCommon = await getTranslations("common");
   const format = await getFormatter();
   const articles = await getArticles(24);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <Link href="/#news" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "-ml-2 mb-6")}>
+        <ArrowLeft />
+        {tCommon("back")}
+      </Link>
       <div className="max-w-2xl">
         <h1 className="text-3xl font-bold tracking-tight text-balance text-fg sm:text-4xl">
           {t("newsTitle")}

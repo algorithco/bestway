@@ -66,17 +66,22 @@ function ArticleFormFields({
   const [category, setCategory] = React.useState(article?.category ?? "");
   const [tags, setTags] = React.useState(article?.tags?.join(", ") ?? "");
   const [error, setError] = React.useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = React.useState<{
+    title?: string;
+    body?: string;
+    category?: string;
+  }>({});
 
   function submit() {
     setError(null);
-    if (
-      titleValue.trim().length < 3 ||
-      body.trim().length < 10 ||
-      category.trim().length < 2
-    ) {
-      setError(tc("unknownError"));
-      return;
-    }
+    // Backend CreateArticleDto bilan bir xil chegaralar — har bir maydonda
+    // aniq xabar ko'rsatamiz (umumiy "unknownError" emas).
+    const fe: { title?: string; body?: string; category?: string } = {};
+    if (titleValue.trim().length < 3) fe.title = t("titleMin");
+    if (body.trim().length < 10) fe.body = t("bodyMin");
+    if (category.trim().length < 2) fe.category = t("categoryMin");
+    setFieldErrors(fe);
+    if (Object.keys(fe).length > 0) return;
     const input = {
       title: titleValue.trim(),
       body: body.trim(),
@@ -91,8 +96,19 @@ function ArticleFormFields({
         toast.success(isEdit ? t("updated") : t("created"));
         onClose();
       },
-      onError: (e: unknown) =>
-        setError(e instanceof ApiError ? e.message : tc("unknownError")),
+      // Server xabarini har doim ko'rsatamiz; kutilmagan holatda ham
+      // bo'sh "unknownError" o'rniga haqiqiy sabab chiqadi.
+      onError: (e: unknown) => {
+        if (e instanceof ApiError) {
+          setError(e.code ? `${e.message} (${e.code})` : e.message);
+        } else if (e instanceof Error && e.message) {
+          setError(e.message);
+        } else if (typeof e === "string" && e) {
+          setError(e);
+        } else {
+          setError(tc("unknownError"));
+        }
+      },
     };
     if (isEdit) update.mutate(input, handlers);
     else create.mutate(input, handlers);
@@ -109,15 +125,28 @@ function ArticleFormFields({
             {error}
           </div>
         )}
-        <Field label={t("articleTitle")} htmlFor="atitle">
-          <Input id="atitle" value={titleValue} onChange={(e) => setTitle(e.target.value)} autoFocus />
+        <Field label={t("articleTitle")} htmlFor="atitle" error={fieldErrors.title}>
+          <Input
+            id="atitle"
+            value={titleValue}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              if (fieldErrors.title) setFieldErrors((p) => ({ ...p, title: undefined }));
+            }}
+            aria-invalid={fieldErrors.title ? true : undefined}
+            autoFocus
+          />
         </Field>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label={t("category")} htmlFor="acat">
+          <Field label={t("category")} htmlFor="acat" error={fieldErrors.category}>
             <Input
               id="acat"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value);
+                if (fieldErrors.category) setFieldErrors((p) => ({ ...p, category: undefined }));
+              }}
+              aria-invalid={fieldErrors.category ? true : undefined}
               placeholder={t("categoryPlaceholder")}
             />
           </Field>
@@ -125,11 +154,15 @@ function ArticleFormFields({
             <Input id="atags" value={tags} onChange={(e) => setTags(e.target.value)} />
           </Field>
         </div>
-        <Field label={t("body")} htmlFor="abody">
+        <Field label={t("body")} htmlFor="abody" error={fieldErrors.body}>
           <Textarea
             id="abody"
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={(e) => {
+              setBody(e.target.value);
+              if (fieldErrors.body) setFieldErrors((p) => ({ ...p, body: undefined }));
+            }}
+            aria-invalid={fieldErrors.body ? true : undefined}
             className="min-h-40"
           />
         </Field>

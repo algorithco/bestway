@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect, useState } from "react";
+import { Link } from "@/i18n/navigation";
 
 export interface GooeyNavItem {
   label: string;
@@ -125,17 +126,18 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
     }
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLAnchorElement>, index: number) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      const liEl = e.currentTarget.parentElement;
-      if (liEl) {
-        handleClick(
-          {
-            currentTarget: liEl,
-          } as React.MouseEvent<HTMLAnchorElement>,
-          index,
-        );
-      }
+    // Enter must follow the link natively — only sync the pill visual.
+    // (Previously preventDefault() swallowed activation, so keyboard users
+    // could not navigate at all.) Space keeps native scroll behavior.
+    if (e.key !== "Enter") return;
+    const liEl = e.currentTarget.parentElement;
+    if (liEl) {
+      handleClick(
+        {
+          currentTarget: liEl,
+        } as React.MouseEvent<HTMLAnchorElement>,
+        index,
+      );
     }
   };
   useEffect(() => {
@@ -321,14 +323,14 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
                   activeIndex === index ? "active" : ""
                 }`}
               >
-                <a
+                <Link
                   href={item.href}
                   onClick={(e) => handleClick(e, index)}
                   onKeyDown={(e) => handleKeyDown(e, index)}
                   className="outline-none py-[0.6em] px-[1em] inline-block text-sm font-medium whitespace-nowrap"
                 >
                   {item.label}
-                </a>
+                </Link>
               </li>
             ))}
           </ul>
