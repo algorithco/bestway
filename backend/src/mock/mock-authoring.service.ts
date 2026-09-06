@@ -668,6 +668,205 @@ export class MockAuthoringService {
     return { deleted: true };
   }
 
+  // ─────────────────────────── Clone / readiness / preview ───────────────────────────
+
+  /**
+   * Imtihonni to'liq nusxalash — har qanday staff boshqa imtihonni O'Z qoralamasiga
+   * ko'chiradi. Yangisi har doim isPublished=false, createdById=cloner.
+   * Media fayllar (audio/image) nusxalanmaydi — umumiy fayl o'chib ketmasligi uchun.
+   */
+  async cloneExam(actor: AuthUser, id: string) {
+    const source = await this.prisma.mockExam.findUnique({
+      where: { id },
+      include: {
+        sections: {
+          orderBy: { sortOrder: 'asc' },
+          include: {
+            groups: {
+              orderBy: { sortOrder: 'asc' },
+              include: { questions: { orderBy: { sortOrder: 'asc' } } },
+            },
+          },
+        },
+      },
+    });
+    if (!source) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
+
+    const copy = await this.prisma.$transaction(async (tx) => {
+      const exam = await tx.mockExam.create({
+        data: {
+          type: source.type,
+          title: `${source.title} (copy)`.slice(0, 200),
+          description: source.description,
+          level: source.level,
+          isPublished: false,
+          isDemo: false,
+          price: source.price,
+          isFreeForApproved: source.isFreeForApproved,
+          createdById: actor.id,
+        },
+      });
+      for (const s of source.sections) {
+        const section = await tx.mockSection.create({
+          data: {
+            examId: exam.id,
+            skill: s.skill,
+            title: s.title,
+            sortOrder: s.sortOrder,
+            durationMinutes: s.durationMinutes,
+            instructions: s.instructions,
+          },
+        });
+        for (const g of s.groups) {
+          const group = await tx.mockQuestionGroup.create({
+            data: {
+              sectionId: section.id,
+              sortOrder: g.sortOrder,
+              title: g.title,
+              instructions: g.instructions,
+              passageText: g.passageText,
+              partNumber: g.partNumber,
+              audioDurationSec: g.audioDurationSec,
+              audioPlayLimit: g.audioPlayLimit,
+            },
+          });
+          if (g.questions.length) {
+            await tx.mockQuestion.createMany({
+              data: g.questions.map((q) => ({
+                groupId: group.id,
+                number: q.number,
+                sortOrder: q.sortOrder,
+                type: q.type,
+                prompt: q.prompt,
+                options: q.options ?? Prisma.JsonNull,
+                correctAnswers: q.correctAnswers ?? Prisma.JsonNull,
+                acceptedVariants: q.acceptedVariants ?? Prisma.JsonNull,
+                points: q.points,
+                wordLimit: q.wordLimit,
+              })),
+            });
+          }
+        }
+      }
+      return exam;
+    });
+
+    await this.audit.log({
+      userId: actor.id,
+      action: 'mock.exam.clone',
+      entity: 'mockExam',
+      entityId: copy.id,
+      oldValue: { sourceId: id, title: source.title },
+    });
+    return copy;
+  }
+
+  /** Publish-readiness checklist — nashr oldidan kamchiliklarni ko'rsatadi (bloklamaydi). */
+  async readiness(actor: AuthUser, id: string) {
+    const exam = await this.prisma.mockExam.findUnique({
+      where: { id },
+      include: {
+        sections: {
+          include: {
+            groups: { include: { questions: true } },
+          },
+        },
+      },
+    });
+    if (!exam) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
+    void actor;
+
+    const bySkill = new Map(exam.sections.map((s) => [s.skill, s]));
+    const items: Array<{ key: string; ok: boolean; detail: string }> = [];
+    const countQs = (skill: string) =>
+      (bySkill.get(skill as never)?.groups as Array<{ questions: unknown[] }> | undefined)?.reduce(
+        (n, g) => n + g.questions.length,
+        0,
+      ) ?? 0;
+
+    for (const skill of ['listening', 'reading', 'writing'] as const) {
+      const section = bySkill.get(skill);
+      items.push({
+        key: `${skill}_section`,
+        ok: !!section,
+        detail: section ? 'exists' : 'missing section',
+      });
+      if (!section) continue;
+      if (skill === 'listening') {
+        const groups = section.groups as Array<{
+          partNumber: number | null;
+          audioKey: string | null;
+          questions: unknown[];
+        }>;
+        const parts = new Set(groups.map((g) => g.partNumber).filter((p) => p != null));
+        items.push({
+          key: 'listening_parts',
+          ok: parts.size >= 4 || groups.length >= 4,
+          detail: `${groups.length} groups, parts: ${[...parts].sort().join(',') || '—'}`,
+        });
+        items.push({
+          key: 'listening_audio',
+          ok: groups.length > 0 && groups.every((g) => !!g.audioKey),
+          detail: `${groups.filter((g) => g.audioKey).length}/${groups.length} groups with audio`,
+        });
+      }
+      if (skill === 'writing') {
+        const types = new Set(
+          (section.groups as Array<{ questions: Array<{ type: string }> }>).flatMap((g) =>
+            g.questions.map((q) => q.type),
+          ),
+        );
+        items.push({
+          key: 'writing_tasks',
+          ok: types.has('essay_task1') && types.has('essay_task2'),
+          detail: `tasks: ${[...types].join(',') || '—'}`,
+        });
+      }
+    }
+
+    // Auto savollarda javob kaliti bormi
+    let missingKeys = 0;
+    let manualBadPoints = 0;
+    const ielts = exam.type === 'ielts_academic' || exam.type === 'ielts_general';
+    for (const s of exam.sections) {
+      const auto = AUTO_SKILLS.includes(s.skill);
+      for (const g of s.groups) {
+        for (const q of g.questions) {
+          const keys = q.correctAnswers as string[] | null;
+          if (auto && (!keys || keys.length === 0)) missingKeys++;
+          if (ielts && !auto && q.points !== IELTS_MANUAL_POINTS) manualBadPoints++;
+        }
+      }
+    }
+    items.push({ key: 'answer_keys', ok: missingKeys === 0, detail: `${missingKeys} auto Q without key` });
+    items.push({
+      key: 'manual_points',
+      ok: !ielts || manualBadPoints === 0,
+      detail: ielts ? `${manualBadPoints} W/S Q not 9pt` : 'n/a (multilevel)',
+    });
+
+    const total = countQs('listening') + countQs('reading') + countQs('writing');
+    items.push({ key: 'total_questions', ok: total > 0, detail: `${total} L+R+W questions` });
+
+    return { examId: id, ready: items.every((i) => i.ok), items };
+  }
+
+  /**
+   * Student-preview: xodim imtihonni o'quvchi ko'radigan holatda ko'radi
+   * (javob kalitlarisiz, kirish eshigi bilan).
+   */
+  async preview(actor: AuthUser, id: string) {
+    const exam = await this.prisma.mockExam.findUnique({
+      where: { id },
+      include: EXAM_INCLUDE,
+    });
+    if (!exam) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
+    const shaped = shapeExam(exam as unknown as ExamRow, false, this.base);
+    const access =
+      actor.role === 'student' ? await this.accessSvc.accessFor(actor, exam) : 'granted';
+    return { ...shaped, access };
+  }
+
   // ─────────────────────────── Helpers ───────────────────────────
 
   private validateQuestion(

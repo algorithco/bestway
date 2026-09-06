@@ -414,6 +414,30 @@ export class MockController {
     return this.authoring.deleteExam(user, id);
   }
 
+  /** Imtihonni nusxalash — o'z qoralama nusxangni yaratadi (media siz) */
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Post('exams/:id/clone')
+  cloneExam(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.authoring.cloneExam(user, id);
+  }
+
+  /** Nashr-readiness checklist (kamchiliklar ro'yxati, bloklamaydi) */
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Get('exams/:id/readiness')
+  readiness(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.authoring.readiness(user, id);
+  }
+
+  /** Student-preview — o'quvchi ko'radigan holat (kalitsiz) */
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Get('exams/:id/preview')
+  preview(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.authoring.preview(user, id);
+  }
+
   @ApiBearerAuth()
   @Roles('teacher', 'admin', 'super_admin')
   @Post('exams/:id/sections')
