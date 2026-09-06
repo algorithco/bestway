@@ -185,6 +185,30 @@ export class CreateGroupDto {
   @IsString()
   @MaxLength(20000)
   passageText?: string;
+
+  /** Listening part raqami (1..4) — full-test L→R→W tartibi uchun */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  partNumber?: number;
+
+  /** Audio davomiyligi (sekund) — full-test deadline = duration + 120s review */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(7200)
+  audioDurationSec?: number;
+
+  /** Exam rejimda audio necha marta eshitiladi (practice da cheksiz) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  audioPlayLimit?: number;
 }
 
 export class UpdateGroupDto {
@@ -208,6 +232,30 @@ export class UpdateGroupDto {
   @IsString()
   @MaxLength(20000)
   passageText?: string;
+
+  /** Listening part raqami (1..4) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  partNumber?: number;
+
+  /** Audio davomiyligi (sekund) */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(7200)
+  audioDurationSec?: number;
+
+  /** Exam rejimda audio necha marta eshitiladi */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  audioPlayLimit?: number;
 }
 
 /* ─────────────────────────── Question ─────────────────────────── */
@@ -247,6 +295,13 @@ export class QuestionInputDto {
   @IsString({ each: true })
   @ArrayMaxSize(20)
   correctAnswers?: string[];
+
+  /** Qo'shimcha to'g'ri shakllar (British/American imlo va b.) — grading da ham qabul qilinadi */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  acceptedVariants?: string[];
 
   @IsOptional()
   @Type(() => Number)
@@ -308,6 +363,13 @@ export class UpdateQuestionDto {
   @IsString({ each: true })
   @ArrayMaxSize(20)
   correctAnswers?: string[];
+
+  /** Qo'shimcha to'g'ri shakllar (British/American imlo va b.) */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMaxSize(20)
+  acceptedVariants?: string[];
 
   @IsOptional()
   @Type(() => Number)

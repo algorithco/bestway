@@ -12,6 +12,7 @@ import { AccessService } from '../common/access.service';
 import { AppException } from '../common/app.exception';
 import { Paginated } from '../common/pagination';
 import { AuthUser } from '../common/types';
+import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../videos/storage.service';
@@ -53,6 +54,7 @@ export class MockGradingService {
     private readonly access: AccessService,
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
+    private readonly audit: AuditService,
     config: ConfigService,
   ) {
     this.base = `${config.get<string>('PUBLIC_URL') ?? 'http://localhost:3001'}/v1`;
@@ -95,13 +97,15 @@ export class MockGradingService {
     if (AUTO_SKILLS.includes(question.group.section.skill)) {
       throw new AppException('NOT_MANUAL_QUESTION', 'Bu savol avtomatik baholanadi', 400);
     }
-    if (dto.score > question.points) {
+    // Server-side clamp (ilgari faqat frontend cheklagan): 0..points.
+    if (dto.score < 0 || dto.score > question.points) {
       throw new AppException(
         'SCORE_OUT_OF_RANGE',
         `Ball 0 dan ${question.points} gacha bo'lishi kerak`,
         400,
       );
     }
+    this.validateRubrics(question.group.section.skill, dto.rubricScores);
 
     await this.prisma.mockAnswer.upsert({
       where: { attemptId_questionId: { attemptId, questionId: dto.questionId } },
@@ -125,6 +129,13 @@ export class MockGradingService {
     });
 
     const result = await this.gradeAndCompute(attemptId, false);
+    await this.audit.log({
+      userId: teacher.id,
+      action: 'mock.answer.grade',
+      entity: 'mockAnswer',
+      entityId: dto.questionId,
+      newValue: { attemptId, score: dto.score, status: result.status },
+    });
     if (result.status === 'completed') await this.notifyResult(attemptId);
     return { saved: true, status: result.status };
   }
@@ -445,6 +456,23 @@ export class MockGradingService {
   }
 
   // ─────────────────────────── Helpers ───────────────────────────
+
+  /** Rubric kalitlari: writing {ta,cc,lr,gra}, speaking {fluency,lexical,grammar,pronunciation} — qiymat 0..9. */
+  private validateRubrics(skill: MockSkill, rubrics: Record<string, number> | undefined): void {
+    if (rubrics === undefined) return;
+    const allowed =
+      skill === 'writing'
+        ? ['ta', 'cc', 'lr', 'gra']
+        : ['fluency', 'lexical', 'grammar', 'pronunciation'];
+    for (const [key, value] of Object.entries(rubrics)) {
+      if (!allowed.includes(key)) {
+        throw new AppException('VALIDATION_ERROR', `Noma'lum rubric: ${key}`, 400);
+      }
+      if (typeof value !== 'number' || Number.isNaN(value) || value < 0 || value > 9) {
+        throw new AppException('VALIDATION_ERROR', `Rubric "${key}" 0 dan 9 gacha bo'lsin`, 400);
+      }
+    }
+  }
 
   private summary(a: {
     id: string;

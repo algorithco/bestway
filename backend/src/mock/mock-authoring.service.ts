@@ -95,6 +95,7 @@ export class MockAuthoringService {
 
   async updateExam(actor: AuthUser, id: string, dto: UpdateMockExamDto) {
     await this.examOrThrow(id);
+    await this.assertCanAuthor(actor, id);
     const updated = await this.prisma.mockExam.update({
       where: { id },
       data: {
@@ -231,6 +232,7 @@ export class MockAuthoringService {
 
   async createSection(actor: AuthUser, examId: string, dto: CreateSectionDto) {
     await this.examOrThrow(examId);
+    await this.assertCanAuthor(actor, examId);
     const exists = await this.prisma.mockSection.findUnique({
       where: { examId_skill: { examId, skill: dto.skill } },
     });
@@ -258,7 +260,8 @@ export class MockAuthoringService {
   }
 
   async updateSection(actor: AuthUser, sectionId: string, dto: UpdateSectionDto) {
-    await this.sectionOrThrow(sectionId);
+    const section = await this.sectionOrThrow(sectionId);
+    await this.assertCanAuthor(actor, section.examId);
     const updated = await this.prisma.mockSection.update({
       where: { id: sectionId },
       data: {
@@ -283,6 +286,7 @@ export class MockAuthoringService {
       include: { groups: true },
     });
     if (!section) throw new AppException('MOCK_SECTION_NOT_FOUND', 'Bo\'lim topilmadi', 404);
+    await this.assertCanAuthor(actor, section.examId);
     for (const g of section.groups) {
       if (g.audioKey) this.storage.delete(g.audioKey);
       if (g.imageKey) this.storage.delete(g.imageKey);
@@ -300,7 +304,8 @@ export class MockAuthoringService {
   // ─────────────────────────── Group ───────────────────────────
 
   async createGroup(actor: AuthUser, sectionId: string, dto: CreateGroupDto) {
-    await this.sectionOrThrow(sectionId);
+    const section = await this.sectionOrThrow(sectionId);
+    await this.assertCanAuthor(actor, section.examId);
     const count = await this.prisma.mockQuestionGroup.count({ where: { sectionId } });
     const group = await this.prisma.mockQuestionGroup.create({
       data: {
@@ -309,6 +314,9 @@ export class MockAuthoringService {
         title: dto.title,
         instructions: dto.instructions,
         passageText: dto.passageText,
+        partNumber: dto.partNumber,
+        audioDurationSec: dto.audioDurationSec,
+        audioPlayLimit: dto.audioPlayLimit ?? 1,
       },
     });
     await this.audit.log({
@@ -323,6 +331,7 @@ export class MockAuthoringService {
 
   async updateGroup(actor: AuthUser, groupId: string, dto: UpdateGroupDto) {
     await this.groupOrThrow(groupId);
+    await this.assertCanAuthorForGroup(actor, groupId);
     const updated = await this.prisma.mockQuestionGroup.update({
       where: { id: groupId },
       data: {
@@ -330,6 +339,9 @@ export class MockAuthoringService {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
         ...(dto.instructions !== undefined ? { instructions: dto.instructions } : {}),
         ...(dto.passageText !== undefined ? { passageText: dto.passageText } : {}),
+        ...(dto.partNumber !== undefined ? { partNumber: dto.partNumber } : {}),
+        ...(dto.audioDurationSec !== undefined ? { audioDurationSec: dto.audioDurationSec } : {}),
+        ...(dto.audioPlayLimit !== undefined ? { audioPlayLimit: dto.audioPlayLimit } : {}),
       },
     });
     await this.audit.log({
@@ -343,6 +355,7 @@ export class MockAuthoringService {
 
   async deleteGroup(actor: AuthUser, groupId: string) {
     const group = await this.groupOrThrow(groupId);
+    await this.assertCanAuthorForGroup(actor, groupId);
     if (group.audioKey) this.storage.delete(group.audioKey);
     if (group.imageKey) this.storage.delete(group.imageKey);
     await this.prisma.mockQuestionGroup.delete({ where: { id: groupId } });
@@ -362,6 +375,7 @@ export class MockAuthoringService {
     files: { audio?: Express.Multer.File[]; image?: Express.Multer.File[] },
   ) {
     const group = await this.groupOrThrow(groupId);
+    await this.assertCanAuthorForGroup(actor, groupId);
     const data: Prisma.MockQuestionGroupUpdateInput = {};
     const audio = files.audio?.[0];
     const image = files.image?.[0];
@@ -478,6 +492,7 @@ export class MockAuthoringService {
       include: { section: { select: { skill: true, exam: { select: { type: true } } } } },
     });
     if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
+    await this.assertCanAuthorForGroup(actor, groupId);
 
     const parsed = parseQuestions(dto.text);
     if (parsed.questions.length === 0) {
@@ -542,6 +557,7 @@ export class MockAuthoringService {
       include: { section: { select: { skill: true, exam: { select: { type: true } } } } },
     });
     if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
+    await this.assertCanAuthorForGroup(actor, groupId);
 
     const isAuto = AUTO_SKILLS.includes(group.section.skill);
     const base = await this.prisma.mockQuestion.count({ where: { groupId } });
@@ -557,6 +573,7 @@ export class MockAuthoringService {
         prompt: q.prompt,
         options: q.options ? (q.options as Prisma.InputJsonValue) : undefined,
         correctAnswers: q.correctAnswers ? (q.correctAnswers as Prisma.InputJsonValue) : undefined,
+        acceptedVariants: q.acceptedVariants ? (q.acceptedVariants as Prisma.InputJsonValue) : undefined,
         points: this.resolvePoints(group.section.exam.type, isAuto, q.points, `#${i + 1}-savol: `),
         wordLimit: q.wordLimit,
       })),
@@ -584,6 +601,7 @@ export class MockAuthoringService {
       },
     });
     if (!question) throw new AppException('MOCK_QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
+    await this.assertCanAuthorForQuestion(actor, questionId);
 
     const type = dto.type ?? question.type;
     const isAuto = AUTO_SKILLS.includes(question.group.section.skill);
@@ -612,6 +630,9 @@ export class MockAuthoringService {
         ...(dto.correctAnswers !== undefined
           ? { correctAnswers: dto.correctAnswers as Prisma.InputJsonValue }
           : {}),
+        ...(dto.acceptedVariants !== undefined
+          ? { acceptedVariants: dto.acceptedVariants as Prisma.InputJsonValue }
+          : {}),
         ...(dto.points !== undefined
           ? {
               points: this.resolvePoints(
@@ -636,6 +657,7 @@ export class MockAuthoringService {
   async deleteQuestion(actor: AuthUser, questionId: string) {
     const question = await this.prisma.mockQuestion.findUnique({ where: { id: questionId } });
     if (!question) throw new AppException('MOCK_QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
+    await this.assertCanAuthorForQuestion(actor, questionId);
     await this.prisma.mockQuestion.delete({ where: { id: questionId } });
     await this.audit.log({
       userId: actor.id,
@@ -694,6 +716,42 @@ export class MockAuthoringService {
     const exam = await this.prisma.mockExam.findUnique({ where: { id } });
     if (!exam) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
     return exam;
+  }
+
+  /**
+   * Teacher faqat O'ZI yaratgan imtihonni tahrirlaydi (createdById).
+   * Admin/super_admin — barcha imtihonlar. Eski (createdById=null) imtihonlar teacher uchun yopiq.
+   */
+  private async assertCanAuthor(actor: AuthUser, examId: string): Promise<void> {
+    if (actor.role !== 'teacher') return;
+    const exam = await this.examOrThrow(examId);
+    if (exam.createdById !== actor.id) {
+      throw new AppException(
+        'MOCK_NOT_OWNER',
+        'Bu imtihonni faqat yaratgan o‘qituvchi (yoki admin) tahrirlay oladi',
+        403,
+      );
+    }
+  }
+
+  private async assertCanAuthorForGroup(actor: AuthUser, groupId: string): Promise<void> {
+    if (actor.role !== 'teacher') return;
+    const group = await this.prisma.mockQuestionGroup.findUnique({
+      where: { id: groupId },
+      select: { section: { select: { examId: true } } },
+    });
+    if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
+    await this.assertCanAuthor(actor, group.section.examId);
+  }
+
+  private async assertCanAuthorForQuestion(actor: AuthUser, questionId: string): Promise<void> {
+    if (actor.role !== 'teacher') return;
+    const question = await this.prisma.mockQuestion.findUnique({
+      where: { id: questionId },
+      select: { group: { select: { section: { select: { examId: true } } } } },
+    });
+    if (!question) throw new AppException('MOCK_QUESTION_NOT_FOUND', 'Savol topilmadi', 404);
+    await this.assertCanAuthor(actor, question.group.section.examId);
   }
 
   private async sectionOrThrow(id: string) {

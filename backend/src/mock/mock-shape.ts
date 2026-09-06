@@ -13,6 +13,7 @@ export interface QuestionRow {
   prompt: string;
   options: unknown;
   correctAnswers: unknown;
+  acceptedVariants: unknown;
   points: number;
   wordLimit: number | null;
 }
@@ -25,6 +26,9 @@ export interface GroupRow {
   passageText: string | null;
   audioKey: string | null;
   imageKey: string | null;
+  partNumber: number | null;
+  audioDurationSec: number | null;
+  audioPlayLimit: number;
   questions: QuestionRow[];
 }
 
@@ -65,7 +69,12 @@ export function shapeQuestion(q: QuestionRow, includeAnswers: boolean) {
     options: asStringArray(q.options),
     points: q.points,
     wordLimit: q.wordLimit,
-    ...(includeAnswers ? { correctAnswers: asStringArray(q.correctAnswers) } : {}),
+    ...(includeAnswers
+      ? {
+          correctAnswers: asStringArray(q.correctAnswers),
+          acceptedVariants: asStringArray(q.acceptedVariants),
+        }
+      : {}),
   };
 }
 
@@ -79,6 +88,9 @@ export function shapeGroup(g: GroupRow, includeAnswers: boolean, base: string) {
     hasAudio: !!g.audioKey,
     audioUrl: g.audioKey ? `${base}/mock/groups/${g.id}/audio` : null,
     imageUrl: g.imageKey ? `${base}/mock/groups/${g.id}/image` : null,
+    partNumber: g.partNumber,
+    audioDurationSec: g.audioDurationSec,
+    audioPlayLimit: g.audioPlayLimit,
     questions: [...g.questions]
       .sort((a, b) => a.sortOrder - b.sortOrder || a.number - b.number)
       .map((q) => shapeQuestion(q, includeAnswers)),
