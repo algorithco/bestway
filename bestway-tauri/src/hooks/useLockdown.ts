@@ -85,7 +85,10 @@ export function useLockdown(options: UseLockdownOptions): UseLockdownResult {
 
   const [cheatCount, setCheatCount] = useState(0);
   const onCheatRef = useRef(onCheat);
-  onCheatRef.current = onCheat;
+
+  useEffect(() => {
+    onCheatRef.current = onCheat;
+  }, [onCheat]);
 
   const report = useCallback((event: LockdownCheatEvent, e?: Event) => {
     setCheatCount((c) => c + 1);
@@ -97,9 +100,9 @@ export function useLockdown(options: UseLockdownOptions): UseLockdownResult {
   }, []);
 
   const relock = useCallback(() => {
-    if (!options.locked) return;
-    if (options.requestFullscreen !== false) tryRequestFullscreen();
-  }, [options.locked, options.requestFullscreen]);
+    if (!locked) return;
+    if (requestFullscreen) tryRequestFullscreen();
+  }, [locked, requestFullscreen]);
 
   useEffect(() => {
     if (!locked) return; // <-- no-op when unlocked

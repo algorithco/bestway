@@ -35,14 +35,15 @@ interface NavigatorWithBattery extends Navigator {
 
 function clampPercent(v: unknown): number | null {
   if (typeof v !== "number" || Number.isNaN(v)) return null;
-  if (v <= 1 && v > 0 && v < 1.1) {
-    // Some backends may return 0..1 ratio — normalize defensively.
-    // Distinguish true 0%/1% from ratio: only treat fractional values as ratio.
-    if (!Number.isInteger(v)) return Math.round(v * 100);
+  // Defensive ratio handling: only non-integer 0 < v < 1 is treated as 0..1 ratio.
+  // Integer 0/1 are percents (0%/1%), not 0%/100% — avoids the 1.0 -> 1% vs 100% trap
+  // by requiring a fractional value before scaling.
+  if (v > 0 && v < 1 && !Number.isInteger(v)) {
+    return Math.round(v * 100);
   }
   const n = Math.round(v);
-  if (n < 0 || n > 100) return null;
-  return n;
+  if (!Number.isFinite(n)) return null;
+  return Math.min(100, Math.max(0, n));
 }
 
 async function tryTauriBattery(): Promise<BatterySnapshot | null> {
@@ -63,7 +64,17 @@ async function tryTauriBattery(): Promise<BatterySnapshot | null> {
         : typeof payload.state === "string"
           ? payload.state.toLowerCase().includes("charg")
           : false;
-    if (percent === null) return null;
+    const stateText =
+      typeof payload.state === "string" && payload.state.length > 0
+        ? payload.state
+        : charging
+          ? "Charging"
+          : "Discharging";
+    if (percent === null) {
+      // Preserve charging/state even when percent is unknown (desktop with
+      // no battery) — mark unknown instead of discarding.
+      return { percent: null, charging, state: stateText, unknown: true };
+    }
     return {
       percent,
       charging,
@@ -88,8 +99,8 @@ async function tryBrowserBattery(
     if (typeof nav.getBattery !== "function") return null;
     const mgr = await nav.getBattery();
     if (signal?.aborted) return null;
-    const percent = clampPercent(mgr.level * 100);
-    if (percent === null) return null;
+    // Browser API `level` is a 0..1 ratio — scale once, don't re-normalize.
+    const percent = Math.min(100, Math.max(0, Math.round(mgr.level * 100)));
     return {
       percent,
       charging: mgr.charging === true,
@@ -122,6 +133,7 @@ const POLL_MS = 30_000;
 export function useBattery(pollMs: number = POLL_MS): UseBatteryResult {
   const [snapshot, setSnapshot] = useState<BatterySnapshot>(UNKNOWN);
   const mountedRef = useRef(true);
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -131,16 +143,25 @@ export function useBattery(pollMs: number = POLL_MS): UseBatteryResult {
   }, []);
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     const controller = new AbortController();
+    const apply = (snap: BatterySnapshot) => {
+      if (mountedRef.current && requestIdRef.current === requestId) {
+        setSnapshot(snap);
+      }
+    };
     const fromTauri = await tryTauriBattery();
-    if (fromTauri) {
-      if (mountedRef.current) setSnapshot({ ...fromTauri, unknown: false });
+    if (fromTauri && !fromTauri.unknown) {
+      apply(fromTauri);
       return;
     }
     const fromBrowser = await tryBrowserBattery(controller.signal);
-    if (mountedRef.current) {
-      setSnapshot(fromBrowser ? { ...fromBrowser, unknown: false } : UNKNOWN);
+    if (fromBrowser) {
+      apply(fromBrowser);
+      return;
     }
+    // Preserve Tauri charging/state detail when both sources lack percent.
+    apply(fromTauri ?? UNKNOWN);
   }, []);
 
   useEffect(() => {

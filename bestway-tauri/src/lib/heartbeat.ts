@@ -31,6 +31,25 @@ export function startHeartbeat(options: HeartbeatOptions): () => void {
 
   let stopped = false;
   let inFlight = false;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  function teardown(): void {
+    stopped = true;
+    if (timer !== undefined) clearInterval(timer);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("offline", handleOffline);
+    }
+  }
+
+  function isTerminal(err: unknown): boolean {
+    const status =
+      typeof err === "object" && err !== null
+        ? (err as { status?: unknown }).status
+        : undefined;
+    // Backend route missing (404) or unauthorized (401/403): retrying every
+    // 15s only spams logs — stop the loop and surface once via onError.
+    return status === 404 || status === 401 || status === 403;
+  }
 
   async function beat(): Promise<void> {
     if (stopped || inFlight) return;
@@ -49,6 +68,7 @@ export function startHeartbeat(options: HeartbeatOptions): () => void {
       await post<void>("/exam-desktop/heartbeat", payload);
     } catch (err) {
       onError?.(err);
+      if (isTerminal(err)) teardown();
     } finally {
       inFlight = false;
     }
@@ -56,7 +76,7 @@ export function startHeartbeat(options: HeartbeatOptions): () => void {
 
   // Fire once immediately so presence shows up without waiting a full interval.
   void beat();
-  const timer = setInterval(() => {
+  timer = setInterval(() => {
     void beat();
   }, intervalMs);
 
@@ -67,11 +87,7 @@ export function startHeartbeat(options: HeartbeatOptions): () => void {
   }
 
   return function stop(): void {
-    stopped = true;
-    clearInterval(timer);
-    if (typeof window !== "undefined") {
-      window.removeEventListener("offline", handleOffline);
-    }
+    teardown();
   };
 }
 

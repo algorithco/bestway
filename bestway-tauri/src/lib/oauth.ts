@@ -24,7 +24,9 @@ export const DESKTOP_CALLBACK = `${DESKTOP_SCHEME}://auth/callback`;
 function webBaseUrl(): string {
   const fromEnv =
     typeof import.meta !== "undefined"
-      ? ((import.meta.env?.VITE_WEB_URL as string | undefined) ??
+      ? ((import.meta.env?.BESTWAY_WEB_URL as string | undefined) ??
+        (import.meta.env?.VITE_WEB_URL as string | undefined) ??
+        (import.meta.env?.BESTWAY_API_URL as string | undefined) ??
         (import.meta.env?.VITE_API_URL as string | undefined))
       : undefined;
   // VITE_API_URL points at .../v1 — strip it to guess the web origin.

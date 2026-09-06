@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { login, setSession } from "@/lib/api";
+import { useEffect, useRef, useState } from "react";
+import { clearSession, login, setSession } from "@/lib/api";
 import {
   startBrowserLogin,
   listenDeepLink,
@@ -20,6 +20,11 @@ export default function Login({ onLogin }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [manualCode, setManualCode] = useState("");
   const [pending, setPending] = useState<BrowserLoginState | null>(null);
+  const pendingRef = useRef<BrowserLoginState | null>(null);
+
+  useEffect(() => {
+    pendingRef.current = pending ?? readBrowserLoginState();
+  }, [pending]);
 
   // Auto-catch bestway-exam://auth/callback deep links while on this screen.
   useEffect(() => {
@@ -30,9 +35,6 @@ export default function Login({ onLogin }: Props) {
     return () => unlisten?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const pendingRef = useState<{ current: BrowserLoginState | null }>({ current: null })[0];
-  pendingRef.current = pending ?? readBrowserLoginState();
 
   async function handleCallback(url: string, s: BrowserLoginState | null) {
     const p = parseAuthCallbackUrl(url);
@@ -52,7 +54,7 @@ export default function Login({ onLogin }: Props) {
       setError("Login session expired. Start browser login again.");
       return;
     }
-    if (p.state && p.state !== s.state) {
+    if (!p.state || p.state !== s.state) {
       setError("State mismatch — possible CSRF. Start again.");
       return;
     }
@@ -99,6 +101,7 @@ export default function Login({ onLogin }: Props) {
       const session = await login(phone.trim(), password);
       const role = String(session.user?.role ?? "student");
       if (role !== "student") {
+        clearSession();
         setError("This app is for students only.");
         setBusy("idle");
         return;

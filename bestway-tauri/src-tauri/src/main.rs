@@ -26,6 +26,8 @@ fn set_locked(
 
     if let Some(window) = app.get_webview_window("main") {
         lockdown::set_kiosk(&window, locked)?;
+    } else {
+        return Err("main window not found".to_string());
     }
 
     // Best-effort: wipe clipboard when entering lockdown.
@@ -58,11 +60,6 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_clipboard_manager::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .plugin(tauri_plugin_autostart::init(
-            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
-        ))
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if let Some(state) = window.app_handle().try_state::<LockState>() {

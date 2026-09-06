@@ -40,7 +40,8 @@ const DEFAULT_BASE_URL = "http://localhost:3001/v1";
 function resolveBaseUrl(): string {
   const fromEnv =
     typeof import.meta !== "undefined"
-      ? (import.meta.env?.VITE_API_URL as string | undefined)
+      ? ((import.meta.env?.BESTWAY_API_URL as string | undefined) ??
+        (import.meta.env?.VITE_API_URL as string | undefined))
       : undefined;
   const raw = (fromEnv ?? DEFAULT_BASE_URL).trim();
   return raw.replace(/\/+$/, "");
@@ -87,6 +88,11 @@ export function setSession(accessToken: string | null, refreshToken?: string | n
   if (refreshToken !== undefined) {
     memoryRefreshToken = refreshToken;
     writeStorage(REFRESH_KEY, refreshToken);
+  } else if (accessToken === null) {
+    // Clearing the access token without an explicit refresh value must not
+    // leave a stale refresh token behind (split-brain logout).
+    memoryRefreshToken = null;
+    writeStorage(REFRESH_KEY, null);
   }
 }
 
@@ -143,11 +149,12 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}${buildQuery(query)}`;
 
   const accessToken = token !== undefined ? token : getAccessToken();
+  const hasJsonBody = body !== undefined && typeof body !== "string";
 
   const res = await fetch(url, {
     ...rest,
     headers: {
-      "Content-Type": "application/json",
+      ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...(headers ?? {}),
     },
@@ -238,8 +245,15 @@ export async function refresh(): Promise<AuthSession> {
 }
 
 export async function logout(): Promise<void> {
+  const refreshToken = getRefreshToken();
+  // No refresh token: local-only logout. POSTing `{}` would make the backend
+  // revoke ALL sessions for the user (deleteMany by userId) — not intended.
+  if (!refreshToken) {
+    clearSession();
+    return;
+  }
   try {
-    await post<void>("/auth/logout", { refreshToken: getRefreshToken() ?? undefined });
+    await post<void>("/auth/logout", { refreshToken });
   } catch {
     // Logout is best-effort; always clear local session.
   } finally {

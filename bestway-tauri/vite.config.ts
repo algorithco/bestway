@@ -11,7 +11,7 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
   },
-  envPrefix: "BESTWAY_",
+  envPrefix: ["BESTWAY_", "VITE_"],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -48,7 +48,10 @@ pub fn get_battery() -> BatteryInfo {
     };
 
     let state = battery.state();
-    let charging = matches!(state, starship_battery::State::Charging);
+    let charging = matches!(
+        state,
+        starship_battery::State::Charging | starship_battery::State::Full
+    );
 
     let state_str = match state {
         starship_battery::State::Charging => "charging",

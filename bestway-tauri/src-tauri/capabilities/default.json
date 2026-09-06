@@ -1,7 +1,17 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Least-privilege: core:default only; app commands get_battery, set_locked, clear_clipboard exposed via invoke_handler",
+  "description": "Least-privilege: core window controls for kiosk + opener/deep-link for browser login + clipboard wipe on lock",
   "windows": ["main"],
-  "permissions": ["core:default", "opener:default", "deep-link:default"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-fullscreen",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-set-focus",
+    "opener:allow-open-url",
+    "deep-link:default",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-clear",
+    "single-instance:default"
+  ]
 }
