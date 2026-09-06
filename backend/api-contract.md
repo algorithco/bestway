@@ -59,8 +59,12 @@ HTTP status kodlari: `200` OK, `201` Created, `400` Validation error, `401` Unau
 | POST | `/auth/login` | Mehmon | `{ phone, password }` | `{ user, accessToken, refreshToken }` |
 | POST | `/auth/refresh` | Har kim | `{ refreshToken }` | `{ accessToken, refreshToken }` |
 | POST | `/auth/link-child` | Ota-ona | `{ linkCode }` | `{ child: StudentProfile }` |
+| POST | `/auth/desktop/authorize` | O'quvchi | `{ deviceId, state, codeChallenge, redirect }` | `{ code, state, expiresAt }` |
+| POST | `/auth/desktop/exchange` | Mehmon | `{ code, verifier, deviceId }` | `{ user, accessToken, refreshToken }` |
 
 **Refresh token rotatsiyasi:** `/auth/refresh` har chaqiriqda yangi `refreshToken` qaytaradi va eskisi birda ishlatiladi (single-use). Allaqachon ishlatilgan (revoked) tokenni qayta yuborish reuse-hujum deb hisoblanadi — butun token oilasi bekor qilinadi va `SESSION_EXPIRED` xatosi (401) qaytadi.
+
+**Desktop kirish (Tauri ilova):** `POST /auth/desktop/authorize` faqat `student` rolida, 5 daqiqalik bir martalik kod beradi (`redirect` faqat `bestway-exam://auth/callback` bo'lishi shart). `POST /auth/desktop/exchange` ochiq endpoint (10/daqiqa): PKCE-S256 (`BASE64URL(SHA256(verifier)) === codeChallenge`), `deviceId` mosligi, muddat va bir martaliklik tekshiriladi — noto'g'ri urinish kodni kuydiradi. Muvaffaqiyatda oddiy sessiya tokenlari qaytadi (rotatsiya/logout qoidalari bir xil).
 
 `user` obyekti doim shu shaklda:
 ```json
@@ -495,6 +499,12 @@ Markazda hamma bitta Wi-Fi'dan kirishi mumkinligi hisobga olingan.
 | HTTP | code | Qachon |
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | So'rov tanasi/query noto'g'ri (`message` — birinchi xato matni) |
+| 400 | `INVALID_REDIRECT` | Desktop authorize: ruxsat etilmagan qaytish manzili |
+| 400 | `DEVICE_MISMATCH` | Desktop kod boshqa qurilma uchun yaratilgan |
+| 401 | `INVALID_DESKTOP_CODE` | Desktop kodi noto'g'ri |
+| 401 | `DESKTOP_CODE_USED` | Desktop kodi allaqachon ishlatilgan |
+| 401 | `DESKTOP_CODE_EXPIRED` | Desktop kodi muddati o'tgan (5 daqiqa) |
+| 401 | `INVALID_VERIFIER` | PKCE xavfsizlik tekshiruvi o'tmadi |
 | 401 | `UNAUTHORIZED` | Token yo'q, yaroqsiz yoki muddati o'tgan |
 | 401 | `INVALID_CREDENTIALS` | Telefon yoki parol xato |
 | 401 | `INVALID_REFRESH_TOKEN` | Refresh token yaroqsiz/bekor qilingan |

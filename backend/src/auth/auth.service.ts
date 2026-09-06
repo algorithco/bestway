@@ -3,16 +3,27 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomBytes, randomInt, randomUUID } from 'crypto';
+import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'crypto';
 import { AppException } from '../common/app.exception';
 import { AuthUser } from '../common/types';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SETTING_KEYS, SettingsService } from '../settings/settings.service';
-import { LinkChildDto, LoginDto, RefreshDto, RegisterDto } from './dto/auth.dto';
+import {
+  DesktopAuthorizeDto,
+  DesktopExchangeDto,
+  LinkChildDto,
+  LoginDto,
+  RefreshDto,
+  RegisterDto,
+} from './dto/auth.dto';
 
 const LINK_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const DUMMY_PASSWORD_HASH = '$2a$10$S0DkiNylcFUhAIuwhOeOz.jS/i48bFSlu6E0mrcE/jVrZ9Ph9i6Zy';
+/** Desktop kirish kodining yashash muddati (daqiqa) */
+const DESKTOP_CODE_TTL_MIN = 5;
+/** Desktop deep-link manzili — faqat shu manzilga yo'naltiriladi */
+const DESKTOP_CALLBACK = 'bestway-exam://auth/callback';
 
 @Injectable()
 export class AuthService {
@@ -158,6 +169,102 @@ export class AuthService {
       await this.prisma.refreshToken.deleteMany({ where: { userId } });
     }
     return { loggedOut: true };
+  }
+
+  /**
+   * Desktop (Tauri) uchun bir martalik kirish kodi yaratish.
+   * Web sahifa chaqiradi (o'quvchi sessiyasi bilan) — kod deep-link orqali
+   * desktopga uzatiladi va `/auth/desktop/exchange` da sessiyaga almashadi.
+   */
+  async authorizeDesktop(user: AuthUser, dto: DesktopAuthorizeDto) {
+    if (dto.redirect !== DESKTOP_CALLBACK) {
+      throw new AppException('INVALID_REDIRECT', 'Ruxsat etilmagan qaytish manzili', 400);
+    }
+    const dbUser = await this.prisma.user.findUnique({ where: { id: user.id } });
+    if (!dbUser || !dbUser.isActive) {
+      throw new AppException('USER_DEACTIVATED', 'Akkaunt bloklangan. Administratsiyaga murojaat qiling', 403);
+    }
+    if (dbUser.role !== 'student') {
+      throw new AppException('NOT_A_STUDENT', 'Desktop ilova faqat o\u2018quvchilar uchun', 403);
+    }
+    const code = randomBytes(32).toString('base64url');
+    const now = new Date();
+    await this.prisma.desktopAuthCode.create({
+      data: {
+        userId: dbUser.id,
+        codeHash: this.hashToken(code),
+        codeChallenge: dto.codeChallenge,
+        deviceId: dto.deviceId,
+        state: dto.state,
+        expiresAt: new Date(now.getTime() + DESKTOP_CODE_TTL_MIN * 60_000),
+      },
+    });
+    // Muddati o'tgan kodlarni tozalash
+    await this.prisma.desktopAuthCode.deleteMany({
+      where: { userId: dbUser.id, expiresAt: { lt: now } },
+    });
+    return {
+      code,
+      state: dto.state,
+      expiresAt: new Date(now.getTime() + DESKTOP_CODE_TTL_MIN * 60_000).toISOString(),
+    };
+  }
+
+  /**
+   * Desktop kirish kodini sessiya tokenlariga almashtirish (PKCE-S256).
+   * Kod bir martalik: muvaffaqiyatli (va muvaffaqiyatsiz urinishdan keyin ham
+   * qayta ishlatib bo'lmaydi — topilsa darhol `usedAt` qo'yiladi).
+   */
+  async exchangeDesktopCode(dto: DesktopExchangeDto) {
+    const outcome = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.desktopAuthCode.findUnique({
+        where: { codeHash: this.hashToken(dto.code) },
+        include: { user: true },
+      });
+      if (!row) return { kind: 'invalid' as const };
+      if (row.usedAt) return { kind: 'used' as const };
+      if (row.expiresAt < new Date()) return { kind: 'expired' as const };
+      // Qayta ishlatishga urinish — kodni kuydiramiz
+      await tx.desktopAuthCode.update({ where: { id: row.id }, data: { usedAt: new Date() } });
+      if (row.deviceId !== dto.deviceId) return { kind: 'device' as const };
+      if (!this.verifyChallenge(dto.verifier, row.codeChallenge)) {
+        return { kind: 'verifier' as const };
+      }
+      if (!row.user.isActive) return { kind: 'deactivated' as const };
+      if (row.user.role !== 'student') return { kind: 'role' as const };
+      return { kind: 'ok' as const, user: row.user };
+    });
+    switch (outcome.kind) {
+      case 'invalid':
+        throw new AppException('INVALID_DESKTOP_CODE', 'Desktop kodi noto\u2018g\u2018ri', 401);
+      case 'used':
+        throw new AppException('DESKTOP_CODE_USED', 'Desktop kodi allaqachon ishlatilgan', 401);
+      case 'expired':
+        throw new AppException('DESKTOP_CODE_EXPIRED', 'Desktop kodi muddati o\u2018tgan — qaytadan urinib ko\u2018ring', 401);
+      case 'device':
+        throw new AppException('DEVICE_MISMATCH', 'Kod boshqa qurilma uchun yaratilgan', 400);
+      case 'verifier':
+        throw new AppException('INVALID_VERIFIER', 'Xavfsizlik tekshiruvi o\u2018tmadi', 401);
+      case 'deactivated':
+        throw new AppException('USER_DEACTIVATED', 'Akkaunt bloklangan. Administratsiyaga murojaat qiling', 403);
+      case 'role':
+        throw new AppException('NOT_A_STUDENT', 'Desktop ilova faqat o\u2018quvchilar uchun', 403);
+    }
+    const tokens = await this.issueTokens(outcome.user);
+    return { user: this.toPublicUser(outcome.user), ...tokens };
+  }
+
+  /** PKCE-S256: BASE64URL(SHA256(verifier)) === codeChallenge (constant-time) */
+  private verifyChallenge(verifier: string, challenge: string): boolean {
+    const digest = createHash('sha256').update(verifier, 'utf8').digest();
+    let expected: Buffer;
+    try {
+      expected = Buffer.from(challenge, 'base64url');
+    } catch {
+      return false;
+    }
+    if (expected.length !== digest.length) return false;
+    return timingSafeEqual(digest, expected);
   }
 
   /** Ota-ona farzandini "bog'lash kodi" orqali ulaydi */

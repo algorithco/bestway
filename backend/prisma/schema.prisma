@@ -97,6 +97,7 @@ model User {
   parentLinks    ParentStudent[]     @relation("ParentLinks")
   teachingGroups Group[]             @relation("GroupTeacher")
   refreshTokens  RefreshToken[]
+  desktopAuthCodes DesktopAuthCode[]
   notifications  Notification[]
   articles       Article[]
   videoPurchases VideoPurchase[]
@@ -135,6 +136,26 @@ model RefreshToken {
 
   @@index([userId])
   @@index([familyId])
+}
+
+/// Desktop (Tauri) ilova uchun bir martalik, muddati cheklangan kirish kodi (PKCE-S256).
+/// Web sahifa yaratadi -> `bestway-exam://auth/callback?code=..&state=..` ga yo'naltiradi ->
+/// desktop `POST /auth/desktop/exchange` da kodni sessiya tokenlariga almashtiradi.
+model DesktopAuthCode {
+  id            String    @id @default(uuid())
+  userId        String
+  codeHash      String    @unique
+  codeChallenge String
+  deviceId      String
+  state         String
+  expiresAt     DateTime
+  usedAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 // StudentProfile kaliti = User.id — API dagi studentId har doim user id degani

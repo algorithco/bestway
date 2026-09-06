@@ -4,7 +4,15 @@ import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, Public, Roles } from '../common/decorators';
 import { AuthUser } from '../common/types';
 import { AuthService } from './auth.service';
-import { LinkChildDto, LoginDto, LogoutDto, RefreshDto, RegisterDto } from './dto/auth.dto';
+import {
+  DesktopAuthorizeDto,
+  DesktopExchangeDto,
+  LinkChildDto,
+  LoginDto,
+  LogoutDto,
+  RefreshDto,
+  RegisterDto,
+} from './dto/auth.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -63,5 +71,30 @@ export class AuthController {
   @HttpCode(200)
   logout(@CurrentUser() user: AuthUser, @Body() dto: LogoutDto) {
     return this.auth.logout(user.id, dto.refreshToken);
+  }
+
+  /**
+   * Desktop (Tauri) uchun bir martalik kirish kodi.
+   * Web sahifa (`/oauth/desktop`) o'quvchi sessiyasi bilan chaqiradi.
+   */
+  @Roles('student')
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('desktop/authorize')
+  @HttpCode(200)
+  authorizeDesktop(@CurrentUser() user: AuthUser, @Body() dto: DesktopAuthorizeDto) {
+    return this.auth.authorizeDesktop(user, dto);
+  }
+
+  /**
+   * Desktop kirish kodini sessiya tokenlariga almashtirish (PKCE-S256).
+   * Kod bir martalik, 5 daqiqa yashaydi, qurilmaga bog'langan.
+   */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('desktop/exchange')
+  @HttpCode(200)
+  exchangeDesktopCode(@Body() dto: DesktopExchangeDto) {
+    return this.auth.exchangeDesktopCode(dto);
   }
 }

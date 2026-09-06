@@ -62,3 +62,51 @@ export class LogoutDto {
   @IsString()
   refreshToken?: string;
 }
+
+export class DesktopAuthorizeDto {
+  /** Desktop qurilma identifikatori (login sahifasidan keladi) */
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @MaxLength(128)
+  deviceId: string;
+
+  /** CSRF tokeni — desktop uni qaytgan `state` bilan solishtiradi */
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(16)
+  @MaxLength(128)
+  state: string;
+
+  /** PKCE-S256 challenge: BASE64URL(SHA256(verifier)), har doim 43 belgi */
+  @IsString()
+  @IsNotEmpty()
+  @Matches(/^[A-Za-z0-9_-]{43}$/, { message: "codeChallenge PKCE-S256 formatida bo'lishi kerak" })
+  codeChallenge: string;
+
+  /** Faqat ruxsat etilgan deep-link manzil (open-redirect himoyasi) */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(256)
+  redirect: string;
+}
+
+export class DesktopExchangeDto {
+  /** Web sahifada ko'rsatilgan bir martalik kod */
+  @IsString()
+  @IsNotEmpty()
+  code: string;
+
+  /** PKCE verifier (raw) — challenge bilan solishtiriladi */
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(128)
+  verifier: string;
+
+  /** Kod yaratilgandagi deviceId bilan bir xil bo'lishi shart */
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(8)
+  @MaxLength(128)
+  deviceId: string;
+}
