@@ -1,5 +1,3 @@
-import VolumeControl from "@/components/VolumeControl";
-
 type Props = {
   name: string | null;
   phone: string | null;
@@ -18,69 +16,89 @@ function LogoutIcon() {
   );
 }
 
-/** Student profile: identity card, quick stats, audio volume, sign out. */
+/** Student profile: identity + stats + session — coherent centered layout, no volume. */
 export default function Profile({ name, phone, onLogout, stats }: Props) {
   const display = name ?? "Student";
   const initial = display.trim().charAt(0).toUpperCase() || "?";
   return (
-    <section>
-      <h1 className="text-xl font-bold tracking-tight">Profile</h1>
-      <p className="mt-1 text-sm text-white/50">Your account and app preferences.</p>
+    <section className="mx-auto w-full max-w-[640px]">
+      {/* Header */}
+      <div className="text-center sm:text-left">
+        <h1 className="text-xl font-bold tracking-tight text-white">Profile</h1>
+        <p className="mt-1 text-sm text-white/50">Your account and app preferences.</p>
+      </div>
 
-      <div className="mt-4 grid items-start gap-3 xl:grid-cols-2">
-        <div className="card relative overflow-hidden rounded-2xl p-5">
-          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-2xl" />
-          <div className="flex items-center gap-4">
+      {/* Main profile account */}
+      <div className="card relative mt-6 overflow-hidden rounded-2xl">
+        <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" aria-hidden="true" />
+        <div className="p-6 sm:p-7">
+          {/* Primary identity */}
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:items-center sm:text-left">
             <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-2xl font-black text-black shadow-[0_0_32px_rgba(56,199,101,0.45)]">
               {initial}
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-lg font-bold text-white">{display}</p>
-              {phone && <p className="mt-0.5 font-mono text-xs text-white/50">{phone}</p>}
-              <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-400/30">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                student
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-xl font-bold leading-tight text-white" title={display}>
+                {display}
+              </h2>
+              {phone && (
+                <p className="mt-1 font-mono text-[13px] text-white/60">{phone}</p>
+              )}
+              <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-200 ring-1 ring-emerald-400/30">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" aria-hidden="true" />
+                Student
               </span>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-black/30 p-3 text-center ring-1 ring-white/10">
-              <p className="text-xl font-black text-white">{stats?.attempts ?? "—"}</p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">attempts</p>
-            </div>
-            <div className="rounded-2xl bg-black/30 p-3 text-center ring-1 ring-white/10">
-              <p className="text-xl font-black text-white">{stats?.completed ?? "—"}</p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">graded</p>
-            </div>
-            <div className="rounded-2xl bg-black/30 p-3 text-center ring-1 ring-white/10">
-              <p className="text-xl font-black text-emerald-300">
-                {stats?.avgScore == null ? "—" : Math.round(stats.avgScore * 10) / 10}
-              </p>
-              <p className="mt-0.5 text-[11px] uppercase tracking-widest text-white/40">avg score</p>
-            </div>
-          </div>
-          <p className="mt-3 text-[11px] text-white/30">
-            Detailed stats load when you open History.
-          </p>
-        </div>
 
-        <div className="space-y-3">
-          <VolumeControl label="Listening volume" />
-          <div className="card rounded-2xl p-5">
-            <h2 className="text-sm font-bold text-white">Session</h2>
-            <button
-              type="button"
-              onClick={onLogout}
-              className="btn-ghost mt-3 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-red-300 hover:text-red-200"
-            >
-              <LogoutIcon />
-              Log out
-            </button>
-            <p className="mt-2 text-[11px] text-white/30">
-              Logging out clears tokens on this device only.
+          {/* Divider */}
+          <div className="my-6 h-px bg-white/[0.06]" aria-hidden="true" />
+
+          {/* Secondary: Exam activity */}
+          <div>
+            <h3 className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/45">Exam activity</h3>
+            <div className="mt-3 grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-black/30 px-3 py-4 text-center ring-1 ring-white/10">
+                <p className="text-2xl font-black tabular-nums text-white">{stats?.attempts ?? "—"}</p>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-widest text-white/40">Attempts</p>
+              </div>
+              <div className="rounded-xl bg-black/30 px-3 py-4 text-center ring-1 ring-white/10">
+                <p className="text-2xl font-black tabular-nums text-white">{stats?.completed ?? "—"}</p>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-widest text-white/40">Graded</p>
+              </div>
+              <div className="rounded-xl bg-black/30 px-3 py-4 text-center ring-1 ring-white/10">
+                <p className="text-2xl font-black tabular-nums text-emerald-300">
+                  {stats?.avgScore == null ? "—" : Math.round(stats.avgScore * 10) / 10}
+                </p>
+                <p className="mt-1 text-[11px] font-medium uppercase tracking-widest text-white/40">Avg score</p>
+              </div>
+            </div>
+            <p className="mt-2.5 text-center text-[11px] text-white/30 sm:text-left">
+              Detailed stats load when you open History.
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Bottom: Session — secondary, compact */}
+      <div className="card mt-4 rounded-2xl p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-white">Session</h3>
+            <p className="mt-0.5 text-xs text-white/40">This device only</p>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-sm font-medium text-white/80 transition hover:bg-white/[0.07] hover:text-white"
+          >
+            <LogoutIcon />
+            Log out
+          </button>
+        </div>
+        <p className="mt-3 border-t border-white/[0.06] pt-3 text-[11px] leading-relaxed text-white/30">
+          Logging out clears tokens on this device only. Your progress remains on the server.
+        </p>
       </div>
     </section>
   );
