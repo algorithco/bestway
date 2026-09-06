@@ -49,3 +49,6 @@ frontend/public/logo-4k.png
 frontend/public/logo-grabcut.png
 frontend/public/logo-old-transparent.png
 frontend/public/logotip-grabcut.png
+
+# --- Tooling ---
+.freebuff/
