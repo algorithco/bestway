@@ -1,22 +1,134 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import Login from "@/pages/Login";
+import Dashboard from "@/pages/Dashboard";
 import Exams from "@/pages/Exams";
+import History from "@/pages/History";
+import Profile from "@/pages/Profile";
+import Settings from "@/pages/Settings";
 import Runner from "@/pages/Runner";
 import Locked from "@/pages/Locked";
 import Result from "@/pages/Result";
-import StatusBar from "@/components/StatusBar";
-import BatteryIndicator from "@/components/BatteryIndicator";
+import Sidebar from "@/components/Sidebar";
+import BootSplash from "@/components/BootSplash";
+import Particles from "@/components/Particles";
+import UpdateNotifier from "@/components/UpdateNotifier";
+import { checkForUpdate, getDismissedVersion, type UpdateInfo } from "@/lib/version";
 import ClickSpark from "@/components/ClickSpark";
 import CursorTrail from "@/components/CursorTrail";
 import { clearSession, getAccessToken, getRefreshToken, logout, me, refresh } from "@/lib/api";
+import type { StartResult, TestListItem } from "@/lib/tests";
 
-export type Route = "login" | "exams" | "runner" | "locked" | "result";
+export type Route =
+  | "login"
+  | "dashboard"
+  | "exams"
+  | "history"
+  | "profile"
+  | "settings"
+  | "runner"
+  | "locked"
+  | "result";
+
+export interface Student {
+  id: string;
+  name: string | null;
+  phone: string | null;
+}
+
+const TITLES: Record<Exclude<Route, "login">, string> = {
+  dashboard: "Dashboard",
+  exams: "Exams",
+  history: "History",
+  profile: "Profile",
+  settings: "Settings",
+  runner: "Exam runner",
+  locked: "Locked",
+  result: "Result",
+};
+
+function OnlineDot() {
+  const [online, setOnline] = useState(
+    () => (typeof navigator === "undefined" ? true : navigator.onLine),
+  );
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener("online", up);
+    window.addEventListener("offline", down);
+    return () => {
+      window.removeEventListener("online", up);
+      window.removeEventListener("offline", down);
+    };
+  }, []);
+  return (
+    <span className="flex items-center gap-1.5 text-[11px] text-white/45">
+      <span
+        className={`h-1.5 w-1.5 rounded-full ${online ? "bg-emerald-400 shadow-[0_0_8px_#38c765]" : "bg-red-400"}`}
+      />
+      {online ? "Online" : "Offline"}
+    </span>
+  );
+}
 
 export default function App() {
   const [route, setRoute] = useState<Route>("login");
-  const [studentId, setStudentId] = useState<string | null>(null);
-  const [studentName, setStudentName] = useState<string | null>(null);
-  const [restoring, setRestoring] = useState(true);
+  const [student, setStudent] = useState<Student | null>(null);
+  // Session-restore flag: written by the restore effect, intentionally NOT
+  // used for rendering — the intro is timer-driven so slow networks never
+  // hold the splash on screen.
+  const [, setRestoring] = useState(true);
+  const [activeTest, setActiveTest] = useState<TestListItem | null>(null);
+  const [activeStart, setActiveStart] = useState<StartResult | null>(null);
+  const [lastScore, setLastScore] = useState<{ autoScore: number | null } | null>(null);
+  const [historyKey, setHistoryKey] = useState(0);
+  const [stats, setStats] = useState<{
+    attempts: number;
+    completed: number;
+    avgScore: number | null;
+  } | null>(null);
+  // Fixed 2.5s brand intro (presentational only — timer-driven, never tied
+  // to `restoring` or network speed). The real UI renders underneath from the
+  // first frame; the splash exits at 2.2s and unmounts at exactly 2.5s.
+  const [introLeaving, setIntroLeaving] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+  useEffect(() => {
+    const reduce =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const leaveAt = reduce ? 150 : 2200;
+    const goneAt = reduce ? 350 : 2500;
+    const t1 = window.setTimeout(() => setIntroLeaving(true), leaveAt);
+    const t2 = window.setTimeout(() => setIntroDone(true), goneAt);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, []);
+  const showSplash = !introDone;
+  // Particles backdrop renders on the login page only; skipped for reduced motion.
+  const [reduceMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  );
+  // Update toast: checked once per login, a beat after the intro finishes.
+  // Silent on failure — a failed check must never disturb the student.
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const updateChecked = useRef(false);
+  useEffect(() => {
+    if (!student || updateChecked.current) return;
+    updateChecked.current = true;
+    const t = window.setTimeout(() => {
+      void (async () => {
+        const info = await checkForUpdate();
+        if (info && getDismissedVersion() !== info.latest) setUpdate(info);
+      })();
+    }, 3000);
+    return () => window.clearTimeout(t);
+  }, [student]);
 
   // Restore persisted session (api.ts stores tokens in localStorage).
   // Without this, every reload forced re-login even with valid tokens.
@@ -35,11 +147,12 @@ export default function App() {
           const profile = await me();
           if (!dead) {
             if (profile?.user?.role === "student" && profile.user.id) {
-              setStudentId(profile.user.id);
-              setStudentName(
-                typeof profile.user.name === "string" ? profile.user.name : null,
-              );
-              setRoute("exams");
+              setStudent({
+                id: profile.user.id,
+                name: typeof profile.user.name === "string" ? profile.user.name : null,
+                phone: typeof profile.user.phone === "string" ? profile.user.phone : null,
+              });
+              setRoute("dashboard");
             } else {
               clearSession();
             }
@@ -63,58 +176,192 @@ export default function App() {
 
   const navigate = (next: Route) => setRoute(next);
 
-  const handleLogin = (student: { id: string; name: string | null }) => {
-    setStudentId(student.id);
-    setStudentName(student.name);
+  const handleStartExam = (test: TestListItem, start: StartResult) => {
+    setActiveTest(test);
+    setActiveStart(start);
+    setLastScore(null);
+    setRoute("runner");
+  };
+
+  const handleFinishExam = (score: { autoScore: number | null }) => {
+    setLastScore(score);
+    setHistoryKey((k) => k + 1);
+    setRoute("result");
+  };
+
+  const handleBackToExams = () => {
+    setActiveTest(null);
+    setActiveStart(null);
     setRoute("exams");
   };
 
+  const handleExitExam = () => {
+    if (!confirm("Leave the exam? Answers are saved — you can resume from Dashboard or Exams.")) return;
+    handleBackToExams();
+  };
+
+  const handleLogin = (s: Student) => {
+    setStudent(s);
+    setRoute("dashboard");
+  };
+
   const handleLogout = async () => {
+    if (!confirm("Log out of Bestway Exam on this device?")) return;
     try {
       await logout();
     } finally {
       clearSession();
-      setStudentId(null);
-      setStudentName(null);
+      setStudent(null);
+      setActiveTest(null);
+      setActiveStart(null);
+      setStats(null);
+      setUpdate(null);
       setRoute("login");
     }
   };
 
   // Student-only gate: force login when unauthenticated.
-  const activeRoute: Route = studentId ? route : "login";
+  const activeRoute: Route = student ? route : "login";
+  // Focused exam screens hide the sidebar + topbar so lockdown stays distraction-free.
+  const examActive = activeRoute === "runner" || activeRoute === "locked";
+  const showChrome = student !== null && !examActive;
+  const resultMax = activeStart
+    ? activeStart.questions.reduce((s, q) => s + (q.maxScore ?? 0), 0)
+    : null;
 
-  if (restoring) {
+  // Auth screen: full-window, no sidebar.
+  // NOTE: rendered immediately (even while `restoring` is still in flight) so
+  // the timed intro reveals the real app in under a second. When restore
+  // completes with a valid session, this flips to the dashboard by itself.
+  if (activeRoute === "login") {
     return (
-      <div className="app-bg app-grid min-h-screen pb-14 text-white">
-        <main className="mx-auto w-full max-w-3xl p-4 pt-10">
-          <p className="text-center text-sm text-white/50">Restoring session…</p>
-        </main>
-      </div>
+      <>
+        <div className="relative h-screen overflow-y-auto bg-[#050807] text-white">
+          {!reduceMotion && (
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 opacity-85 [mask-image:radial-gradient(ellipse_85%_75%_at_50%_45%,black_30%,transparent_100%)]"
+            >
+              <Particles
+                particleCount={220}
+                particleSpread={10}
+                speed={0.15}
+                particleColors={["#f7e37c", "#eed154", "#d9b73c"]}
+                alphaParticles
+                particleBaseSize={150}
+                sizeRandomness={0.8}
+                cameraDistance={20}
+              />
+            </div>
+          )}
+          <main className="relative flex min-h-full items-center justify-center p-6">
+            <div className="w-full max-w-md">
+              <Login onLogin={handleLogin} />
+            </div>
+          </main>
+        </div>
+        {showSplash && <BootSplash exiting={introLeaving} />}
+      </>
     );
   }
 
   return (
-    <div className="app-bg app-grid min-h-screen pb-14 text-white">
-      <ClickSpark sparkColor="#38c765" sparkSize={10} sparkRadius={22} sparkCount={8} duration={420}>
-        <CursorTrail sparkColor="#38c765" />
-        <main className="mx-auto w-full max-w-3xl p-4 pt-10">
-          {activeRoute === "login" && <Login onLogin={handleLogin} />}
-          {activeRoute === "exams" && <Exams onStart={() => navigate("runner")} />}
-          {activeRoute === "runner" && (
-            <Runner
-              onLocked={() => navigate("locked")}
-              onFinish={() => navigate("result")}
-            />
-          )}
-          {activeRoute === "locked" && <Locked onBack={() => navigate("exams")} />}
-          {activeRoute === "result" && <Result onBack={() => navigate("exams")} />}
-        </main>
-      </ClickSpark>
-      <StatusBar
-        sessionLabel={studentId ? (studentName ?? "Student") : "signed out"}
-        onLogout={studentId ? handleLogout : undefined}
-        rightSlot={<BatteryIndicator standalone={false} compact lang="uz" />}
-      />
+    <>
+    <div className="app-bg app-grid flex h-screen overflow-hidden text-white">
+      {showChrome && (
+        <Sidebar
+          route={activeRoute}
+          studentName={student?.name ?? null}
+          onNavigate={navigate}
+          onLogout={() => void handleLogout()}
+        />
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {showChrome && (
+          <div className="flex shrink-0 items-center gap-3 border-b border-white/10 bg-black/50 px-6 py-3 backdrop-blur-xl 2xl:px-10">
+            <p className="text-[11px] text-white/35">
+              Bestway Exam <span className="mx-1 text-white/20">/</span>{" "}
+              <span className="font-semibold text-white/75">{TITLES[activeRoute]}</span>
+            </p>
+            <div className="ml-auto">
+              <OnlineDot />
+            </div>
+          </div>
+        )}
+
+        <ClickSpark sparkColor="#38c765" sparkSize={10} sparkRadius={22} sparkCount={8} duration={420} className="flex min-h-0 flex-1 flex-col">
+          <CursorTrail sparkColor="#38c765" />
+          <main
+            className={
+              examActive
+                ? "min-h-0 flex-1 overflow-hidden"
+                : "min-h-0 flex-1 overflow-y-auto px-6 pb-8 pt-6 2xl:px-10"
+            }
+          >
+            <motion.div
+              key={activeRoute + (activeRoute === "result" ? historyKey : "")}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              {activeRoute === "dashboard" && (
+                <Dashboard
+                  studentName={student?.name ?? null}
+                  onNavigate={navigate}
+                  onStart={handleStartExam}
+                />
+              )}
+              {activeRoute === "exams" && (
+                <Exams studentName={student?.name ?? null} onStart={handleStartExam} />
+              )}
+              {activeRoute === "history" && (
+                <History refreshKey={historyKey} onStats={setStats} />
+              )}
+              {activeRoute === "profile" && (
+                <Profile
+                  name={student?.name ?? null}
+                  phone={student?.phone ?? null}
+                  stats={stats}
+                  onLogout={() => void handleLogout()}
+                />
+              )}
+              {activeRoute === "settings" && (
+                <Settings
+                  studentName={student?.name ?? null}
+                  studentPhone={student?.phone ?? null}
+                  onLogout={() => void handleLogout()}
+                />
+              )}
+              {activeRoute === "runner" && activeTest && activeStart && (
+                <Runner
+                  test={activeTest}
+                  start={activeStart}
+                  onLocked={() => navigate("locked")}
+                  onExit={handleExitExam}
+                  onFinish={handleFinishExam}
+                />
+              )}
+              {activeRoute === "runner" && (!activeTest || !activeStart) && (
+                <Exams studentName={student?.name ?? null} onStart={handleStartExam} />
+              )}
+              {activeRoute === "locked" && <Locked onBack={handleBackToExams} />}
+              {activeRoute === "result" && (
+                <Result
+                  testTitle={activeTest?.title ?? null}
+                  autoScore={lastScore?.autoScore ?? null}
+                  maxScore={resultMax}
+                  onBack={handleBackToExams}
+                  onHistory={() => navigate("history")}
+                />
+              )}
+            </motion.div>
+          </main>
+        </ClickSpark>
+      </div>
     </div>
+    {update && <UpdateNotifier update={update} onClose={() => setUpdate(null)} />}
+    {showSplash && <BootSplash exiting={introLeaving} />}
+    </>
   );
 }

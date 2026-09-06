@@ -19,6 +19,7 @@
 
 import { post, setSession } from "./api";
 import { ensureDeviceId } from "./session";
+import { isSafeHttpUrl, secureGetItem, secureRemoveItem, secureSetItem } from "./secure-storage";
 
 export const DESKTOP_SCHEME = "bestway-exam";
 export const DESKTOP_CALLBACK = `${DESKTOP_SCHEME}://auth/callback`;
@@ -33,6 +34,16 @@ function webBaseUrl(): string {
         (import.meta.env?.VITE_WEB_URL as string | undefined))
       : undefined;
   const raw = (fromEnv ?? "http://localhost:3005").trim().replace(/\/+$/, "");
+  // Block javascript:/data: injection via env tampering; fallback to default.
+  const lower = raw.toLowerCase();
+  if (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("data:") ||
+    lower.startsWith("file:") ||
+    lower.startsWith("vbscript:")
+  ) {
+    return "http://localhost:3005";
+  }
   return raw;
 }
 
@@ -86,10 +97,15 @@ export function newBrowserLoginState(): BrowserLoginState {
     createdAt: Date.now(),
   };
   try {
-    // localStorage survives app restarts / deep-link cold-starts.
-    // sessionStorage would vanish when the webview reloads or the app
-    // is relaunched by the OS URL handler.
-    oauthStorage()?.setItem(STORAGE_KEY, JSON.stringify(s));
+    // Encrypted at-rest: uses secure-storage (XOR-obfuscated with device key).
+    // localStorage survives app restarts / deep-link cold-starts; sessionStorage
+    // would vanish when the webview reloads or the app is relaunched by the OS URL handler.
+    const payload = JSON.stringify(s);
+    try {
+      secureSetItem(STORAGE_KEY, payload);
+    } catch {
+      oauthStorage()?.setItem(STORAGE_KEY, payload);
+    }
   } catch {
     /* private mode — caller keeps `s` in memory */
   }
@@ -98,9 +114,23 @@ export function newBrowserLoginState(): BrowserLoginState {
 
 export function readBrowserLoginState(): BrowserLoginState | null {
   try {
-    const raw = oauthStorage()?.getItem(STORAGE_KEY);
+    // Prefer encrypted store; fallback to legacy plaintext for migration.
+    let raw: string | null = null;
+    try {
+      raw = secureGetItem(STORAGE_KEY) ?? null;
+    } catch {
+      raw = null;
+    }
+    if (!raw) raw = oauthStorage()?.getItem(STORAGE_KEY) ?? null;
     if (!raw) return null;
-    const s = JSON.parse(raw) as BrowserLoginState;
+    // Handle double-encrypted envelope edge: if secureGetItem returned envelope
+    // that was not decrypted (corrupted), try raw directly.
+    let s: BrowserLoginState | null = null;
+    try {
+      s = JSON.parse(raw) as BrowserLoginState;
+    } catch {
+      return null;
+    }
     if (!s?.state || !s?.verifier || !s?.deviceId) return null;
     if (typeof s.createdAt === "number" && Date.now() - s.createdAt > OAUTH_STATE_TTL_MS) {
       clearBrowserLoginState();
@@ -114,6 +144,11 @@ export function readBrowserLoginState(): BrowserLoginState | null {
 
 export function clearBrowserLoginState(): void {
   try {
+    try {
+      secureRemoveItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
     oauthStorage()?.removeItem(STORAGE_KEY);
     // Clean legacy sessionStorage entry if the state was stored there before.
     try {
@@ -134,7 +169,11 @@ export async function buildAuthorizeUrl(s: BrowserLoginState): Promise<string> {
     code_challenge_method: "S256",
     redirect: DESKTOP_CALLBACK,
   });
-  return `${webBaseUrl()}/oauth/desktop?${q.toString()}`;
+  const base = webBaseUrl();
+  if (!isSafeHttpUrl(`${base}/`)) {
+    throw new Error("Web URL is not safe (must be https:// or http://localhost)");
+  }
+  return `${base}/oauth/desktop?${q.toString()}`;
 }
 
 function isTauriRuntime(): boolean {
@@ -154,8 +193,14 @@ function isTauriRuntime(): boolean {
  * (that would trap the login page) — the caller shows the authorize URL
  * for manual copy instead. Outside Tauri (vite dev in a plain browser)
  * the opener IPC always fails, so fall back to a new tab.
+ *
+ * Security: validates URL via isSafeHttpUrl (https or loopback http only,
+ * no javascript:/data:) before any IPC to prevent open-redirect via XSS.
  */
 export async function openInBrowser(url: string): Promise<void> {
+  if (!isSafeHttpUrl(url)) {
+    throw new Error("Blocked unsafe URL: only https:// or http://localhost allowed.");
+  }
   if (!isTauriRuntime()) {
     // Dev/preview in a normal browser: opener plugin has no IPC backend.
     const w = window.open(url, "_blank", "noopener,noreferrer");

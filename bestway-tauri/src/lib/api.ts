@@ -1,9 +1,14 @@
+import { enforceSecureOrigin, secureGetItem, secureRemoveItem, secureSetItem } from "./secure-storage";
+
 /**
  * Direct fetch client for the BestWay backend.
  *
  * - Base URL: `VITE_API_URL` or `http://localhost:3001/v1`
- * - Auth: Bearer access token from session (localStorage + memory)
+ * - Auth: Bearer access token from session (memory + encrypted localStorage)
  * - No Next.js proxy — Tauri talks straight to the backend.
+ * - At-rest: tokens are XOR-obfuscated with per-device key (secure-storage.ts).
+ *   Phase 2 migrates to OS keychain. No behavior change.
+ * - Network: 15s default timeout (10s auth), https-enforce warning outside loopback.
  */
 
 export interface ApiMeta {
@@ -44,6 +49,16 @@ function resolveBaseUrl(): string {
         (import.meta.env?.VITE_API_URL as string | undefined))
       : undefined;
   const raw = (fromEnv ?? DEFAULT_BASE_URL).trim();
+  // Block javascript:/data:/file: injection if env is tampered.
+  const lower = raw.toLowerCase();
+  if (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("data:") ||
+    lower.startsWith("file:") ||
+    lower.startsWith("vbscript:")
+  ) {
+    return DEFAULT_BASE_URL;
+  }
   return raw.replace(/\/+$/, "");
 }
 
@@ -55,23 +70,20 @@ const REFRESH_KEY = "bestway.refreshToken";
 let memoryAccessToken: string | null = null;
 let memoryRefreshToken: string | null = null;
 
+// Warn once if prod build left on cleartext http outside loopback.
+try {
+  enforceSecureOrigin(API_BASE_URL);
+} catch {
+  /* ignore */
+}
+
 function readStorage(key: string): string | null {
-  try {
-    if (typeof localStorage === "undefined") return null;
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
+  return secureGetItem(key);
 }
 
 function writeStorage(key: string, value: string | null): void {
-  try {
-    if (typeof localStorage === "undefined") return;
-    if (value === null) localStorage.removeItem(key);
-    else localStorage.setItem(key, value);
-  } catch {
-    // Tauri webview / private mode: keep memory-only session.
-  }
+  if (value === null) secureRemoveItem(key);
+  else secureSetItem(key, value);
 }
 
 export function getAccessToken(): string | null {
@@ -146,22 +158,56 @@ function toApiError(status: number, payload: unknown, fallback: string): ApiErro
   return { code: `HTTP_${status}`, message: fallback, status };
 }
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+const AUTH_TIMEOUT_MS = 10_000;
+
+function isAuthPath(path: string): boolean {
+  return (
+    path.startsWith("/auth/login") ||
+    path.startsWith("/auth/refresh") ||
+    path.startsWith("/auth/desktop/exchange") ||
+    path.startsWith("/auth/register")
+  );
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { query, body, token, headers, _retried, ...rest } = options;
+  const { query, body, token, headers, _retried, signal: callerSignal, ...rest } = options as RequestOptions & { signal?: AbortSignal };
   const url = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}${buildQuery(query)}`;
 
   const accessToken = token !== undefined ? token : getAccessToken();
   const hasJsonBody = body !== undefined && typeof body !== "string";
 
-  const res = await fetch(url, {
-    ...rest,
-    headers: {
-      ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(headers ?? {}),
-    },
-    body: body === undefined || typeof body === "string" ? body : JSON.stringify(body),
-  });
+  const isAuthEndpoint = isAuthPath(path);
+  const timeoutMs = isAuthEndpoint ? AUTH_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  // Honor caller signal if provided.
+  if (callerSignal) {
+    if (callerSignal.aborted) controller.abort();
+    else callerSignal.addEventListener("abort", () => controller.abort(), { once: true });
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...rest,
+      signal: controller.signal,
+      headers: {
+        ...(hasJsonBody ? { "Content-Type": "application/json" } : {}),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(headers ?? {}),
+      },
+      body: body === undefined || typeof body === "string" ? body : JSON.stringify(body),
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw { code: "HTTP_TIMEOUT", message: `Request timed out after ${timeoutMs}ms`, status: 408 } as ApiError;
+    }
+    throw e;
+  }
+  clearTimeout(timer);
 
   const text = await res.text();
   const payload: unknown = text ? safeJsonParse(text) : null;
@@ -171,11 +217,6 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     // Transparent refresh like the web proxy (frontend/src/app/api/backend/[...path]/route.ts):
     // on first 401, try POST /auth/refresh once, then retry the original request.
     // Skip for auth endpoints themselves to avoid infinite loops.
-    const isAuthEndpoint =
-      path.startsWith("/auth/login") ||
-      path.startsWith("/auth/refresh") ||
-      path.startsWith("/auth/desktop/exchange") ||
-      path.startsWith("/auth/register");
     if ((res.status === 401 || err.code === "SESSION_EXPIRED") && !_retried && !isAuthEndpoint) {
       try {
         await refresh();

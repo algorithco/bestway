@@ -4,8 +4,8 @@ type Props = {
 
 export default function Locked({ onBack }: Props) {
   return (
-    <section className="mx-auto max-w-md text-center">
-      <div className="card rounded-2xl p-8">
+    <section className="flex h-full items-center justify-center p-6">
+      <div className="card w-full max-w-md rounded-2xl p-8 text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-red-500/40 bg-red-500/10 text-xl">
           🔒
         </div>

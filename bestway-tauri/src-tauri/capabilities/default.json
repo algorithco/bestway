@@ -9,7 +9,14 @@
     "core:window:allow-set-fullscreen",
     "core:window:allow-set-always-on-top",
     "core:window:allow-set-focus",
-    "opener:allow-open-url",
+    {
+      "identifier": "opener:allow-open-url",
+      "allow": [
+        { "url": "https://**" },
+        { "url": "http://localhost:**" },
+        { "url": "http://127.0.0.1:**" }
+      ]
+    },
     "deep-link:default",
     "clipboard-manager:allow-write-text",
     "clipboard-manager:allow-clear"

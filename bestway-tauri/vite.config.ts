@@ -11,7 +11,14 @@ export default defineConfig({
     port: 1420,
     strictPort: true,
   },
+  // Only expose explicitly intended env vars to the client bundle.
+  // Adding a new BESTWAY_* secret on the build host would otherwise be baked into the JS.
   envPrefix: ["BESTWAY_", "VITE_"],
+  build: {
+    // Do not emit sourcemaps in production — leaks source and aids exploit chaining.
+    sourcemap: false,
+    minify: "esbuild",
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
