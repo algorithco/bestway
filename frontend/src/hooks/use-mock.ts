@@ -97,8 +97,11 @@ export function useConfirmMockPurchase() {
 
 export function useStartMock() {
   return useMutation({
-    mutationFn: (v: { examId: string; mode?: "practice" | "timed" }) =>
-      api.post<StartMockResult>(`/mock/exams/${v.examId}/start`, { mode: v.mode ?? "practice" }),
+    mutationFn: (v: { examId: string; mode?: "practice" | "timed"; flow?: "full_test" | "single_skill" }) =>
+      api.post<StartMockResult>(`/mock/exams/${v.examId}/start`, {
+        mode: v.mode ?? "practice",
+        ...(v.flow ? { flow: v.flow } : {}),
+      }),
   });
 }
 
@@ -160,6 +163,23 @@ export function useSubmitMock(attemptId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] });
       qc.invalidateQueries({ queryKey: ["mock-attempts-mine"] });
+    },
+  });
+}
+
+/** Full-test: joriy bo'limni yakunlab keyingisiga o'tish (L→R→W) */
+export function useAdvanceMockSection(attemptId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      api.post<{
+        saved: boolean;
+        currentSkill: string | null;
+        submittedSections: string[];
+        serverTime: string;
+      }>(`/mock/attempts/${attemptId}/advance`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-attempt", attemptId] });
     },
   });
 }

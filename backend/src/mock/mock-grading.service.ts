@@ -461,6 +461,10 @@ export class MockGradingService {
     startedAt: Date;
     submittedAt: Date | null;
     finishedAt: Date | null;
+    flowMode?: string | null;
+    currentSkill?: unknown;
+    sectionDeadlines?: Prisma.JsonValue;
+    overallDeadlineAt?: Date | null;
     exam?: { title: string; type: string } | null;
     student?: { user: { name: string } } | null;
   }) {
@@ -473,7 +477,11 @@ export class MockGradingService {
       studentName: a.student?.user.name,
       status: a.status,
       mode: a.mode,
-      deadlineAt: a.deadlineAt,
+      deadlineAt: (a.overallDeadlineAt ?? a.deadlineAt) as Date | null,
+      flowMode: (a.flowMode ?? 'single_skill') as string,
+      currentSkill: (a.currentSkill ?? null) as unknown,
+      sectionDeadlines: (a.sectionDeadlines ?? null) as Prisma.JsonValue,
+      overallDeadlineAt: (a.overallDeadlineAt ?? null) as Date | null,
       rawScores: a.rawScores ?? null,
       sectionBands: a.sectionBands ?? null,
       overallBand: a.overallBand,

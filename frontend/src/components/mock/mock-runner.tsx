@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Input, Textarea } from "@/components/ui/input";
 import { ErrorState, Skeleton } from "@/components/ui/feedback";
 import {
+  useAdvanceMockSection,
   useBulkMockAnswers,
   useFlagMockCheat,
   useMockExam,
@@ -21,8 +22,10 @@ import type {
   MockQuestion,
   MockQuestionType,
   MockSection,
+  MockSkill,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ListeningAudio } from "@/components/mock/listening-engine";
 
 const SINGLE_CHOICE = new Set<MockQuestionType>([
   "multiple_choice",
@@ -66,6 +69,11 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   const bulk = useBulkMockAnswers(attempt.id);
   const submit = useSubmitMock(attempt.id);
   const flag = useFlagMockCheat(attempt.id);
+  const advance = useAdvanceMockSection(attempt.id);
+
+  // Full-test (exam, strict) vs practice (lenient) — qaror #4.
+  const isFullTest = (attempt.flowMode ?? "single_skill") === "full_test";
+  const strict = isFullTest && attempt.mode === "timed";
 
   // Boshlang'ich javoblar + speaking audio holati (attempt'dan)
   const initial = React.useMemo(() => {
@@ -84,6 +92,15 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   const [audioSet] = React.useState<Set<string>>(initial.audio);
   const [activeSection, setActiveSection] = React.useState(0);
   const [cheatWarn, setCheatWarn] = React.useState(false);
+  const [cheatCount, setCheatCount] = React.useState(0);
+
+  // Full-test: faol bo'lim server'dan (currentSkill) — orqaga qaytish yo'q.
+  const skillOrder: MockSkill[] = React.useMemo(() => ["listening", "reading", "writing", "speaking"], []);
+  React.useEffect(() => {
+    if (!isFullTest || !attempt.currentSkill) return;
+    const idx = skillOrder.indexOf(attempt.currentSkill);
+    if (idx >= 0) setActiveSection(idx);
+  }, [isFullTest, attempt.currentSkill, skillOrder]);
 
   const answersRef = React.useRef(answers);
   React.useEffect(() => {
@@ -112,8 +129,9 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
     setAnswers((a) => ({ ...a, [qid]: val }));
   }
 
-  // Timer (faqat vaqtli rejim)
-  const deadline = attempt.deadlineAt ? new Date(attempt.deadlineAt).getTime() : null;
+  // Timer (faqat vaqtli rejim; full-test da umumiy deadline)
+  const deadlineTs = attempt.overallDeadlineAt ?? attempt.deadlineAt;
+  const deadline = deadlineTs ? new Date(deadlineTs).getTime() : null;
   const [remaining, setRemaining] = React.useState<number | null>(
     () => (deadline ? deadline - Date.now() : null),
   );
@@ -153,18 +171,44 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
     return () => clearInterval(id);
   }, [deadline, doSubmit]);
 
-  // Anti-cheat: vaqtli rejimda oynadan chiqishni qayd etadi
+  // Full-test: keyingi bo'limga o'tish (flush + advance). Review tugashi ham shu yerga keladi.
+  const goNextSection = React.useCallback(async () => {
+    flush();
+    try {
+      await advance.mutateAsync();
+      toast.success("Next section");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : tc("unknownError"));
+    }
+  }, [advance, flush, tc]);
+
+  // Anti-cheat: warn-only (qaror #5) — tab/blur ni qayd etadi, imtihonni to'xtatmaydi.
+  // Clipboard (copy/cut/paste) + contextmenu + drag ildizda bloklanadi (spec §7).
   React.useEffect(() => {
     if (attempt.mode !== "timed") return;
+    function report(event: string) {
+      flag.mutate(event);
+      setCheatWarn(true);
+      setCheatCount((c) => c + 1);
+    }
     function onHide() {
-      if (document.visibilityState === "hidden") {
-        flag.mutate("tab_switch");
-        setCheatWarn(true);
-      }
+      if (document.visibilityState === "hidden") report("tab_switch");
+    }
+    function onBlur() {
+      report("blur");
     }
     document.addEventListener("visibilitychange", onHide);
-    return () => document.removeEventListener("visibilitychange", onHide);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("blur", onBlur);
+    };
   }, [attempt.mode, flag]);
+
+  function blockClipboard(e: React.ClipboardEvent | React.MouseEvent | React.DragEvent) {
+    if (!strict) return;
+    e.preventDefault();
+  }
 
   if (examQ.isError) {
     return (
@@ -187,7 +231,14 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   const section: MockSection | undefined = exam.sections[activeSection];
 
   return (
-    <div className="mx-auto max-w-4xl pb-24">
+    <div
+      className="mx-auto max-w-4xl pb-24"
+      onCopy={blockClipboard}
+      onCut={blockClipboard}
+      onPaste={blockClipboard}
+      onContextMenu={blockClipboard}
+      onDragStart={blockClipboard}
+    >
       {/* Yuqori panel */}
       <div className="sticky top-0 z-20 -mx-4 mb-4 border-b border-border bg-bg/90 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-b-[12px] sm:px-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -200,6 +251,11 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
           </div>
           <div className="flex items-center gap-2">
             {remaining != null && <Timer ms={remaining} label={t("timeLeft")} />}
+            {isFullTest && activeSection < exam.sections.length - 1 ? (
+              <Button size="sm" variant="outline" loading={advance.isPending} onClick={() => void goNextSection()}>
+                Next section
+              </Button>
+            ) : null}
             <Button size="sm" loading={submit.isPending} onClick={() => doSubmit(false)}>
               <Send />
               {t("submit")}
@@ -210,31 +266,43 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
           <p className="mt-2 flex items-center gap-1.5 text-xs text-warning">
             <AlertTriangle className="size-3.5" />
             {t("tabSwitchWarning")}
+            {cheatCount > 1 ? ` (${cheatCount})` : ""} — timer continues.
           </p>
         )}
       </div>
 
-      {/* Bo'lim tablari */}
+      {/* Bo'lim tablari (full-test da faqat status — bosib bo'lmaydi) */}
       {exam.sections.length > 1 && (
         <div className="mb-4 flex flex-wrap gap-2">
-          {exam.sections.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                flush();
-                setActiveSection(i);
-              }}
-              className={cn(
-                "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-                i === activeSection
-                  ? "bg-brand text-white"
-                  : "bg-surface text-fg-muted hover:bg-surface-hover",
-              )}
-            >
-              {t(`skills.${s.skill}`)}
-            </button>
-          ))}
+          {exam.sections.map((s, i) => {
+            const locked = isFullTest && attempt.currentSkill
+              ? s.skill !== attempt.currentSkill
+              : false;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                disabled={isFullTest}
+                onClick={() => {
+                  if (isFullTest) return;
+                  flush();
+                  setActiveSection(i);
+                }}
+                aria-current={i === activeSection}
+                title={isFullTest && locked ? "Locked — current section only" : undefined}
+                className={cn(
+                  "rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                  i === activeSection
+                    ? "bg-brand text-white"
+                    : "bg-surface text-fg-muted hover:bg-surface-hover",
+                  isFullTest && locked && "opacity-60",
+                  isFullTest && "cursor-default",
+                )}
+              >
+                {t(`skills.${s.skill}`)}
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -247,10 +315,13 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
             <GroupBlock
               key={g.id}
               group={g}
+              skill={section.skill}
+              strict={strict && section.skill === "listening"}
               attemptId={attempt.id}
               answers={answers}
               audioSet={audioSet}
               onAnswer={setAnswer}
+              onReviewComplete={section.skill === "listening" ? () => void goNextSection() : undefined}
             />
           ))}
         </div>
@@ -283,30 +354,45 @@ function Timer({ ms, label }: { ms: number; label: string }) {
 
 function GroupBlock({
   group,
+  skill,
+  strict,
   attemptId,
   answers,
   audioSet,
   onAnswer,
+  onReviewComplete,
 }: {
   group: MockSection["groups"][number];
+  skill: MockSkill;
+  strict: boolean;
   attemptId: string;
   answers: Record<string, string>;
   audioSet: Set<string>;
   onAnswer: (qid: string, val: string) => void;
+  onReviewComplete?: () => void;
 }) {
   const hasPassage = !!group.passageText;
+  const audioSrc = media(`/mock/groups/${group.id}/audio${strict ? `?attemptId=${attemptId}` : ""}`);
   return (
     <Card className="p-4 sm:p-5">
       {group.title && <h3 className="font-semibold text-fg">{group.title}</h3>}
-      {group.hasAudio && (
-        <audio
-          controls
-          src={media(`/mock/groups/${group.id}/audio`)}
-          className="mt-3 w-full"
-          preload="none"
-        >
-          <track kind="captions" />
-        </audio>
+      {group.hasAudio && skill === "listening" ? (
+        <ListeningAudio
+          src={audioSrc}
+          strict={strict}
+          onReviewComplete={strict ? onReviewComplete : undefined}
+        />
+      ) : (
+        group.hasAudio && (
+          <audio
+            controls
+            src={audioSrc}
+            className="mt-3 w-full"
+            preload="none"
+          >
+            <track kind="captions" />
+          </audio>
+        )
       )}
       {group.imageUrl && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -380,6 +466,9 @@ function QuestionInput({
 
   if (ESSAY.has(q.type)) {
     const words = value.trim() ? value.trim().split(/\s+/).length : 0;
+    // Spec §2.3: Task1 min 150, Task2 min 250 (soft — warning, no hard block).
+    const minWords = q.type === "essay_task1" ? 150 : q.type === "essay_task2" ? 250 : (q.wordLimit ?? 0);
+    const underMin = minWords > 0 && words > 0 && words < minWords;
     return (
       <div className="space-y-2">
         {header}
@@ -388,10 +477,15 @@ function QuestionInput({
           onChange={(e) => onChange(e.target.value)}
           className="min-h-48"
           placeholder="..."
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          autoComplete="off"
         />
-        <p className="text-right text-xs text-fg-subtle tabular-nums">
+        <p className={cn("text-right text-xs tabular-nums", underMin ? "text-warning" : "text-fg-subtle")}>
           {words} {t("words")}
-          {q.wordLimit ? ` · ${t("minWords", { n: q.wordLimit })}` : ""}
+          {minWords > 0 ? ` · min ${minWords}` : ""}
+          {underMin ? ` — minimum ${minWords} words required` : ""}
         </p>
       </div>
     );

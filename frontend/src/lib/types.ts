@@ -682,6 +682,10 @@ export interface StartMockResult {
   deadlineAt: string | null;
   serverTime: string;
   durationMinutes: number | null;
+  flowMode: string;
+  currentSkill: MockSkill | null;
+  sectionDeadlines: Partial<Record<string, string>> | null;
+  overallDeadlineAt: string | null;
   exam: MockExamStructure;
   annotations: unknown[];
   savedAnswers: Record<string, string>;
@@ -702,6 +706,10 @@ export interface MockAttemptSummary {
   status: MockAttemptStatus;
   mode: MockAttemptMode;
   deadlineAt: string | null;
+  flowMode: string;
+  currentSkill: MockSkill | null;
+  sectionDeadlines: Partial<Record<string, string>> | null;
+  overallDeadlineAt: string | null;
   rawScores: Record<string, MockSectionScore> | null;
   sectionBands: Record<string, number> | null;
   overallBand: number | null;
@@ -727,6 +735,7 @@ export interface MockAttemptQuestion {
   isCorrect: boolean | null;
   isGraded: boolean;
   feedback: string | null;
+  rubricScores?: Record<string, number> | null;
   correctAnswers?: string[] | null;
 }
 
