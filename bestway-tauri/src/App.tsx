@@ -15,7 +15,6 @@ import UpdateNotifier from "@/components/UpdateNotifier";
 import ExitConfirmModal from "@/components/ExitConfirmModal";
 import { checkForUpdate, getDismissedVersion, type UpdateInfo } from "@/lib/version";
 import ClickSpark from "@/components/ClickSpark";
-import CursorTrail from "@/components/CursorTrail";
 import { clearSession, getAccessToken, getRefreshToken, logout, me, refresh } from "@/lib/api";
 import type { StartResult, TestListItem } from "@/lib/tests";
 
@@ -297,7 +296,6 @@ export default function App() {
         )}
 
         <ClickSpark sparkColor="#38c765" sparkSize={10} sparkRadius={22} sparkCount={8} duration={420} className="flex min-h-0 flex-1 flex-col">
-          <CursorTrail sparkColor="#38c765" />
           <main
             className={
               examActive
