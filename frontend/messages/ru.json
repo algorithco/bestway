@@ -303,7 +303,7 @@
     "unknownError": "Произошла непредвиденная ошибка"
   },
   "nav": {
-    "mock": "Mock-экзамены",
+    "mock": "Экзамены",
     "dashboard": "Главная",
     "attendance": "Посещаемость",
     "payments": "Платежи",
@@ -312,7 +312,6 @@
     "staff": "Сотрудники",
     "points": "Баллы",
     "leaderboard": "Рейтинг",
-    "tests": "Тесты",
     "videos": "Видеоуроки",
     "articles": "Новости",
     "notifications": "Уведомления",

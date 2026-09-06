@@ -52,7 +52,6 @@ const ROUTE_ROLES: [string, Role[]][] = [
   ["/groups", ["teacher", "admin", "super_admin"]],
   ["/articles", ["admin", "super_admin"]],
   ["/gallery", ["admin", "super_admin"]],
-  ["/tests", ["student", "teacher", "admin", "super_admin"]],
   ["/mock", ["student", "teacher", "admin", "super_admin"]],
   ["/settings", ["super_admin"]],
   ["/audit", ["super_admin"]],
@@ -101,6 +100,14 @@ function decodeRole(token: string | undefined): Role | undefined {
 
 export default function proxy(req: NextRequest) {
   const { locale, path } = splitLocale(req.nextUrl.pathname);
+  // Legacy "/tests" bo'limi o'chirildi — hamma imtihonlar "/mock" da (Exams).
+  // Eski bookmarklar 404 emas, Exams ga tushadi.
+  if (matches(path, ["/tests"])) {
+    const url = req.nextUrl.clone();
+    url.pathname = withLocale(locale, "/mock");
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
   // /demo va boshqa ochiq sahifalar — darhol intl middleware'ga o'tkazamiz
   if (matches(path, PUBLIC_PREFIXES)) {
     return intlProxy(req);

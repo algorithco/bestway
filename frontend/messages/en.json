@@ -303,7 +303,7 @@
     "unknownError": "An unexpected error occurred"
   },
   "nav": {
-    "mock": "Mock exams",
+    "mock": "Exams",
     "dashboard": "Dashboard",
     "attendance": "Attendance",
     "payments": "Payments",
@@ -312,7 +312,6 @@
     "staff": "Staff",
     "points": "Points",
     "leaderboard": "Leaderboard",
-    "tests": "Tests",
     "videos": "Video lessons",
     "articles": "News",
     "notifications": "Notifications",

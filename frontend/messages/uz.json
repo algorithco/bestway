@@ -303,7 +303,7 @@
     "unknownError": "Kutilmagan xatolik yuz berdi"
   },
   "nav": {
-    "mock": "Mock imtihonlar",
+    "mock": "Imtihonlar",
     "dashboard": "Bosh sahifa",
     "attendance": "Davomat",
     "payments": "To'lovlar",
@@ -312,7 +312,6 @@
     "staff": "Xodimlar",
     "points": "Ballar",
     "leaderboard": "Reyting",
-    "tests": "Testlar",
     "videos": "Video darslar",
     "articles": "Yangiliklar",
     "notifications": "Bildirishnomalar",
