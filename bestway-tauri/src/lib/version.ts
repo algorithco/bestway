@@ -5,7 +5,7 @@ import { isSafeHttpUrl } from "./secure-storage";
  * Bundled desktop version — must match package.json + tauri.conf.json.
  * Used only when the Tauri runtime API is unavailable (plain browser dev).
  */
-export const APP_VERSION = "0.1.9";
+export const APP_VERSION = "0.2.0";
 
 export interface DesktopRelease {
   version: string;
