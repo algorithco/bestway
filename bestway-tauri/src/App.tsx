@@ -81,6 +81,7 @@ export default function App() {
   const [lastScore, setLastScore] = useState<{ autoScore: number | null } | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [stats, setStats] = useState<{
     attempts: number;
     completed: number;
@@ -276,9 +277,9 @@ export default function App() {
       {showChrome && (
         <Sidebar
           route={activeRoute}
-          studentName={student?.name ?? null}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed((v) => !v)}
           onNavigate={navigate}
-          onLogout={() => void handleLogout()}
         />
       )}
 
