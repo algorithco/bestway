@@ -379,6 +379,11 @@ export class GradeMockAnswerDto {
   @IsString()
   @MaxLength(2000)
   feedback?: string;
+
+  /** Human-grader rubriklari (qaror #3): writing {ta,cc,lr,gra} / speaking {fluency,lexical,grammar,pronunciation} 0..9 */
+  @IsOptional()
+  @IsObject()
+  rubricScores?: Record<string, number>;
 }
 
 export class ListAttemptsQueryDto extends PaginationQueryDto {

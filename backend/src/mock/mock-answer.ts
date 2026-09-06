@@ -2,8 +2,9 @@ import { MockQuestionType } from '@prisma/client';
 
 /**
  * Javob kaliti bo'yicha avtomatik baholash — sof funksiyalar.
- * Real IELTS mock uslubida: registr/probel/tinish belgilaridan qat'i nazar,
- * artikl (a/an/the) ixtiyoriy, raqam↔so'z ekvivalent ("3" == "three").
+ * Spec v2026.1 §3: case-insensitive, whitespace trim + ichki takroriy probel,
+ * Br/Am ikkalasi qabul, strict word-limit (limitdan oshsa 0), hyphenated = 1 so'z.
+ * Qaror #1 (0–5 tail), #4 (practice/exam farqi service da) bilan mos.
  */
 
 const NUMBER_WORDS: Record<string, string> = {
@@ -13,35 +14,71 @@ const NUMBER_WORDS: Record<string, string> = {
   seventeen: '17', eighteen: '18', nineteen: '19', twenty: '20', thirty: '30',
   forty: '40', fifty: '50', sixty: '60', seventy: '70', eighty: '80',
   ninety: '90', hundred: '100', thousand: '1000',
+  // Ordinals / keng tarqalgan shakllar (IELTS raqamli javoblar uchun)
+  first: '1', second: '2', third: '3', fifth: '5', eighth: '8', ninth: '9',
+  twelfth: '12',
 };
 const WORD_BY_NUMBER: Record<string, string> = Object.fromEntries(
   Object.entries(NUMBER_WORDS).map(([w, n]) => [n, w]),
 );
 
-/** Kichik harf, tinish belgilarini olib tashlash, ortiqcha probellarni siqish */
-export function normalize(s: string): string {
+/** Unicode NFKC + curly quote/dash fold — "…" va "–" bir xillashadi. */
+function foldUnicode(s: string): string {
   return s
+    .normalize('NFKC')
+    .replace(/[‘’‚‛`´]/g, "'")
+    .replace(/[“”„‟]/g, '"')
+    .replace(/[–—―−]/g, '-');
+}
+
+/** Kichik harf, tinish belgilarini bo'shliqqa, ortiqcha probellarni siqish. Defis SAQLANADI (hyphen=1 so'z). */
+export function normalize(s: string): string {
+  return foldUnicode(s)
     .toLowerCase()
-    .replace(/[.,/#!$%^&*;:{}=\-_`~()"?]/g, ' ')
+    // Defis/underscore dan tashqari tinish belgilar → bo'shliq
+    .replace(/[.,/#!$%^&*;:{}=`~()"?[\]<>+@\\|]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
+/**
+ * IELTS so'z sanash: faqat bo'shliq bo'yicha bo'linadi — hyphenated so'z 1 ta.
+ * Masalan "mother-in-law" = 1, "second-class" = 1, "well known" = 2.
+ */
+export function countWords(s: string): number {
+  const norm = normalize(s);
+  if (!norm) return 0;
+  return norm.split(' ').filter(Boolean).length;
+}
+
 /** Bitta javob uchun mumkin bo'lgan ekvivalent shakllar to'plami */
-function variants(raw: string): Set<string> {
+function variants(raw: string, extraAccepted: string[] = []): Set<string> {
   const out = new Set<string>();
   const base = normalize(raw);
   if (!base) return out;
   out.add(base);
+  // Hyphenated ↔ spaced ikkala shakl qabul (solishtirishda; sanashda hyphen=1)
+  if (base.includes('-')) out.add(base.replace(/-/g, ' '));
+  if (base.includes(' ')) out.add(base.replace(/\s+/g, '-'));
 
   // Boshidagi artiklni olib tashlash (IELTS ko'pincha a/an/the ni hisobga olmaydi)
   const noArticle = base.replace(/^(a|an|the)\s+/, '');
   out.add(noArticle);
+  if (noArticle.includes('-')) out.add(noArticle.replace(/-/g, ' '));
 
-  // Raqam ↔ so'z ekvivalenti (bitta so'zli javoblar uchun)
+  // Raqam ↔ so'z ekvivalenti (bitta token uchun)
   for (const form of [base, noArticle]) {
     if (NUMBER_WORDS[form]) out.add(NUMBER_WORDS[form]);
     if (WORD_BY_NUMBER[form]) out.add(WORD_BY_NUMBER[form]);
+  }
+
+  // Muallif kiritgan Br/Am variantlar (acceptedVariants ustuni)
+  for (const extra of extraAccepted) {
+    const n = normalize(extra);
+    if (n) {
+      out.add(n);
+      if (n.includes('-')) out.add(n.replace(/-/g, ' '));
+    }
   }
   return out;
 }
@@ -62,21 +99,34 @@ function toChoiceSet(s: string): Set<string> {
   );
 }
 
+export interface AnswerCheckOptions {
+  /** "NO MORE THAN X WORDS" — oshsa qat'iy 0 (spec §3). */
+  wordLimit?: number | null;
+  /** Savol muallifi kiritgan qo'shimcha to'g'ri shakllar (Br/Am). */
+  acceptedVariants?: string[] | null;
+}
+
 /**
  * Javob to'g'rimi? correctAnswers — qabul qilinadigan variantlar ro'yxati.
  * multi_select: tanlovlar to'plami aynan mos kelishi kerak (tartibsiz).
  * Qolganlari: variant ekvivalenti bo'yicha mos kelsa yetarli.
+ * wordLimit berilsa va javob undan uzun bo'lsa — har doim false (hatto so'zlar to'g'ri bo'lsa ham).
  */
 export function isAnswerCorrect(
   type: MockQuestionType,
   response: string,
   correctAnswers: string[],
+  opts: AnswerCheckOptions = {},
 ): boolean {
   if (!response || !response.trim() || correctAnswers.length === 0) return false;
 
+  // Strict word-count (spec §3): "NO MORE THAN TWO WORDS" + 3 so'z → 0.
+  if (opts.wordLimit != null && opts.wordLimit > 0) {
+    if (countWords(response) > opts.wordLimit) return false;
+  }
+
   if (type === 'multi_select') {
     const chosen = toChoiceSet(response);
-    // Kalit bir nechta element bo'lishi mumkin: har biri alohida yoki bitta "a,b" satrida
     const key = new Set<string>();
     for (const c of correctAnswers) for (const v of toChoiceSet(c)) key.add(v);
     if (chosen.size !== key.size) return false;
@@ -84,6 +134,7 @@ export function isAnswerCorrect(
     return true;
   }
 
-  const respVariants = variants(response);
-  return correctAnswers.some((c) => anyOverlap(respVariants, variants(c)));
+  const extra = opts.acceptedVariants ?? [];
+  const respVariants = variants(response, extra);
+  return correctAnswers.some((c) => anyOverlap(respVariants, variants(c, extra)));
 }

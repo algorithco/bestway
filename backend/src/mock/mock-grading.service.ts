@@ -110,6 +110,7 @@ export class MockGradingService {
         isGraded: true,
         gradedById: teacher.id,
         feedback: dto.feedback ?? null,
+        rubricScores: (dto.rubricScores ?? null) as unknown as Prisma.InputJsonValue,
       },
       create: {
         attemptId,
@@ -119,6 +120,7 @@ export class MockGradingService {
         isGraded: true,
         gradedById: teacher.id,
         feedback: dto.feedback,
+        rubricScores: (dto.rubricScores ?? null) as unknown as Prisma.InputJsonValue,
       },
     });
 
@@ -160,7 +162,12 @@ export class MockGradingService {
           const ans = answerByQ.get(q.id);
           if (auto) {
             const key = (q.correctAnswers as string[] | null) ?? [];
-            const correct = ans ? isAnswerCorrect(q.type, ans.response, key) : false;
+            // Spec §3: wordLimit (NO MORE THAN X) + Br/Am acceptedVariants.
+            const wordLimit = (q as { wordLimit?: number | null }).wordLimit ?? null;
+            const acceptedVariants = (q as { acceptedVariants?: string[] | null }).acceptedVariants ?? null;
+            const correct = ans
+              ? isAnswerCorrect(q.type, ans.response, key, { wordLimit, acceptedVariants })
+              : false;
             const s = correct ? q.points : 0;
             agg.score += s;
             if (ans) {
@@ -203,7 +210,9 @@ export class MockGradingService {
       }
       sectionBands = bands;
       if (!manualPending) {
-        overall = computeOverallBand(Object.values(bands));
+        // Spec §5: full_test da maxraj har doim 4 (bo'lim yetishmasa ham).
+        const isFullTest = (attempt as { flowMode?: string | null }).flowMode === 'full_test';
+        overall = computeOverallBand(Object.values(bands), isFullTest ? { fixedDivisor: 4 } : {});
         if (overall !== null) cefrLevel = cefrFromBand(overall);
       }
     } else if (!manualPending) {
@@ -353,6 +362,7 @@ export class MockGradingService {
             isCorrect: ans?.isCorrect ?? null,
             isGraded: ans?.isGraded ?? false,
             feedback: ans?.feedback ?? null,
+            rubricScores: (ans as { rubricScores?: unknown } | undefined)?.rubricScores ?? null,
             ...(showAnswers ? { correctAnswers: (qq.correctAnswers as string[] | null) ?? null } : {}),
           };
         }),
