@@ -278,6 +278,29 @@ export interface IncomePoint {
   paidCount: number;
 }
 
+/* ── Exam activity (GET /stats/exam-activity) ─────────────────────────── */
+
+export type ExamActivityRange = "today" | "7d" | "30d" | "3m" | "6m" | "year";
+
+export interface ExamActivityBucket {
+  /** Bucket start (ISO). Hourly for today, daily/weekly/monthly otherwise. */
+  key: string;
+  started: number;
+  completed: number;
+  avgScore: number | null;
+}
+
+export interface ExamActivity {
+  range: ExamActivityRange;
+  buckets: ExamActivityBucket[];
+  totals: {
+    started: number;
+    completed: number;
+    avgScore: number | null;
+    completionRate: number;
+  };
+}
+
 /* ── Settings ────────────────────────────────────────────────────────────── */
 
 export interface Settings {

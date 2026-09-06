@@ -12,19 +12,13 @@ import {
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import dynamic from "next/dynamic";
 import { ErrorState } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard, StatCardSkeleton } from "@/components/dashboard/stat-card";
+import { ExamActivityCard } from "@/components/dashboard/exam-activity-card";
 import { useMe } from "@/hooks/use-me";
-import { useDashboardStats, useIncome } from "@/hooks/use-dashboard";
+import { useDashboardStats } from "@/hooks/use-dashboard";
 import { formatMoney } from "@/lib/utils";
-
-const IncomeChart = dynamic(() => import("@/components/dashboard/income-chart").then((m) => m.IncomeChart), {
-  ssr: false,
-  loading: () => <div className="h-[260px] animate-pulse rounded-[8px] bg-border/40" />,
-});
 
 export function AdminDashboard() {
   const t = useTranslations("dashboard");
@@ -32,12 +26,11 @@ export function AdminDashboard() {
   const tm = useTranslations("months");
   const { data: me } = useMe();
   const stats = useDashboardStats();
-  const income = useIncome(6);
 
   const firstName = me?.user.name.split(" ")[0] ?? "";
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto w-full max-w-[1600px]">
       <PageHeader
         title={firstName ? t("greeting", { name: firstName }) : t("greeting", { name: "" })}
       />
@@ -95,33 +88,23 @@ export function AdminDashboard() {
             />
           </div>
 
-          {/* Tushum grafigi + yon ko'rsatkichlar */}
-          <div className="mt-4 grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>{t("incomeChart")}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {income.isLoading || !income.data ? (
-                  <div className="h-[260px] animate-pulse rounded-[8px] bg-border/40" />
-                ) : (
-                  <IncomeChart data={income.data} />
-                )}
-              </CardContent>
-            </Card>
+          {/* Imtihon tahlili — combo chart (full width) */}
+          <div className="mt-4">
+            <ExamActivityCard />
+          </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1">
-              <StatCard label={t("groups")} value={stats.data.groups} icon={BookOpen} />
-              <StatCard label={t("teachers")} value={stats.data.teachers} icon={GraduationCap} />
-              {stats.data.queue.grading > 0 && (
-                <StatCard
-                  label={t("gradingQueue")}
-                  value={stats.data.queue.grading}
-                  icon={ClipboardCheck}
-                  tone="warning"
-                />
-              )}
-            </div>
+          {/* Yon ko'rsatkichlar */}
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <StatCard label={t("groups")} value={stats.data.groups} icon={BookOpen} />
+            <StatCard label={t("teachers")} value={stats.data.teachers} icon={GraduationCap} />
+            {stats.data.queue.grading > 0 && (
+              <StatCard
+                label={t("gradingQueue")}
+                value={stats.data.queue.grading}
+                icon={ClipboardCheck}
+                tone="warning"
+              />
+            )}
           </div>
 
           {/* Tezkor amallar */}
