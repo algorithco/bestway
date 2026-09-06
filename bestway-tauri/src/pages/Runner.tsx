@@ -370,9 +370,9 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
         </div>
       )}
 
-      {/* Two-panel workspace */}
-      <div className="grid min-h-0 flex-1 grid-cols-[45%_55%]">
-        {/* LEFT — audio / material */}
+      {/* Two-panel workspace — 50/50 side-by-side, full height */}
+      <div className="grid min-h-0 flex-1 grid-cols-2">
+        {/* LEFT — content: passage / listening / writing task */}
         <aside className="flex min-h-0 min-w-0 flex-col border-r border-white/10 bg-[#0E1310]">
           <div className="shrink-0 border-b border-white/[0.07] px-5 pb-3 pt-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#19D36B]/80">
