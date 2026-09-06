@@ -17,14 +17,15 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Link } from "@/i18n/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
-import { MockExamCreateDialog } from "@/components/mock/mock-exam-create-dialog";
+import { ExamBuilderWizard } from "@/components/mock/exam-builder/ExamBuilderWizard";
 import {
   useConfirmMockPurchase,
   useMockAttempts,
@@ -56,6 +57,8 @@ export function MockExamsView() {
 
   const [tab, setTab] = React.useState<Tab>("exams");
   const [createOpen, setCreateOpen] = React.useState(false);
+  const router = useRouter();
+  const qc = useQueryClient();
   const examsQ = useMockExams();
   const purchase = usePurchaseMock();
 
@@ -127,7 +130,18 @@ export function MockExamsView() {
         </div>
       )}
 
-      <MockExamCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      {createOpen && (
+        <ExamBuilderWizard
+          open={createOpen}
+          examId={null}
+          onClose={() => setCreateOpen(false)}
+          onCreated={(id) => {
+            setCreateOpen(false);
+            qc.invalidateQueries({ queryKey: ["mock-exams"] });
+            router.push(`/mock/${id}`);
+          }}
+        />
+      )}
     </div>
   );
 }
