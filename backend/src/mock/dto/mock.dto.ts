@@ -357,6 +357,7 @@ export class BulkAnswersDto {
 }
 
 export class FlagCheatDto {
+  /** Warn-only (qaror #5): tab_switch, blur, paste_attempt, copy_attempt, seek_attempt, rate_attempt */
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
@@ -401,6 +402,11 @@ export class StartAttemptDto {
   @IsOptional()
   @IsEnum(MockAttemptMode)
   mode?: MockAttemptMode;
+
+  /** `full_test` (L→R→W ketma-ket, teacher exam — strict) yoki `single_skill` (mashq — lenient). Standart: single_skill */
+  @IsOptional()
+  @IsString()
+  flow?: string;
 }
 
 /* ─────────────────────────── Savol parse / import ─────────────────────────── */

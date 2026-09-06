@@ -204,6 +204,14 @@ export class MockController {
     return this.grading.submit(user, attemptId);
   }
 
+  /** Full-test: joriy bo'limni yakunlab keyingisiga o'tish (L→R→W, orqaga yo'q) */
+  @ApiBearerAuth()
+  @Roles('student')
+  @Post('attempts/:attemptId/advance')
+  advance(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string) {
+    return this.attempts.advanceSection(user, attemptId);
+  }
+
   /** Writing/Speaking qo'lda baholash */
   @ApiBearerAuth()
   @Roles('teacher', 'admin', 'super_admin')
@@ -235,15 +243,20 @@ export class MockController {
 
   // ───────────── Groups (media, savollar) ─────────────
 
-  /** Listening audio oqimi (Range; demo bo'lmasa auth kerak) */
+  /** Listening audio oqimi (Range; demo bo'lmasa auth kerak; exam da attemptId bilan once-only) */
   @OptionalAuth()
   @Get('groups/:groupId/audio')
-  audio(
+  async audio(
     @CurrentUser() user: AuthUser | undefined,
     @Param('groupId') groupId: string,
+    @Query('attemptId') attemptId: string | undefined,
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    // Exam strict (qaror #4): bir marta eshitish — stream dan oldin hisoblagich.
+    if (attemptId && user) {
+      await this.attempts.recordAudioPlay(user, attemptId, groupId);
+    }
     return this.authoring.streamMedia(user, groupId, 'audio', req, res);
   }
 
