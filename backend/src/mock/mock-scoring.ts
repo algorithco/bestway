@@ -26,11 +26,11 @@ const ACADEMIC_READING_TABLE: BandTable = [
   [4, 3], [2, 2.5], [0, 2],
 ];
 
-/** Spec §4 — Reading General (40:9.0 … 6–9:3.5 eslatma: jadval Academic dan farqli) + qaror #1 tail. */
+/** Spec §4 — Reading General (GT requires higher raw for same band) + qaror #1 tail. */
 const GENERAL_READING_TABLE: BandTable = [
-  [39, 9], [37, 8.5], [35, 8], [32, 7.5], [30, 7], [27, 6.5], [23, 6],
-  [20, 5.5], [16, 5], [13, 4.5], [10, 4], [6, 3.5],
-  [4, 3], [2, 2.5], [0, 2],
+  [40, 9], [39, 8.5], [37, 8], [36, 7.5], [34, 7], [32, 6.5], [30, 6],
+  [27, 5.5], [23, 5], [19, 4.5], [15, 4], [12, 3.5],
+  [9, 3], [6, 2.5], [3, 2], [0, 2],
 ];
 
 /** Listening/Reading uchun avtomatik band; writing/speaking qo'lda kiritiladi */

@@ -119,8 +119,8 @@ export function buildCorrectAnswers(
       if (TFNG_MAP[low]) out.add(TFNG_MAP[low]);
     }
 
-    // MCQ: harf → variant matni
-    if ((type === 'multiple_choice' || type === 'multi_select') && options && /^[a-h]$/i.test(part)) {
+    // MCQ / Matching: harf → variant matni
+    if ((type === 'multiple_choice' || type === 'multi_select' || type === 'matching' || type === 'matching_headings') && options && /^[a-h]$/i.test(part)) {
       const idx = part.toUpperCase().charCodeAt(0) - 65;
       if (options[idx]) out.add(options[idx]);
     }
