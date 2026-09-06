@@ -123,7 +123,10 @@ export function useAddQuestion(testId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateQuestionInput) => api.post(`/tests/${testId}/questions`, input),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["test", testId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["test", testId] });
+      qc.invalidateQueries({ queryKey: ["tests"] });
+    },
   });
 }
 
@@ -131,7 +134,10 @@ export function useDeleteQuestion(testId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (questionId: string) => api.delete(`/tests/questions/${questionId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["test", testId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["test", testId] });
+      qc.invalidateQueries({ queryKey: ["tests"] });
+    },
   });
 }
 

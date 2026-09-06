@@ -33,6 +33,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { QuestionFormDialog } from "@/components/tests/question-form-dialog";
+import { GapFillBuilder } from "@/components/tests/gap-fill-builder";
 import { useTest, useDeleteQuestion, useAddQuestion } from "@/hooks/use-tests";
 import type { TestSection, TestQuestionFull } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ export function TestManageView({ testId }: { testId: string }) {
   const add = useAddQuestion(testId);
 
   const [addOpen, setAddOpen] = React.useState(false);
+  const [gapOpen, setGapOpen] = React.useState(false);
   const [editQuestion, setEditQuestion] = React.useState<TestQuestionFull | null>(null);
   const [search, setSearch] = React.useState("");
   const [collapsed, setCollapsed] = React.useState<Set<TestSection>>(new Set());
@@ -323,6 +325,10 @@ export function TestManageView({ testId }: { testId: string }) {
           <Button size="sm" variant="outline" onClick={collapseAll} className="hidden sm:inline-flex">
             <ChevronUp className="size-4" /> {tFallback(t, "collapseAll", "Collapse")}
           </Button>
+          <Button size="sm" variant="outline" onClick={() => setGapOpen(true)}>
+            <Layers />
+            {tFallback(t, "gapFill", "Gap-fill")}
+          </Button>
           <Button size="sm" onClick={() => setAddOpen(true)}>
             <Plus />
             {tFallback(t, "addQuestion", "Add question")}
@@ -386,9 +392,15 @@ export function TestManageView({ testId }: { testId: string }) {
             title={tFallback(tc, "empty", "No data")}
             description={tFallback(t, "noQuestions", "No questions yet — add your first one")}
             action={
-              <Button size="sm" onClick={() => setAddOpen(true)}>
-                <Plus /> {tFallback(t, "addQuestion", "Add question")}
-              </Button>
+              <>
+                <Button size="sm" variant="outline" onClick={() => setGapOpen(true)}>
+                  <Layers />
+                  {tFallback(t, "gapFill", "Gap-fill")}
+                </Button>
+                <Button size="sm" onClick={() => setAddOpen(true)}>
+                  <Plus /> {tFallback(t, "addQuestion", "Add question")}
+                </Button>
+              </>
             }
           />
         ) : (
@@ -602,6 +614,7 @@ export function TestManageView({ testId }: { testId: string }) {
       )}
 
       <QuestionFormDialog open={addOpen} onClose={() => setAddOpen(false)} testId={testId} />
+      <GapFillBuilder open={gapOpen} onClose={() => setGapOpen(false)} testId={testId} />
       <QuestionFormDialog
         open={!!editQuestion}
         onClose={() => setEditQuestion(null)}
