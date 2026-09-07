@@ -49,7 +49,9 @@ const NAV: NavItem[] = [
   { href: "/gallery", key: "gallery", icon: Images, roles: OFFICE },
   { href: "/leaderboard", key: "leaderboard", icon: Trophy, roles: ["student", "teacher"], mobile: true },
   { href: "/children", key: "children", icon: GraduationCap, roles: ["parent"], mobile: true },
-  { href: "/notifications", key: "notifications", icon: Bell, roles: ALL, mobile: true },
+  // Eslatma: notifications ataylab primary emas — AppTopbar'dagi qo'ng'iroqcha
+  // (NotificationsBell) barcha viewport'larda mavjud, slotni keraksiz egallamasin.
+  { href: "/notifications", key: "notifications", icon: Bell, roles: ALL },
   { href: "/settings", key: "settings", icon: Settings, roles: SUPER },
   { href: "/audit", key: "audit", icon: ScrollText, roles: SUPER },
 ];
@@ -58,9 +60,13 @@ export function navForRole(role: Role): NavItem[] {
   return NAV.filter((item) => item.roles.includes(role));
 }
 
-/** Mobil pastki menyu uchun — eng muhim 5 ta bo'lim */
+/**
+ * Mobil pastki menyu uchun BIRLAMCHI (4 slot) bo'limlar.
+ * 5-slot doim "More" tugmasiga ajratilgan (komponentda qo'shiladi, bu ro'yxatda emas).
+ * Qolgan barcha rolga mos bo'limlar `navForRole()` orqali "More" panelida chiqadi.
+ */
 export function mobileNavForRole(role: Role): NavItem[] {
-  return NAV.filter((item) => item.mobile && item.roles.includes(role)).slice(0, 5);
+  return NAV.filter((item) => item.mobile && item.roles.includes(role)).slice(0, 4);
 }
 
 /** Faol yo'nalishni aniqlash — /dashboard aniq, qolganlari prefiks bo'yicha */
