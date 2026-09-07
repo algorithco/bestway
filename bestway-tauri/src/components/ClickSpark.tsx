@@ -8,6 +8,7 @@ const ClickSpark = ({
   duration = 400,
   easing = 'ease-out',
   extraScale = 1.0,
+  className,
   children
 }: any) => {
   const canvasRef = useRef(null as any);
@@ -128,6 +129,7 @@ const ClickSpark = ({
 
   return (
     <div
+      className={className}
       style={{
         position: 'relative',
         width: '100%',
