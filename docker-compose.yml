@@ -7,6 +7,13 @@ services:
     image: postgres:17.11-alpine
     container_name: education-postgres
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in environment or .env file}
@@ -29,6 +36,13 @@ services:
       dockerfile: Dockerfile
     container_name: education-backend
     restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,9 +50,9 @@ services:
       # Override DB host to use compose service name 'postgres' instead of localhost
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in environment or .env file}@postgres:5432/education_center?schema=public
       PORT: 3001
-      # Allow frontend (both local and docker internal) to call backend
-      CORS_ORIGIN: http://localhost:3000,http://localhost:3005,http://127.0.0.1:3000,http://127.0.0.1:3005,http://frontend:3000,https://granny-opposite-burner-throw.trycloudflare.com,https://speeches-sports-performances-vitamin.trycloudflare.com
-      PUBLIC_URL: http://localhost:3001
+      # Production domains (fresh VPS: bestwayec.uz).
+      CORS_ORIGIN: https://bestwayec.uz,https://www.bestwayec.uz
+      PUBLIC_URL: https://api.bestwayec.uz
       NODE_ENV: production
     env_file:
       - ./backend/.env
@@ -65,6 +79,13 @@ services:
         API_URL: http://backend:3001/v1
     container_name: education-frontend
     restart: unless-stopped
+    mem_limit: 768m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
     depends_on:
       backend:
         condition: service_healthy

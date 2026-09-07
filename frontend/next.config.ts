@@ -11,9 +11,8 @@ const nextConfig: NextConfig = {
 
   // 1. Turbopack / Webpack tunnelni bloklamasligi uchun (Terminal so'ragan asosiy sozlama)
   // Diqqat: BARE host yoziladi (sxemasiz) — 'https://' bilan hech qachon match bo'lmaydi.
-  // Quick-tunnel host har safar random bo'lgani uchun wildcard shart.
+  // Prod'da ta'siri yo'q (faqat `next dev`), local quick-tunnel uchun wildcard qoldirildi.
   allowedDevOrigins: [
-    'speeches-sports-performances-vitamin.trycloudflare.com',
     '*.trycloudflare.com'
   ],
 
@@ -22,9 +21,8 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 60 * 60 * 24,
     remotePatterns: [
       { protocol: "http", hostname: "localhost", port: "3001" },
-      { protocol: "https", hostname: "speeches-sports-performances-vitamin.trycloudflare.com" },
-      { protocol: "https", hostname: "*.trycloudflare.com" },
-      // picsum.photos fallback for teachers/gallery
+      { protocol: "https", hostname: "api.bestwayec.uz" },
+      // picsum.photos fallback for teachers/gallery (kept intentionally)
       { protocol: "https", hostname: "picsum.photos" },
       ...(process.env.NEXT_PUBLIC_MEDIA_HOST
         ? [{ protocol: "https" as const, hostname: process.env.NEXT_PUBLIC_MEDIA_HOST }]
@@ -37,12 +35,14 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    // Proxy body'larni xotiraga bufferlaydi — 500MB juda katta (OOM), 10MB yetarli
-    proxyClientMaxBodySize: "10mb",
+    // Video upload max 500MB (backend MAX_UPLOAD_MB=500). Proxy body'ni xotiraga
+    // bufferlaydi (route.ts `arrayBuffer`), shuning uchun bir vaqtning o'zida
+    // bir nechta katta upload RAM'ni to'ldirishi mumkin — VPS'da kuzating.
+    proxyClientMaxBodySize: "500mb",
     serverActions: {
       allowedOrigins: [
-        "speeches-sports-performances-vitamin.trycloudflare.com",
-        "*.trycloudflare.com"
+        "bestwayec.uz",
+        "www.bestwayec.uz",
       ],
     },
     optimizePackageImports: [

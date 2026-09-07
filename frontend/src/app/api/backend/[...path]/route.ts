@@ -82,10 +82,11 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
   const body = hasBody ? await req.arrayBuffer() : undefined;
 
-  // Audio/rasm uploadlar o'nlab MB bo'ladi va 2 hop'dan o'tadi
+  // Video uploadlar 500MB gacha bo'ladi va 2 hop'dan o'tadi
   // (brauzer→Next→backend) — 8s default ularga yetmaydi.
+  // 500MB sekin tarmoqda bir necha daqiqa olishi mumkin.
   const isUpload = (req.headers.get("content-type") ?? "").includes("multipart/form-data");
-  const timeoutMs = isUpload ? 120_000 : 8_000;
+  const timeoutMs = isUpload ? 600_000 : 8_000;
 
   const send = (token?: string) =>
     fetch(target, {
