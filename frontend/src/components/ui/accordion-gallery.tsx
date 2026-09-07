@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState, useCallback, CSSProperties, KeyboardEvent, MouseEvent } from 'react';
 import { gsap } from 'gsap';
+import { safeHref } from '@/lib/utils';
 
 export interface AccordionGalleryItem {
   image: string;
@@ -230,7 +231,8 @@ const AccordionGallery = ({
     >
       {items.map((item, i) => {
         const isActive = i === active;
-        const Tag = (item.link ? 'a' : 'div') as 'a';
+        const link = safeHref(item.link);
+        const Tag = (link ? 'a' : 'div') as 'a';
         return (
           <Tag
             key={`${item.image}-${i}`}
@@ -245,7 +247,7 @@ const AccordionGallery = ({
                 willChange: 'flex-grow, transform'
               } as CSSProperties
             }
-            href={item.link || undefined}
+            href={link || undefined}
             onClick={e => handleClick(i, e)}
             onMouseEnter={() => handleEnter(i)}
             onFocus={() => setActive(i)}

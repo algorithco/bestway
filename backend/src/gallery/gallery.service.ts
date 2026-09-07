@@ -142,9 +142,17 @@ export class GalleryService {
     if (!item.imageKey || !this.storage.exists(item.imageKey)) {
       throw new AppException('FILE_NOT_FOUND', 'Rasm topilmadi', 404);
     }
-    const ext = path.extname(item.imageKey).slice(1).toLowerCase() || 'jpeg';
+    const ext = path.extname(item.imageKey).toLowerCase();
+    const contentType =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.webp'
+          ? 'image/webp'
+          : ext === '.gif'
+            ? 'image/gif'
+            : 'image/jpeg';
     res.writeHead(200, {
-      'Content-Type': `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      'Content-Type': contentType,
       'Cache-Control': 'public, max-age=3600',
     });
     this.storage.createReadStream(item.imageKey).pipe(res);

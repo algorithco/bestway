@@ -4,11 +4,16 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
+
+// Ochiq API orqali qaytadi — javascript:/data: sxemalarni taqiqlaymiz.
+const SAFE_URL = /^(https?:\/\/[^\s]+|\/[^\s]*)$/;
+const SAFE_URL_MSG = "Havola https:// bilan yoki / bilan boshlanishi kerak";
 
 // multipart/form-data'da qiymatlar satr bo'lib keladi — booleanni qo'lda o'giramiz
 const toBool = ({ value }: { value: unknown }) => value === true || value === 'true';
@@ -48,6 +53,7 @@ export class CreateTeacherDto {
   @IsOptional()
   @IsString()
   @MaxLength(300)
+  @Matches(SAFE_URL, { message: SAFE_URL_MSG })
   socialUrl?: string;
 
   /** Saytdagi ko'rinish tartibi (kichik son — oldinroq) */
@@ -97,6 +103,7 @@ export class UpdateTeacherDto {
   @IsOptional()
   @IsString()
   @MaxLength(300)
+  @Matches(SAFE_URL, { message: SAFE_URL_MSG })
   socialUrl?: string;
 
   @IsOptional()

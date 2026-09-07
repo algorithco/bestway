@@ -75,6 +75,9 @@ function mockDiskStorage() {
 }
 
 /** Mock media (Listening audio, map/diagram rasm) uchun multer sozlamalari */
+const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.webm', '.mp4']);
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
 export function mockMediaMulterOptions() {
   return {
     storage: mockDiskStorage(),
@@ -90,10 +93,11 @@ export function mockMediaMulterOptions() {
       file: Express.Multer.File,
       cb: (error: Error | null, acceptFile: boolean) => void,
     ) => {
-      if (file.fieldname === 'audio' && !file.mimetype.startsWith('audio/')) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (file.fieldname === 'audio' && (!file.mimetype.startsWith('audio/') || !AUDIO_EXTS.has(ext))) {
         return cb(new AppException('INVALID_FILE_TYPE', 'Audio fayl yuklang (mp3, m4a...)', 400), false);
       }
-      if (file.fieldname === 'image' && !file.mimetype.startsWith('image/')) {
+      if (file.fieldname === 'image' && (!file.mimetype.startsWith('image/') || !IMAGE_EXTS.has(ext))) {
         return cb(new AppException('INVALID_FILE_TYPE', 'Rasm fayli yuklang', 400), false);
       }
       cb(null, true);
@@ -119,7 +123,8 @@ export function speakingAudioMulterOptions() {
       file: Express.Multer.File,
       cb: (error: Error | null, acceptFile: boolean) => void,
     ) => {
-      if (!file.mimetype.startsWith('audio/')) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (!file.mimetype.startsWith('audio/') || !AUDIO_EXTS.has(ext)) {
         return cb(new AppException('INVALID_FILE_TYPE', 'Audio fayl yuklang (mp3, m4a...)', 400), false);
       }
       cb(null, true);

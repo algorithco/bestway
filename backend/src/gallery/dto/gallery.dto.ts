@@ -1,7 +1,10 @@
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 
 const toBool = ({ value }: { value: unknown }) => value === true || value === 'true';
+// Ochiq API orqali qaytadi va frontend <a href> qiladi — javascript:/data: sxemalarni taqiqlaymiz.
+const SAFE_LINK = /^(https?:\/\/[^\s]+|\/[^\s]*)$/;
+const SAFE_LINK_MSG = "Havola https:// bilan yoki / bilan boshlanishi kerak";
 
 export class CreateGalleryDto {
   @IsOptional()
@@ -12,6 +15,7 @@ export class CreateGalleryDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
+  @Matches(SAFE_LINK, { message: SAFE_LINK_MSG })
   link?: string;
 
   @IsOptional()
@@ -40,6 +44,7 @@ export class UpdateGalleryDto {
   @IsOptional()
   @IsString()
   @MaxLength(500)
+  @Matches(SAFE_LINK, { message: SAFE_LINK_MSG })
   link?: string;
 
   @IsOptional()

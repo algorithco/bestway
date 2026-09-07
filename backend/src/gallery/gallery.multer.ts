@@ -8,6 +8,8 @@ import { AppException } from '../common/app.exception';
  * Galereya rasmi uchun multer sozlamasi — storage/gallery ichiga yoziladi.
  * Faqat rasm fayllari, 10 MB gacha.
  */
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
 export function galleryMulterOptions() {
   return {
     storage: diskStorage({
@@ -38,7 +40,9 @@ export function galleryMulterOptions() {
       file: Express.Multer.File,
       cb: (error: Error | null, acceptFile: boolean) => void,
     ) => {
-      if (!file.mimetype.startsWith('image/')) {
+      // mimetype mijoz nazoratida — kengaytmani ham allowlist'dan o'tkazamiz.
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (!file.mimetype.startsWith('image/') || !IMAGE_EXTS.has(ext)) {
         return cb(new AppException('INVALID_FILE_TYPE', "Rasm fayli bo'lishi kerak (jpg, png, webp…)", 400), false);
       }
       cb(null, true);

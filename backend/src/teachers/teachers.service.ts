@@ -156,9 +156,17 @@ export class TeachersService {
     if (!teacher.photoKey || !this.storage.exists(teacher.photoKey)) {
       throw new AppException('FILE_NOT_FOUND', 'Rasm topilmadi', 404);
     }
-    const ext = path.extname(teacher.photoKey).slice(1).toLowerCase() || 'jpeg';
+    const ext = path.extname(teacher.photoKey).toLowerCase();
+    const contentType =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.webp'
+          ? 'image/webp'
+          : ext === '.gif'
+            ? 'image/gif'
+            : 'image/jpeg';
     res.writeHead(200, {
-      'Content-Type': `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      'Content-Type': contentType,
       'Cache-Control': 'public, max-age=3600',
     });
     this.storage.createReadStream(teacher.photoKey).pipe(res);

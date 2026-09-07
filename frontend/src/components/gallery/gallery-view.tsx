@@ -13,6 +13,7 @@ import AccordionGallery from "@/components/ui/accordion-gallery";
 import { GalleryFormDialog } from "@/components/gallery/gallery-form-dialog";
 import { useDeleteGallery, useGalleryAdmin } from "@/hooks/use-gallery";
 import type { GalleryAdminItem } from "@/lib/types";
+import { safeHref } from "@/lib/utils";
 
 export function GalleryView() {
   const t = useTranslations("gallery");
@@ -98,9 +99,9 @@ export function GalleryView() {
               </div>
               <div className="flex flex-1 flex-col p-4">
                 <p className="line-clamp-1 font-semibold text-fg">{item.label || <span className="text-fg-muted">—</span>}</p>
-                {item.link && (
+                {safeHref(item.link) && (
                   <a
-                    href={item.link}
+                    href={safeHref(item.link)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-1 line-clamp-1 text-xs text-brand hover:underline"

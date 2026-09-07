@@ -9,6 +9,8 @@ import { AppException } from '../common/app.exception';
  * storage/teachers ichiga yoziladi (video muqovasi bilan bir xil uslub).
  * Faqat rasm fayllari qabul qilinadi, hajmi 10 MB gacha.
  */
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
 export function teacherPhotoMulterOptions() {
   return {
     storage: diskStorage({
@@ -39,7 +41,8 @@ export function teacherPhotoMulterOptions() {
       file: Express.Multer.File,
       cb: (error: Error | null, acceptFile: boolean) => void,
     ) => {
-      if (!file.mimetype.startsWith('image/')) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (!file.mimetype.startsWith('image/') || !IMAGE_EXTS.has(ext)) {
         return cb(new AppException('INVALID_FILE_TYPE', "Rasm fayli bo'lishi kerak (jpg, png…)", 400), false);
       }
       cb(null, true);

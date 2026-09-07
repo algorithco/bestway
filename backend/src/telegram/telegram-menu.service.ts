@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { monthRangeUtc, todayDateOnly } from '../common/date.util';
 import { PrismaService } from '../prisma/prisma.service';
-import { TelegramService } from './telegram.service';
+import { escapeTelegramHtml, TelegramService } from './telegram.service';
 
 const UZ_MONTHS = [
   'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun',
@@ -71,7 +71,7 @@ export class TelegramMenuService {
   async showMenu(chatId: number, role: Role, name: string): Promise<void> {
     await this.telegram.sendMenu(
       chatId,
-      `👋 Xush kelibsiz, <b>${name}</b>!\n\nQuyidagi tugmalardan foydalaning:`,
+      `👋 Xush kelibsiz, <b>${escapeTelegramHtml(name)}</b>!\n\nQuyidagi tugmalardan foydalaning:`,
       menuFor(role),
     );
   }
@@ -164,7 +164,7 @@ export class TelegramMenuService {
         .map((l) => `   ${l.change > 0 ? '➕' : '➖'} ${Math.abs(l.change)} — ${l.reason} <i>(${dateUz(l.createdAt)})</i>`)
         .join('\n');
       parts.push(
-        `🏆 <b>${kid.name}</b>\nJoriy ball: <b>${profile.currentPoints}</b>\n\n<u>Oxirgi o'zgarishlar:</u>\n${history || '   — hali yozuv yo\'q'}`,
+        `🏆 <b>${escapeTelegramHtml(kid.name)}</b>\nJoriy ball: <b>${profile.currentPoints}</b>\n\n<u>Oxirgi o'zgarishlar:</u>\n${history || '   — hali yozuv yo\'q'}`,
       );
     }
     return parts.join('\n\n➖➖➖➖➖\n\n');
@@ -193,7 +193,7 @@ export class TelegramMenuService {
         .join('\n');
 
       parts.push(
-        `📅 <b>${kid.name}</b> — ${UZ_MONTHS[now.getMonth()]} oyi\n` +
+        `📅 <b>${escapeTelegramHtml(kid.name)}</b> — ${UZ_MONTHS[now.getMonth()]} oyi\n` +
           `✅ Keldi: <b>${present}</b>   ❌ Kelmadi: <b>${absent}</b>   ⏰ Kechikdi: <b>${late}</b>\n\n` +
           `<u>Oxirgi darslar:</u>\n${last || '   — yozuv yo\'q'}`,
       );
@@ -219,7 +219,7 @@ export class TelegramMenuService {
       const debt = rows.filter((p) => p.state !== 'paid').length;
 
       parts.push(
-        `💰 <b>${kid.name}</b> — ${year}-yil\n\n${list || "   — to'lov yozuvi yo'q"}\n\n` +
+        `💰 <b>${escapeTelegramHtml(kid.name)}</b> — ${year}-yil\n\n${list || "   — to'lov yozuvi yo'q"}\n\n` +
           (debt > 0
             ? `⚠️ To'lanmagan oylar: <b>${debt}</b> ta.\nSavollar bo'lsa administratsiyaga murojaat qiling.`
             : '✅ Barcha to\'lovlar joyida. Rahmat!'),
@@ -244,10 +244,10 @@ export class TelegramMenuService {
       const list = attempts
         .map((a) => {
           const score = a.status === 'completed' ? ` — <b>${a.totalScore}</b> ball` : '';
-          return `   ${a.test.title}\n      ${label(a.status)}${score} <i>(${dateUz(a.startedAt)})</i>`;
+          return `   ${escapeTelegramHtml(a.test.title)}\n      ${label(a.status)}${score} <i>(${dateUz(a.startedAt)})</i>`;
         })
         .join('\n');
-      parts.push(`📝 <b>${kid.name}</b> — oxirgi testlar\n\n${list || '   — hali test topshirilmagan'}`);
+      parts.push(`📝 <b>${escapeTelegramHtml(kid.name)}</b> — oxirgi testlar\n\n${list || '   — hali test topshirilmagan'}`);
     }
     return parts.join('\n\n➖➖➖➖➖\n\n');
   }
@@ -277,8 +277,8 @@ export class TelegramMenuService {
         where: { studentId: l.studentId, year: now.getFullYear(), state: { not: 'paid' } },
       });
       parts.push(
-        `👤 <b>${s.user.name}</b>\n` +
-          `   Guruh: ${s.group?.name ?? "— (guruhga biriktirilmagan)"}\n` +
+        `👤 <b>${escapeTelegramHtml(s.user.name)}</b>\n` +
+          `   Guruh: ${escapeTelegramHtml(s.group?.name ?? "— (guruhga biriktirilmagan)")}\n` +
           `   Ball: <b>${s.currentPoints}</b>\n` +
           `   Bu oy kelmagan kunlar: <b>${absent}</b>\n` +
           `   To'lanmagan oylar: <b>${unpaid}</b>`,
@@ -300,7 +300,7 @@ export class TelegramMenuService {
     for (const g of groups) {
       const marked = await this.prisma.attendance.count({ where: { groupId: g.id, date: today } });
       parts.push(
-        `👥 <b>${g.name}</b>\n   O'quvchilar: <b>${g._count.students}</b>\n   Bugungi davomat: ${
+        `👥 <b>${escapeTelegramHtml(g.name)}</b>\n   O'quvchilar: <b>${g._count.students}</b>\n   Bugungi davomat: ${
           marked > 0 ? `✅ belgilangan (${marked})` : '⚠️ hali belgilanmagan'
         }`,
       );
@@ -321,7 +321,7 @@ export class TelegramMenuService {
     if (attempts.length === 0) return '✍️ Baholash navbati bo\'sh. Barakalla! 🎉';
 
     const list = attempts
-      .map((a) => `   • ${a.student.user.name} — ${a.test.title}`)
+      .map((a) => `   • ${escapeTelegramHtml(a.student.user.name)} — ${escapeTelegramHtml(a.test.title)}`)
       .join('\n');
     return `✍️ <b>Baholash kutilmoqda: ${attempts.length} ta</b>\n\n${list}\n\n<i>Baholash saytdagi panelda amalga oshiriladi.</i>`;
   }
@@ -380,7 +380,7 @@ export class TelegramMenuService {
 
     const list = debtors
       .slice(0, 20)
-      .map((s) => `   • ${s.user.name} — ${s.user.phone} ${label(s.payments[0]?.state ?? 'unpaid')}`)
+      .map((s) => `   • ${escapeTelegramHtml(s.user.name)} — ${escapeTelegramHtml(s.user.phone)} ${label(s.payments[0]?.state ?? 'unpaid')}`)
       .join('\n');
     const more = debtors.length > 20 ? `\n\n<i>…va yana ${debtors.length - 20} ta</i>` : '';
 

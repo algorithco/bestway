@@ -16,7 +16,7 @@ import {
   useUnlinkTelegram,
 } from "@/hooks/use-telegram";
 import { ApiError } from "@/lib/api-client";
-import { formatPhone } from "@/lib/utils";
+import { formatPhone, isSafeHref } from "@/lib/utils";
 
 export function ProfileView() {
   const t = useTranslations("profile");
@@ -31,7 +31,12 @@ export function ProfileView() {
   function onLink() {
     linkToken.mutate(undefined, {
       onSuccess: (res) => {
-        window.open(res.url, "_blank", "noopener");
+        // Backend'dan kelgan URL — sxemani tekshiramiz (javascript: va sh.k. bloklanadi)
+        if (!isSafeHref(res.url)) {
+          toast.error(tc("unknownError"));
+          return;
+        }
+        window.open(res.url, "_blank", "noopener,noreferrer");
         toast.success(t("telegramHint"));
       },
       onError: (e) => toast.error(e instanceof ApiError ? e.message : tc("unknownError")),

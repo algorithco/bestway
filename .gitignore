@@ -26,6 +26,13 @@ frontend-run.err.log.bak
 !.env.example
 check-user.js
 
+# --- Private keys & keystores (never commit) ---
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
 # --- Dependencies & build ---
 node_modules/
 .next/

@@ -5,7 +5,7 @@ import { AuditService } from '../audit/audit.service';
 import { AppException } from '../common/app.exception';
 import { AuthUser } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { TelegramService } from './telegram.service';
+import { escapeTelegramHtml, TelegramService } from './telegram.service';
 
 /** Telefon raqamdan faqat oxirgi 9 raqam (Uzbekistonda shu qism unikal) */
 function phoneKey(phone: string): string {
@@ -122,7 +122,7 @@ export class TelegramLinkService {
 
     await this.telegram.sendPlain(
       chatId,
-      `✅ <b>Bog'landi!</b>\n\nAkkaunt: <b>${row.user.name}</b>\n\n` +
+      `✅ <b>Bog'landi!</b>\n\nAkkaunt: <b>${escapeTelegramHtml(row.user.name)}</b>\n\n` +
         `Endi ball, davomat, to'lov va test natijalari haqidagi xabarlar shu yerga keladi.`,
     );
     await this.audit.log({
@@ -174,7 +174,7 @@ export class TelegramLinkService {
     await this.attach(matches[0].id, chatId);
     await this.telegram.sendPlain(
       chatId,
-      `✅ <b>Bog'landi!</b>\n\nAkkaunt: <b>${matches[0].name}</b>\n\nEndi xabarlar shu yerga keladi.`,
+      `✅ <b>Bog'landi!</b>\n\nAkkaunt: <b>${escapeTelegramHtml(matches[0].name)}</b>\n\nEndi xabarlar shu yerga keladi.`,
     );
     await this.audit.log({
       userId: matches[0].id,

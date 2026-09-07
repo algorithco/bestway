@@ -1,0 +1,18 @@
+# Root build context guard (compose builds use backend//frontend/ contexts,
+# each with its own .dockerignore). Prevents secrets/logs leaking if someone
+# ever runs `docker build .` from the repo root.
+.git
+.github
+.vscode/
+.claude/
+.freebuff/
+node_modules/
+.env
+.env.*
+check-user.js
+*.log
+*.bak
+storage/
+backups/
+coverage/
+.gitignore

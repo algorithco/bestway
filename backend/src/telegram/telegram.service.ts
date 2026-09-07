@@ -13,6 +13,11 @@ export interface TgUpdate {
   };
 }
 
+/** Foydalanuvchi kiritgan matnni Telegram HTML parse_mode ichida xavfsiz ko'rsatish */
+export function escapeTelegramHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 /** "Raqamni yuborish" tugmasi — bir marta bosiladi va yo'qoladi */
 const CONTACT_KEYBOARD = {
   keyboard: [[{ text: "📱 Telefon raqamimni yuborish", request_contact: true }]],

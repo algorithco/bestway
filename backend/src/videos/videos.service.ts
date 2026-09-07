@@ -241,9 +241,19 @@ export class VideosService {
     if (!video.thumbnailKey || !this.storage.exists(video.thumbnailKey)) {
       throw new AppException('FILE_NOT_FOUND', 'Muqova topilmadi', 404);
     }
-    const ext = path.extname(video.thumbnailKey).slice(1).toLowerCase() || 'jpeg';
+    // Kengaytmadan to'g'ridan-to'g'ri `image/${ext}` yasamaymiz:
+    // saqlangan fayl nomi buzilgan bo'lsa ham xavfli Content-Type qaytmasligi uchun.
+    const ext = path.extname(video.thumbnailKey).toLowerCase();
+    const contentType =
+      ext === '.png'
+        ? 'image/png'
+        : ext === '.webp'
+          ? 'image/webp'
+          : ext === '.gif'
+            ? 'image/gif'
+            : 'image/jpeg';
     res.writeHead(200, {
-      'Content-Type': `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+      'Content-Type': contentType,
       'Cache-Control': 'public, max-age=86400',
     });
     this.storage.createReadStream(video.thumbnailKey).pipe(res);

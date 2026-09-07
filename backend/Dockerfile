@@ -1,4 +1,4 @@
-FROM node:22-slim AS build
+FROM node:22.23.2-slim AS build
 WORKDIR /app
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY package*.json ./
@@ -9,7 +9,7 @@ COPY tsconfig*.json nest-cli.json ./
 COPY src ./src
 RUN npm run build
 
-FROM node:22-slim
+FROM node:22.23.2-slim
 WORKDIR /app
 ENV NODE_ENV=production
 RUN apt-get update -y && apt-get install -y openssl wget && rm -rf /var/lib/apt/lists/* \

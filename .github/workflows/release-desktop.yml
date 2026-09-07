@@ -17,10 +17,13 @@ on:
       - "bestway-app-v*"
 
 permissions:
-  contents: write
+  contents: read # default-deny; jobs below request exactly what they need
 
 jobs:
   build:
+    permissions:
+      contents: write # tauri-action creates the Release and uploads bundles
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -31,10 +34,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false # release upload uses GITHUB_TOKEN via env, not git credentials
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           # Pinned: lockfile is generated with this Node/npm pair (24.13.0/npm 11.6.2).
           # Floating `24` pulls newer npm (v12) which resolves optional deps
@@ -44,10 +49,10 @@ jobs:
           cache-dependency-path: bestway-tauri/package-lock.json
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
 
       - name: Rust cache
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           workspaces: bestway-tauri/src-tauri -> target
 
@@ -67,7 +72,7 @@ jobs:
         run: npm ci
 
       - name: Build + Release
-        uses: tauri-apps/tauri-action@v0
+        uses: tauri-apps/tauri-action@84b9d35b5fc46c1e45415bdb6144030364f7ebc5 # v0
         with:
           projectPath: bestway-tauri
           tagName: ${{ github.ref_name }}

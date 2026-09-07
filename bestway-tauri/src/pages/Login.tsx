@@ -418,8 +418,16 @@ export default function Login({ onLogin }: Props) {
                         )}
                       </button>
                     </div>
-                    <a
-                      href={authorizeUrl}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Never a plain <a href>: navigating the kiosk webview to an
+                        // external origin would load untrusted content with IPC access.
+                        // Route via the opener plugin (system browser, allowlisted).
+                        void openInBrowser(authorizeUrl).catch(() => {
+                          setError("Could not open the system browser automatically. Copy the login link above manually.");
+                        });
+                      }}
                       className="mt-2.5 inline-flex items-center gap-1 text-[13px] font-medium text-emerald-300/90 transition hover:text-emerald-200"
                     >
                       Open login link
@@ -428,7 +436,7 @@ export default function Login({ onLogin }: Props) {
                         <path d="M10 14 21 3" />
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                       </Icon>
-                    </a>
+                    </button>
                   </>
                 )}
 

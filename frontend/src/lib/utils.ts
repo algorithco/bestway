@@ -53,3 +53,35 @@ export function formatPhone(phone: string): string {
   if (digits.length !== 12) return phone;
   return `+${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 8)} ${digits.slice(8, 10)} ${digits.slice(10)}`;
 }
+
+/**
+ * CMS/backend'dan kelgan havola xavfsizmi — `<a href>`, `window.open`, media
+ * `src` ga qo'yishdan oldin tekshiriladi.
+ *
+ * `javascript:`, `data:`, `vbscript:` kabi sxemalar bloklanadi (saqlangan XSS:
+ * admin paneli yoki buzilgan backend orqali `javascript:alert(1)` yozilsa ham
+ * brauzer uni ishga tushirmaydi). Ruxsat: http/https, tel:, mailto: va
+ * nisbiy ("/...") manzillar.
+ */
+export function isSafeHref(href: string | null | undefined): boolean {
+  if (!href) return false;
+  const value = href.trim();
+  if (!value) return false;
+  if (value.startsWith("/") && !value.startsWith("//")) return true;
+  if (value.startsWith("#")) return true;
+  const scheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:/.exec(value);
+  if (!scheme) return false;
+  const protocol = scheme[0].toLowerCase();
+  return (
+    protocol === "http:" ||
+    protocol === "https:" ||
+    protocol === "tel:" ||
+    protocol === "mailto:" ||
+    protocol === "bestway-exam:"
+  );
+}
+
+/** Xavfli havolani `undefined` ga aylantiradi — `<a href={safeHref(x)}>` uchun */
+export function safeHref(href: string | null | undefined): string | undefined {
+  return isSafeHref(href ?? undefined) ? (href as string) : undefined;
+}

@@ -23,7 +23,7 @@ import {
 } from "@/hooks/use-videos";
 import { useMe } from "@/hooks/use-me";
 import type { VideoLessonItem } from "@/lib/types";
-import { formatMoney, formatPhone } from "@/lib/utils";
+import { formatMoney, formatPhone, isSafeHref } from "@/lib/utils";
 
 export function VideosView() {
   const t = useTranslations("videos");
@@ -44,7 +44,14 @@ export function VideosView() {
 
   function onWatch(v: VideoLessonItem) {
     stream.mutate(v.id, {
-      onSuccess: (res) => setPlaying({ url: res.url, title: v.title }),
+      onSuccess: (res) => {
+        // Imzolangan stream URL backend'dan keladi — sxemani tekshiramiz
+        if (!isSafeHref(res.url)) {
+          toast.error(tc("unknownError"));
+          return;
+        }
+        setPlaying({ url: res.url, title: v.title });
+      },
       onError: () => toast.error(tc("unknownError")),
     });
   }

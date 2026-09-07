@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramLinkService } from './telegram-link.service';
 import { TelegramMenuService } from './telegram-menu.service';
-import { TelegramService, TgUpdate } from './telegram.service';
+import { escapeTelegramHtml, TelegramService, TgUpdate } from './telegram.service';
 
 const line = '➖➖➖➖➖➖➖➖➖';
 
@@ -187,7 +187,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     await this.telegram.send(
       chatId,
       linked
-        ? `✅ <b>Bog'langan</b>\n${line}\n\nAkkaunt: <b>${linked.name}</b>\n\nUzish uchun: /unlink`
+        ? `✅ <b>Bog'langan</b>\n${line}\n\nAkkaunt: <b>${escapeTelegramHtml(linked.name)}</b>\n\nUzish uchun: /unlink`
         : `❌ <b>Bog'lanmagan</b>\n${line}\n\nSaytdagi "Telegramni ulash" tugmasidan foydalaning yoki /start bosing.`,
     );
   }

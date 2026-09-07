@@ -1,4 +1,4 @@
-FROM node:24-alpine AS builder
+FROM node:24.20.0-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY package*.json ./
@@ -9,7 +9,7 @@ ARG API_URL=http://backend:3001/v1
 ENV API_URL=${API_URL}
 RUN npm run build
 
-FROM node:24-alpine AS runner
+FROM node:24.20.0-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

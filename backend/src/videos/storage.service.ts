@@ -55,6 +55,9 @@ export class StorageService implements OnModuleInit {
 }
 
 /** Multer sozlamalari — fayllar to'g'ridan-to'g'ri diskka yoziladi (xotira band bo'lmaydi) */
+const VIDEO_EXTS = new Set(['.mp4', '.webm', '.mov', '.m4v', '.mkv']);
+const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+
 export function videoMulterOptions() {
   return {
     storage: diskStorage({
@@ -88,11 +91,18 @@ export function videoMulterOptions() {
       file: Express.Multer.File,
       cb: (error: Error | null, acceptFile: boolean) => void,
     ) => {
-      if (file.fieldname === 'file' && !file.mimetype.startsWith('video/')) {
-        return cb(new AppException('INVALID_FILE_TYPE', 'Video fayl yuklang (mp4 va h.k.)', 400), false);
+      // mimetype mijoz tomonidan keladi — kengaytmani ham tekshiramiz
+      // (aks holda .html/.svg ni image/png deb niqoblab yuklash mumkin).
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (file.fieldname === 'file') {
+        if (!file.mimetype.startsWith('video/') || !VIDEO_EXTS.has(ext)) {
+          return cb(new AppException('INVALID_FILE_TYPE', 'Video fayl yuklang (mp4 va h.k.)', 400), false);
+        }
       }
-      if (file.fieldname === 'thumbnail' && !file.mimetype.startsWith('image/')) {
-        return cb(new AppException('INVALID_FILE_TYPE', "Muqova rasm fayli bo'lishi kerak", 400), false);
+      if (file.fieldname === 'thumbnail') {
+        if (!file.mimetype.startsWith('image/') || !IMAGE_EXTS.has(ext)) {
+          return cb(new AppException('INVALID_FILE_TYPE', "Muqova rasm fayli bo'lishi kerak (jpg, png, webp)", 400), false);
+        }
       }
       cb(null, true);
     },

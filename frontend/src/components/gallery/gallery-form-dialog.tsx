@@ -17,6 +17,7 @@ import {
 import { Field, Input } from "@/components/ui/input";
 import { useCreateGallery, useUpdateGallery } from "@/hooks/use-gallery";
 import { ApiError } from "@/lib/api-client";
+import { isSafeHref } from "@/lib/utils";
 import type { GalleryAdminItem } from "@/lib/types";
 
 export function GalleryFormDialog({
@@ -87,6 +88,11 @@ function GalleryFormFields({
     }
     if (label.trim().length > 120) {
       setError("Label too long");
+      return;
+    }
+    // javascript:/data: kabi xavfli sxemalar saqlanmasin (saqlangan XSS)
+    if (link.trim() && !isSafeHref(link.trim())) {
+      setError(tGallery("linkInvalid") !== "linkInvalid" ? (tGallery("linkInvalid") as string) : "Link must start with https:// or http://");
       return;
     }
     const form = new FormData();

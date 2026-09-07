@@ -4,7 +4,7 @@ import * as React from "react";
 import { ArrowUpRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { TiltCard } from "@/components/ui/tilt-card";
-import { cn } from "@/lib/utils";
+import { cn, safeHref } from "@/lib/utils";
 
 /**
  * Teacher profile data — rendered from the CMS/backend, never hardcoded.
@@ -101,9 +101,9 @@ export function TeacherProfileCard({
             {teacher.achievement}
           </p>
         )}
-        {teacher.profileUrl && (
+        {safeHref(teacher.profileUrl) && (
           <a
-            href={teacher.profileUrl}
+            href={safeHref(teacher.profileUrl)}
             target="_blank"
             rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1 rounded-md text-xs font-semibold text-white/70 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:text-white"

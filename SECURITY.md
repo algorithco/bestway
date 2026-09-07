@@ -26,3 +26,9 @@ Agar xavfsizlik kamchiligi topsangiz, iltimos to'g'ridan-to'g'ri GitHub Security
 ## Secrets
 
 Hech qachon `backend/.env` ni commit qilmang. Barcha `JWT_SECRET`, `STREAM_TOKEN_SECRET`, `TELEGRAM_BOT_TOKEN` qiymatlari faqat `.env` da saqlanadi va `.gitignore` bilan himoyalangan.
+
+## Supply chain
+
+- `.github/workflows` dagi action'lar full commit SHA ga pinned; `GITHUB_TOKEN` default `contents: read`, faqat release job'da `contents: write`.
+- Container base image'lar pinned (`postgres:17.11-alpine`, Dockerfile'larda explicit Node patch taglari); image'lar non-root user'da ishlaydi.
+- `POSTGRES_PASSWORD` faqat environment/`.env` dan keladi — compose o'rnatilmagan bo'lsa fail-fast (`:-postgres` default olib tashlangan). `*.log` va `.env` git'ga commit qilinmaydi.

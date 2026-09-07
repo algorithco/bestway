@@ -58,6 +58,8 @@ function testDiskStorage() {
 }
 
 /** Question audio uchun multer — 50MB, faqat audio/* */
+const AUDIO_EXTS = new Set(['.mp3', '.m4a', '.wav', '.ogg', '.aac', '.webm', '.mp4']);
+
 export function testAudioMulterOptions() {
   return {
     storage: testDiskStorage(),
@@ -69,7 +71,8 @@ export function testAudioMulterOptions() {
       fieldSize: 1024 * 1024,
     },
     fileFilter: (_req: unknown, file: Express.Multer.File, cb: (error: Error | null, acceptFile: boolean) => void) => {
-      if (!file.mimetype.startsWith('audio/')) {
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (!file.mimetype.startsWith('audio/') || !AUDIO_EXTS.has(ext)) {
         return cb(new AppException('INVALID_FILE_TYPE', 'Audio fayl yuklang (mp3, m4a, wav, ogg)', 400), false);
       }
       cb(null, true);
