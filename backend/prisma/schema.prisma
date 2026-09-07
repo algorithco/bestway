@@ -366,6 +366,10 @@ model Answer {
   isGraded   Boolean  @default(false)
   gradedById String? // Writing/Speaking uchun baholagan o'qituvchi
   comment    String?
+  // Exam-time reading aids: highlighted passage snippets + private note.
+  // Stored on the passage-owner question of each part (see saveMarks).
+  highlights Json? // string[] — ajratilgan matn parchalari
+  note       String? // shaxsiy eslatma (2000 belgigacha)
   updatedAt  DateTime @updatedAt
 
   attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)

@@ -207,6 +207,24 @@ export class FlagCheatDto {
   event: string;
 }
 
+export class SaveMarksDto {
+  @IsString()
+  @IsNotEmpty()
+  questionId: string;
+
+  /** Reading highlight'lari — passage'dan ajratilgan parchalar (50 tagacha, har biri 300 belgigacha) */
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  highlights?: string[];
+
+  /** Shaxsiy eslatma (bo'sh string = o'chirish) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  note?: string;
+}
+
 export class GradeAnswerDto {
   @IsString()
   @IsNotEmpty()

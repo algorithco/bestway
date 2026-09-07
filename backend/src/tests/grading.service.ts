@@ -260,6 +260,10 @@ export class GradingService {
 
     const isStaff =
       viewer.role === 'teacher' || viewer.role === 'admin' || viewer.role === 'super_admin';
+    const isOwner = viewer.id === attempt.studentId;
+    // Students may review correct answers only AFTER submitting (prevents
+    // cheating mid-exam). Writing/Speaking stay manual-only (no correctAnswer).
+    const showCorrect = isStaff || (isOwner && attempt.status !== 'in_progress');
     const answerByQ = new Map(attempt.answers.map((a) => [a.questionId, a]));
     const qMap = new Map(attempt.test.questions.map((qq) => [qq.id, qq]));
     const order = attempt.questionOrder as string[];
@@ -270,6 +274,11 @@ export class GradingService {
         if (!question) return null;
         const ans = answerByQ.get(qid);
         const qAny = question as any;
+        const isAuto = !MANUAL_SECTIONS.includes(question.section);
+        const correct =
+          showCorrect && isAuto && question.correctAnswer
+            ? this.isCorrect(ans?.answer ?? '', question.correctAnswer)
+            : null;
         return {
           order: i + 1,
           questionId: qid,
@@ -283,7 +292,17 @@ export class GradingService {
           instructions: qAny.instructions ?? null,
           hasAudio: !!qAny.audioUrl,
           audioUrl: qAny.audioUrl ? `/v1/tests/questions/${qid}/audio` : null,
-          ...(isStaff ? { correctAnswer: question.correctAnswer } : {}),
+          ...(showCorrect && isAuto ? { correctAnswer: question.correctAnswer } : {}),
+          ...(correct != null ? { isCorrect: correct } : {}),
+          // Exam-time reading aids — owner + staff only (same visibility as answers).
+          ...((isOwner || isStaff)
+            ? {
+                highlights: Array.isArray(ans?.highlights)
+                  ? (ans.highlights as unknown[]).filter((h): h is string => typeof h === 'string')
+                  : [],
+                note: ans?.note ?? null,
+              }
+            : {}),
           answer: ans?.answer ?? null,
           score: ans?.score ?? null,
           isGraded: ans?.isGraded ?? false,

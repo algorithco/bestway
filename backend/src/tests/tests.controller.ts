@@ -28,6 +28,7 @@ import {
   GradeAnswerDto,
   QueryAttemptsDto,
   QueryTestsDto,
+  SaveMarksDto,
   SubmitAnswerDto,
   UpdateQuestionDto,
   UpdateTestDto,
@@ -121,12 +122,23 @@ export class TestsController {
     return this.tests.answer(user, attemptId, dto);
   }
 
+  /** Reading highlight + shaxsiy eslatma (javob matniga tegmaydi) */
+  @ApiBearerAuth()
+  @Roles('student')
+  @Post('attempts/:attemptId/marks')
+  saveMarks(
+    @CurrentUser() user: AuthUser,
+    @Param('attemptId') attemptId: string,
+    @Body() dto: SaveMarksDto,
+  ) {
+    return this.tests.saveMarks(user, attemptId, dto);
+  }
+
   /** Anti-cheat signal (tab almashtirish va h.k.) */
   @ApiBearerAuth()
   @Roles('student')
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
-  @Post('attempts/:attemptId/flag-cheat')
-  flagCheat(
+  @Post('attempts/:attemptId/flag-cheat')  flagCheat(
     @CurrentUser() user: AuthUser,
     @Param('attemptId') attemptId: string,
     @Body() dto: FlagCheatDto,

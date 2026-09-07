@@ -7,7 +7,7 @@ import { AppException } from '../common/app.exception';
 import { Paginated } from '../common/pagination';
 import { AuthUser } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { DemoSubmitDto, CreateQuestionDto, CreateTestDto, QueryTestsDto, SubmitAnswerDto, FlagCheatDto, UpdateQuestionDto, UpdateTestDto } from './dto/tests.dto';
+import { DemoSubmitDto, CreateQuestionDto, CreateTestDto, QueryTestsDto, SubmitAnswerDto, FlagCheatDto, SaveMarksDto, UpdateQuestionDto, UpdateTestDto } from './dto/tests.dto';
 import { deleteTestAudio, streamTestAudio, testAudioExists } from './tests-storage';
 
 export const MANUAL_SECTIONS: TestSection[] = ['writing', 'speaking'];
@@ -461,6 +461,7 @@ export class TestsService {
         startedAt: existing.startedAt,
         questions,
         savedAnswers: Object.fromEntries(answers.map((a) => [a.questionId, a.answer])),
+        savedMarks: this.shapeMarks(answers),
       };
     }
 
@@ -514,6 +515,41 @@ export class TestsService {
     return { saved: true };
   }
 
+  /**
+   * POST /tests/attempts/:attemptId/marks — reading highlight + shaxsiy eslatma.
+   * Javob matniga tegmaydi (answer upsert'dagi kabi saqlanib qoladi).
+   * Faqat imtihon vaqtida (in_progress) — topshirilgach review read-only.
+   */
+  async saveMarks(student: AuthUser, attemptId: string, dto: SaveMarksDto) {
+    const attempt = await this.ownAttempt(student, attemptId);
+    if (attempt.status !== 'in_progress') {
+      throw new AppException('ATTEMPT_FINISHED', 'Bu urinish allaqachon yakunlangan', 400);
+    }
+    this.assertNotTimedOut(attempt);
+    const order = attempt.questionOrder as string[];
+    if (!order.includes(dto.questionId)) {
+      throw new AppException('QUESTION_NOT_IN_ATTEMPT', 'Savol bu urinishga tegishli emas', 400);
+    }
+    const highlights = (dto.highlights ?? [])
+      .filter((h) => typeof h === 'string')
+      .map((h) => h.trim())
+      .filter((h) => h.length >= 2)
+      .slice(0, 50)
+      .map((h) => h.slice(0, 300));
+    const data: { highlights: Prisma.InputJsonValue; note?: string | null } = {
+      highlights: highlights as Prisma.InputJsonValue,
+    };
+    if (dto.note !== undefined) {
+      data.note = dto.note.trim().slice(0, 2000) || null;
+    }
+    await this.prisma.answer.upsert({
+      where: { attemptId_questionId: { attemptId, questionId: dto.questionId } },
+      update: data,
+      create: { attemptId, questionId: dto.questionId, answer: '', ...data },
+    });
+    return { saved: true };
+  }
+
   /** POST /tests/attempts/:attemptId/flag-cheat — tab almashtirish signali */
   async flagCheat(student: AuthUser, attemptId: string, dto: FlagCheatDto) {
     const attempt = await this.ownAttempt(student, attemptId);
@@ -532,6 +568,21 @@ export class TestsService {
   }
 
   // ---------------- Yordamchilar ----------------
+
+  /** savedMarks: questionId -> {highlights, note} (faqat bo'sh bo'lmaganlar) */
+  private shapeMarks(
+    answers: { questionId: string; highlights: unknown; note: string | null }[],
+  ): Record<string, { highlights: string[]; note: string | null }> {
+    const out: Record<string, { highlights: string[]; note: string | null }> = {};
+    for (const a of answers) {
+      const highlights = Array.isArray(a.highlights)
+        ? (a.highlights as unknown[]).filter((h): h is string => typeof h === 'string')
+        : [];
+      if (highlights.length === 0 && !a.note) continue;
+      out[a.questionId] = { highlights, note: a.note };
+    }
+    return out;
+  }
 
   private async ownAttempt(student: AuthUser, attemptId: string) {
     const attempt = await this.prisma.testAttempt.findUnique({
