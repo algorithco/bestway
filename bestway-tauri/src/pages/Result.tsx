@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
+import AttemptReview from "@/components/exam/AttemptReview";
 
 type Props = {
   testTitle?: string | null;
   autoScore?: number | null;
   maxScore?: number | null;
+  attemptId?: string | null;
   onBack: () => void;
   onHistory: () => void;
 };
@@ -54,7 +56,7 @@ function ScoreRing({ score, max }: { score: number; max: number | null }) {
   );
 }
 
-export default function Result({ testTitle, autoScore, maxScore, onBack, onHistory }: Props) {
+export default function Result({ testTitle, autoScore, maxScore, attemptId, onBack, onHistory }: Props) {
   const hasScore = autoScore !== null && autoScore !== undefined;
   return (
     <section>
@@ -91,15 +93,15 @@ export default function Result({ testTitle, autoScore, maxScore, onBack, onHisto
           <ul className="mt-3 space-y-2 text-xs leading-relaxed text-white/50">
             <li className="flex gap-2">
               <span className="text-emerald-300">→</span>
+              Review each answer below — find where it came from in the material.
+            </li>
+            <li className="flex gap-2">
+              <span className="text-emerald-300">→</span>
               Open History to track grading progress and final totals.
             </li>
             <li className="flex gap-2">
               <span className="text-emerald-300">→</span>
               Head back to Exams to start your next assigned test.
-            </li>
-            <li className="flex gap-2">
-              <span className="text-emerald-300">→</span>
-              Stay online — scores sync automatically when teachers finish grading.
             </li>
           </ul>
           <div className="mt-4 grid grid-cols-2 gap-2">
@@ -112,6 +114,18 @@ export default function Result({ testTitle, autoScore, maxScore, onBack, onHisto
           </div>
         </div>
       </div>
+
+      {attemptId && (
+        <div className="card mt-3 rounded-2xl p-6">
+          <h2 className="text-sm font-bold text-white">Answer review — locate & explain</h2>
+          <p className="mt-1 text-xs text-white/40">
+            Green ✓ means auto-marked correct, red ✕ means wrong. Open ⌖ Locate to see the passage lines behind each answer.
+          </p>
+          <div className="mt-4">
+            <AttemptReview attemptId={attemptId} />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

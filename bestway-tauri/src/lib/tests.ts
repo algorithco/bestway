@@ -45,6 +45,18 @@ export interface RunnerQuestion {
   /** Sanitized path like `/v1/tests/questions/:id/audio`, or null. */
   audioUrl?: string | null;
   hasAudio?: boolean;
+  /**
+   * Forward-compatible practice-platform fields (all optional — older
+   * backends omit them and the runner infers from `type` + `options`).
+   * - kind: explicit widget kind (tfng, ynng, gap_fill, matching, map_label…)
+   * - wordLimit: strict max words for completion answers
+   * - explanation / anchorPassage / anchorAudioSec: review "Locate & Explain"
+   */
+  kind?: string | null;
+  wordLimit?: number | null;
+  explanation?: string | null;
+  anchorPassage?: string | null;
+  anchorAudioSec?: number | null;
 }
 
 export interface StartResult {
@@ -54,6 +66,8 @@ export interface StartResult {
   startedAt: string;
   questions: RunnerQuestion[];
   savedAnswers?: Record<string, string>;
+  /** Server-side reading aids: passage-owner questionId -> marks. Absent on old backends. */
+  savedMarks?: Record<string, { highlights: string[]; note: string | null }>;
 }
 
 /** Active tests visible to the signed-in student. */
@@ -81,6 +95,22 @@ export function submitAttempt(attemptId: string): Promise<{
   autoScore: number;
 }> {
   return post(`/tests/attempts/${encodeURIComponent(attemptId)}/submit`, {});
+}
+
+/**
+ * Save reading highlights + private note for one question (the part's
+ * passage owner). Never touches the answer text. Local-first: callers must
+ * persist to localStorage too and treat server failure as offline.
+ */
+export function saveMarks(
+  attemptId: string,
+  questionId: string,
+  marks: { highlights: string[]; note: string },
+): Promise<{ saved: boolean }> {
+  return post<{ saved: boolean }>(
+    `/tests/attempts/${encodeURIComponent(attemptId)}/marks`,
+    { questionId, highlights: marks.highlights, note: marks.note },
+  );
 }
 
 export type AttemptStatus = "in_progress" | "grading" | "completed";
@@ -112,6 +142,42 @@ export async function myAttempts(limit = 50): Promise<AttemptSummary[]> {
     return (data as { data: AttemptSummary[] }).data;
   }
   return [];
+}
+
+/**
+ * Per-question review for one attempt (Locate & Explain).
+ * Backend exposes `correctAnswer`/`isCorrect` to the owner only after submit;
+ * while `in_progress` those fields are absent — the UI must handle that.
+ */
+export interface AttemptReviewItem {
+  order: number;
+  questionId: string;
+  section: TestSection;
+  type: string;
+  prompt: string;
+  options: string[] | null;
+  maxScore: number;
+  passageText?: string | null;
+  instructions?: string | null;
+  hasAudio?: boolean;
+  audioUrl?: string | null;
+  correctAnswer?: string | null;
+  isCorrect?: boolean | null;
+  /** Server-side reading aids (owner + staff only). */
+  highlights?: string[] | null;
+  note?: string | null;
+  answer: string | null;
+  score: number | null;
+  isGraded: boolean;
+  comment?: string | null;
+}
+
+export interface AttemptReview extends AttemptSummary {
+  questions: AttemptReviewItem[];
+}
+
+export function getAttemptReview(attemptId: string): Promise<AttemptReview> {
+  return get<AttemptReview>(`/tests/attempts/${encodeURIComponent(attemptId)}`);
 }
 
 /**

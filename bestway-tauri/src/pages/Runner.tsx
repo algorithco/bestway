@@ -1,8 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getVolume, setVolume, VOLUME_EVENT } from "@/lib/volume";
 import { getConfirmBeforeSubmit } from "@/lib/exam-prefs";
-import { resolveAudioUrl, saveAnswer, submitAttempt } from "@/lib/tests";
+import { resolveAudioUrl, saveAnswer, saveMarks, submitAttempt } from "@/lib/tests";
 import type { RunnerQuestion, StartResult, TestListItem } from "@/lib/tests";
+import {
+  getExamFontSize,
+  helpTextFor,
+  kindLabel,
+  loadFlags,
+  loadPartMarks,
+  materialOwnerId,
+  mergeMarks,
+  normalizeKind,
+  saveFlags,
+  savePartMarks,
+  setExamFontSize,
+  type PartMarks,
+} from "@/lib/exam-types";
+import ExamHeader from "@/components/exam/ExamHeader";
+import QuestionPalette from "@/components/exam/QuestionPalette";
+import AnswerWidgets from "@/components/exam/AnswerWidgets";
+import ListeningPane from "@/components/exam/ListeningPane";
+import ReadingPane from "@/components/exam/ReadingPane";
+import WritingPane from "@/components/exam/WritingPane";
+import SpeakingPane from "@/components/exam/SpeakingPane";
+import ReviewModal from "@/components/exam/ReviewModal";
 
 type Props = {
   test: TestListItem;
@@ -24,16 +45,6 @@ interface Part {
   instructions: string | null;
   passageText: string | null;
   items: PartItem[];
-}
-
-function fmtTime(sec: number): string {
-  if (!Number.isFinite(sec) || sec < 0) sec = 0;
-  const s = Math.floor(sec);
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const r = s % 60;
-  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
-  return `${h > 0 ? `${h}:` : ""}${mm}:${String(r).padStart(2, "0")}`;
 }
 
 function friendlyError(e: unknown): string {
@@ -72,164 +83,113 @@ function buildParts(questions: RunnerQuestion[]): Part[] {
   return parts;
 }
 
-/** Large exam-style audio player: play/pause, seek, time, volume, rate. */
-function AudioPlayer({ src, title }: { src: string; title: string }) {
-  const elRef = useRef<HTMLAudioElement | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [cur, setCur] = useState(0);
-  const [dur, setDur] = useState(0);
-  const [vol, setVol] = useState(() => getVolume());
-  const [rate, setRate] = useState(1);
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-  // Fresh element per source (key) — reset state and apply volume/rate.
-  useEffect(() => {
-    setPlaying(false);
-    setCur(0);
-    setDur(0);
-    const el = elRef.current;
-    if (el) {
-      el.pause();
-      el.volume = getVolume() / 100;
-      el.playbackRate = 1;
-    }
-    setRate(1);
-  }, [src]);
+function isListening(section: string): boolean {
+  return section.toLowerCase().includes("listen");
+}
 
-  useEffect(() => {
-    const onVol = (e: Event) => setVol((e as CustomEvent<number>).detail);
-    window.addEventListener(VOLUME_EVENT, onVol);
-    return () => window.removeEventListener(VOLUME_EVENT, onVol);
-  }, []);
+function isWriting(section: string): boolean {
+  return section.toLowerCase().includes("writ");
+}
 
-  useEffect(() => {
-    if (elRef.current) elRef.current.playbackRate = rate;
-  }, [rate, src]);
-
-  const toggle = () => {
-    const el = elRef.current;
-    if (!el) return;
-    if (el.paused) void el.play().catch(() => setPlaying(false));
-    else el.pause();
-  };
-
-  const seek = (v: number) => {
-    const el = elRef.current;
-    if (!el) return;
-    el.currentTime = Math.min(Math.max(0, v), dur || 0);
-    setCur(el.currentTime);
-  };
-
-  const changeVol = (v: number) => {
-    setVol(v);
-    setVolume(v);
-  };
-
-  const pct = dur > 0 ? Math.min(100, (cur / dur) * 100) : 0;
-
-  return (
-    <div className="rounded-2xl bg-black/40 p-4 ring-1 ring-white/10">
-      <audio
-        key={src}
-        ref={elRef}
-        src={src}
-        preload="metadata"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
-        onTimeUpdate={(e) => setCur(e.currentTarget.currentTime)}
-        onLoadedMetadata={(e) => {
-          setDur(e.currentTarget.duration || 0);
-          e.currentTarget.volume = getVolume() / 100;
-        }}
-      />
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={playing ? "Pause audio" : "Play audio"}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#19D36B] text-black shadow-[0_0_24px_rgba(25,211,107,0.35)] transition hover:brightness-110"
-        >
-          {playing ? (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <rect x="6" y="4" width="4" height="16" rx="1" />
-              <rect x="14" y="4" width="4" height="16" rx="1" />
-            </svg>
-          ) : (
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M7 4.5v15l13-7.5-13-7.5z" />
-            </svg>
-          )}
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-xs font-semibold text-white/80">{title}</p>
-          <p className="mt-0.5 font-mono text-[11px] tabular-nums text-white/45">
-            {fmtTime(cur)} / {dur > 0 ? fmtTime(dur) : "–:––"}
-          </p>
-        </div>
-        <label className="flex shrink-0 items-center gap-1.5 text-white/50" title="Playback speed">
-          <span className="text-[10px] font-bold uppercase">Speed</span>
-          <select
-            value={rate}
-            onChange={(e) => setRate(Number(e.target.value))}
-            className="rounded-lg bg-white/5 px-1.5 py-1 font-mono text-[11px] text-white ring-1 ring-white/10 outline-none"
-          >
-            <option value={0.75}>0.75×</option>
-            <option value={1}>1×</option>
-            <option value={1.25}>1.25×</option>
-            <option value={1.5}>1.5×</option>
-          </select>
-        </label>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={Math.max(dur, 0.1)}
-        step={0.1}
-        value={Math.min(cur, dur || 0)}
-        onChange={(e) => seek(Number(e.target.value))}
-        aria-label="Seek"
-        className="exam-range mt-3 w-full"
-      />
-      <div className="mt-2 flex items-center gap-2">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
-          className="shrink-0 text-white/45">
-          <path d="M11 5 6 9H2v6h4l5 4V5z" fill="currentColor" stroke="none" />
-          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
-        </svg>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={vol}
-          onChange={(e) => changeVol(Number(e.target.value))}
-          aria-label="Volume"
-          className="exam-range w-32"
-        />
-        <span className="font-mono text-[11px] tabular-nums text-white/45">{vol}%</span>
-        <div className="ml-auto h-1.5 w-24 overflow-hidden rounded-full bg-white/10" aria-hidden="true">
-          <div className="h-full rounded-full bg-[#19D36B] transition-all" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
-    </div>
-  );
+function isSpeaking(section: string): boolean {
+  return section.toLowerCase().includes("speak");
 }
 
 export default function Runner({ test, start, onLocked, onExit, onFinish }: Props) {
   const [answers, setAnswers] = useState<Record<string, string>>(
     () => start.savedAnswers ?? {},
   );
+  const [flags, setFlags] = useState<Record<string, boolean>>(() => loadFlags(start.attemptId));
+  const [fontSize, setFontSize] = useState(() => getExamFontSize());
   const [savingId, setSavingId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+  const [leftWidth, setLeftWidth] = useState(50);
 
   const parts = useMemo(() => buildParts(start.questions), [start.questions]);
   const [partIdx, setPartIdx] = useState(0);
   const [currentNum, setCurrentNum] = useState(1);
 
+  // Reading marks (highlights + notes) per part index. Local-first: seeded
+  // from localStorage, merged with server savedMarks, synced back debounced.
+  const [marks, setMarks] = useState<Record<number, PartMarks>>(() => {
+    const init: Record<number, PartMarks> = {};
+    const count = buildParts(start.questions).length;
+    for (let i = 0; i < count; i++) init[i] = loadPartMarks(start.attemptId, i);
+    return init;
+  });
+  const marksTimers = useRef(new Map<number, number>());
+
+  // Merge server-saved marks once (resume on another device, etc.).
+  useEffect(() => {
+    const saved = start.savedMarks;
+    if (!saved) return;
+    const ownerIdx = new Map<string, number>();
+    parts.forEach((p, i) => {
+      const owner = materialOwnerId(p.items);
+      if (owner) ownerIdx.set(owner, i);
+    });
+    setMarks((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const [qid, m] of Object.entries(saved)) {
+        const idx = ownerIdx.get(qid);
+        if (idx == null) continue;
+        const merged = mergeMarks(next[idx] ?? { highlights: [], note: "" }, m);
+        if (JSON.stringify(merged) !== JSON.stringify(next[idx])) {
+          next[idx] = merged;
+          savePartMarks(start.attemptId, idx, merged);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced server sync timers die with the runner.
+  useEffect(
+    () => () => {
+      marksTimers.current.forEach((t) => window.clearTimeout(t));
+      marksTimers.current.clear();
+    },
+    [],
+  );
+
+  function updateMarks(idx: number, next: PartMarks) {
+    setMarks((prev) => ({ ...prev, [idx]: next }));
+    savePartMarks(start.attemptId, idx, next);
+    const owner = activePartOwner(idx);
+    if (!owner) return;
+    const prevTimer = marksTimers.current.get(idx);
+    if (prevTimer) window.clearTimeout(prevTimer);
+    marksTimers.current.set(
+      idx,
+      window.setTimeout(() => {
+        marksTimers.current.delete(idx);
+        // Silent on failure — local copy is the source of truth offline.
+        saveMarks(start.attemptId, owner, { highlights: next.highlights, note: next.note }).catch(
+          () => undefined,
+        );
+      }, 800),
+    );
+  }
+
+  function activePartOwner(idx: number): string | null {
+    const p = parts[idx];
+    return p ? materialOwnerId(p.items) : null;
+  }
+
   const rightScrollRef = useRef<HTMLDivElement | null>(null);
   const qRefs = useRef(new Map<number, HTMLElement>());
+  const dividerRef = useRef<HTMLDivElement | null>(null);
 
   const total = start.questions.length;
   const answered = useMemo(
@@ -255,12 +215,68 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
   const activePart = parts[partIdx] ?? null;
   const partFirst = activePart?.items[0]?.num ?? 1;
   const partLast = activePart?.items[activePart.items.length - 1]?.num ?? total;
+  const rangeLabel = total === 0 ? "0 questions" : `Q${partFirst}–Q${partLast}`;
+
+  const flaggedNums = useMemo(
+    () =>
+      start.questions
+        .map((q, i) => (flags[q.id] ? i + 1 : null))
+        .filter((n): n is number => n != null),
+    [flags, start.questions],
+  );
+  const unansweredNums = useMemo(
+    () =>
+      start.questions
+        .map((q, i) => ((answers[q.id] ?? "").trim() ? null : i + 1))
+        .filter((n): n is number => n != null),
+    [answers, start.questions],
+  );
+
+  // Dominant widget kind in the active part → contextual Help text.
+  const helpText = useMemo(() => {
+    if (!activePart) return helpTextFor("short_answer");
+    const counts = new Map<string, number>();
+    for (const it of activePart.items) {
+      const k = normalizeKind(it.q);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    let best = "short_answer";
+    let bestN = -1;
+    for (const [k, n] of counts) {
+      if (n > bestN) {
+        bestN = n;
+        best = k;
+      }
+    }
+    return helpTextFor(best as Parameters<typeof helpTextFor>[0]);
+  }, [activePart]);
+
+  function changeFont(px: number) {
+    const clamped = Math.min(20, Math.max(12, px));
+    setFontSize(clamped);
+    setExamFontSize(clamped);
+  }
+
+  function toggleFlag(questionId: string) {
+    setFlags((prev) => {
+      const next = { ...prev, [questionId]: !prev[questionId] };
+      if (!next[questionId]) delete next[questionId];
+      saveFlags(start.attemptId, next);
+      return next;
+    });
+  }
 
   function scrollToNum(num: number) {
     setCurrentNum(num);
     requestAnimationFrame(() => {
       qRefs.current.get(num)?.scrollIntoView({ behavior: "smooth", block: "start" });
     });
+  }
+
+  function jumpToNum(num: number) {
+    const owner = parts.findIndex((p) => p.items.some((it) => it.num === num));
+    if (owner !== -1 && owner !== partIdx) setPartIdx(owner);
+    scrollToNum(num);
   }
 
   function gotoPart(idx: number, num?: number) {
@@ -291,13 +307,8 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
     }
   }
 
-  async function handleSubmit() {
-    if (
-      getConfirmBeforeSubmit() &&
-      !confirm(`Submit ${answered}/${total} answered? Unanswered count as 0.`)
-    ) {
-      return;
-    }
+  async function doSubmit() {
+    setReviewOpen(false);
     setSubmitting(true);
     setError(null);
     try {
@@ -309,60 +320,88 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
     }
   }
 
+  function handleSubmitClick() {
+    if (getConfirmBeforeSubmit()) {
+      setReviewOpen(true);
+      return;
+    }
+    void doSubmit();
+  }
+
+  // Draggable split divider (mouse + touch).
+  useEffect(() => {
+    const bar = dividerRef.current;
+    if (!bar) return;
+    let dragging = false;
+    const onMove = (clientX: number) => {
+      if (!dragging) return;
+      const container = bar.parentElement;
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      if (rect.width <= 0) return;
+      const pct = ((clientX - rect.left) / rect.width) * 100;
+      setLeftWidth(Math.min(70, Math.max(30, Math.round(pct))));
+    };
+    const onMouseMove = (e: MouseEvent) => onMove(e.clientX);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) onMove(e.touches[0].clientX);
+    };
+    const stop = () => {
+      dragging = false;
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      e.preventDefault();
+      dragging = true;
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      e.preventDefault();
+      dragging = true;
+    };
+    bar.addEventListener("mousedown", onMouseDown);
+    bar.addEventListener("touchstart", onTouchStart, { passive: false });
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", stop);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", stop);
+    return () => {
+      bar.removeEventListener("mousedown", onMouseDown);
+      bar.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", stop);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", stop);
+    };
+  }, []);
+
+  const showListening = activePart != null && (isListening(activePart.section) || activePart.audioUrl != null);
+  const showReading = activePart != null && !showListening && activePart.passageText != null;
+  const showWriting =
+    activePart != null && !showListening && !showReading && isWriting(activePart.section);
+  const showSpeaking =
+    activePart != null && !showListening && !showReading && !showWriting && isSpeaking(activePart.section);
+  const speakingItem =
+    showSpeaking && activePart
+      ? (activePart.items.find((it) => it.num === currentNum) ?? activePart.items[0] ?? null)
+      : null;
+
   return (
     <section className="flex min-h-0 flex-1 flex-col">
-      {/* Compact exam header */}
-      <header className="flex shrink-0 items-center gap-4 border-b border-white/10 bg-[#101512]/90 px-5 py-2.5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="shrink-0 rounded-lg bg-[#19D36B]/12 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#19D36B] ring-1 ring-[#19D36B]/30">
-            IELTS Listening
-          </span>
-          <div className="min-w-0 leading-tight">
-            <p className="truncate text-sm font-bold text-white">{test.title}</p>
-            <p className="text-[11px] text-[#8D9891]">
-              {activePart
-                ? `Part ${partIdx + 1}/${parts.length} · ${activePart.section} · Q${partFirst}–Q${partLast}`
-                : `${total} questions`}
-            </p>
-          </div>
-        </div>
-        <div className="mx-auto hidden w-full max-w-xs items-center gap-2 xl:flex">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-[#19D36B] transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className="font-mono text-[11px] tabular-nums text-white/55">{progress}%</span>
-        </div>
-        <div className="ml-auto flex shrink-0 items-center gap-2">
-          {deadline != null && (
-            <span
-              className={`rounded-lg px-2.5 py-1 font-mono text-xs font-bold tabular-nums ring-1 ${
-                timeUp
-                  ? "bg-red-500/15 text-red-300 ring-red-500/40"
-                  : (remaining ?? 0) < 5 * 60_000
-                    ? "bg-amber-400/10 text-amber-200 ring-amber-400/30"
-                    : "bg-white/5 text-white/70 ring-white/10"
-              }`}
-              title="Time remaining"
-            >
-              ⏱ {remaining != null ? fmtTime(remaining / 1000) : "–:––"}
-            </span>
-          )}
-          <span className="rounded-lg bg-white/5 px-2.5 py-1 font-mono text-xs tabular-nums text-white/70 ring-1 ring-white/10">
-            {answered}/{total}
-          </span>
-          <button
-            type="button"
-            onClick={onExit}
-            title="Leave exam (answers are saved)"
-            className="btn-ghost rounded-lg px-2.5 py-1 text-xs text-white/60 hover:text-white"
-          >
-            ✕ Exit
-          </button>
-        </div>
-      </header>
+      <ExamHeader
+        testTitle={test.title}
+        section={activePart?.section ?? "exam"}
+        partIdx={partIdx}
+        partsLength={parts.length}
+        rangeLabel={rangeLabel}
+        progress={progress}
+        answered={answered}
+        total={total}
+        remainingMs={remaining}
+        timeUp={timeUp}
+        fontSize={fontSize}
+        onFontChange={changeFont}
+        helpText={helpText}
+        onExit={onExit}
+      />
 
       {timeUp && (
         <div className="shrink-0 border-b border-red-500/30 bg-red-500/10 px-5 py-2 text-center text-xs font-semibold text-red-200">
@@ -370,9 +409,12 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
         </div>
       )}
 
-      {/* Two-panel workspace — 50/50 side-by-side, full height */}
-      <div className="grid min-h-0 flex-1 grid-cols-2">
-        {/* LEFT — content: passage / listening / writing task */}
+      {/* Two-panel workspace — resizable, full height */}
+      <div
+        className="grid min-h-0 flex-1"
+        style={{ gridTemplateColumns: `${leftWidth}% 8px ${100 - leftWidth}%` }}
+      >
+        {/* LEFT — material: listening / reading / writing / speaking / fallback */}
         <aside className="flex min-h-0 min-w-0 flex-col border-r border-white/10 bg-[#0E1310]">
           <div className="shrink-0 border-b border-white/[0.07] px-5 pb-3 pt-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#19D36B]/80">
@@ -381,7 +423,6 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
             <h2 className="mt-1 text-lg font-black tracking-tight text-white">
               {activePart ? `${capitalize(activePart.section)} · Questions ${partFirst}–${partLast}` : "Material"}
             </h2>
-            {/* Part tabs */}
             <div className="mt-3 flex flex-wrap gap-1.5">
               {parts.map((p, i) => {
                 const done = p.items.filter((it) => (answers[it.q.id] ?? "").trim()).length;
@@ -406,30 +447,81 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-            {activePart?.audioUrl ? (
-              <AudioPlayer src={activePart.audioUrl} title={`${test.title} — Part ${partIdx + 1} audio`} />
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4" style={{ fontSize }}>
+            {activePart == null ? (
+              <p className="text-xs text-white/40">No material.</p>
+            ) : showListening ? (
+              activePart.audioUrl ? (
+                <ListeningPane
+                  src={activePart.audioUrl}
+                  title={`${test.title} — Part ${partIdx + 1} audio`}
+                  instructions={activePart.instructions}
+                />
+              ) : (
+                <div className="rounded-2xl bg-black/30 p-4 text-xs text-[#8D9891] ring-1 ring-white/10">
+                  No audio attached to this part. Answer from the material below.
+                </div>
+              )
+            ) : showReading ? (
+              <ReadingPane
+                passage={activePart.passageText ?? ""}
+                fontSize={fontSize}
+                instructions={activePart.instructions}
+                highlights={marks[partIdx]?.highlights ?? []}
+                note={marks[partIdx]?.note ?? ""}
+                onHighlightsChange={(h) =>
+                  updateMarks(partIdx, { highlights: h, note: marks[partIdx]?.note ?? "" })
+                }
+                onNoteChange={(n) =>
+                  updateMarks(partIdx, { highlights: marks[partIdx]?.highlights ?? [], note: n })
+                }
+              />
+            ) : showWriting ? (
+              <WritingPane
+                items={activePart.items}
+                answers={answers}
+                currentNum={currentNum}
+                fontSize={fontSize}
+                instructions={activePart.instructions}
+                onJump={jumpToNum}
+              />
+            ) : showSpeaking && speakingItem ? (
+              <SpeakingPane q={speakingItem.q} num={speakingItem.num} fontSize={fontSize} />
             ) : (
-              <div className="rounded-2xl bg-black/30 p-4 text-xs text-[#8D9891] ring-1 ring-white/10">
-                No audio attached to this part. Answer from the material below.
-              </div>
-            )}
-            {activePart?.instructions && (
-              <div className="mt-3 rounded-xl bg-[#19D36B]/[0.06] px-3.5 py-2.5 text-xs leading-relaxed text-emerald-100/90 ring-1 ring-[#19D36B]/20">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#19D36B]/80">Instructions</p>
-                <p className="mt-1 whitespace-pre-wrap">{activePart.instructions}</p>
-              </div>
-            )}
-            {activePart?.passageText && (
-              <div className="mt-3 rounded-xl bg-black/30 px-3.5 py-2.5 ring-1 ring-white/10">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">Material</p>
-                <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-white/70">
-                  {activePart.passageText}
-                </p>
-              </div>
+              <>
+                {activePart.instructions && (
+                  <div className="rounded-xl bg-[#19D36B]/[0.06] px-3.5 py-2.5 text-xs leading-relaxed text-emerald-100/90 ring-1 ring-[#19D36B]/20">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#19D36B]/80">Instructions</p>
+                    <p className="mt-1 whitespace-pre-wrap">{activePart.instructions}</p>
+                  </div>
+                )}
+                {activePart.passageText ? (
+                  <div className="mt-3 rounded-xl bg-black/30 px-3.5 py-2.5 ring-1 ring-white/10">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">Material</p>
+                    <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-white/70">
+                      {activePart.passageText}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-2xl bg-black/30 p-4 text-xs text-[#8D9891] ring-1 ring-white/10">
+                    Answer the questions on the right.
+                  </div>
+                )}
+              </>
             )}
           </div>
         </aside>
+
+        {/* Draggable divider */}
+        <div
+          ref={dividerRef}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize panels (drag)"
+          title="Drag to resize · double-click to reset"
+          onDoubleClick={() => setLeftWidth(50)}
+          className="cursor-col-resize bg-white/[0.06] transition hover:bg-[#19D36B]/40"
+        />
 
         {/* RIGHT — questions */}
         <div className="flex min-h-0 min-w-0 flex-col bg-[#0B0F0D]">
@@ -448,8 +540,8 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
             <ol className="mx-auto w-full max-w-3xl space-y-3">
               {activePart?.items.map(({ q, num }) => {
                 const done = (answers[q.id] ?? "").trim().length > 0;
-                const hasOptions = Array.isArray(q.options) && q.options.length > 0;
-                const isLong = q.type === "essay" || q.type === "speaking_prompt";
+                const flagged = Boolean(flags[q.id]);
+                const kind = normalizeKind(q);
                 return (
                   <li
                     key={q.id}
@@ -464,68 +556,41 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
                   >
                     <div className="flex items-center gap-2.5">
                       <span
-                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg text-xs font-black ${
-                          done ? "bg-[#19D36B] text-black" : "bg-white/10 text-white/55"
-                        }`}
+                        className={`grid h-7 w-7 shrink-0 place-items-center text-xs font-black ${
+                          flagged ? "rounded-full" : "rounded-lg"
+                        } ${done ? "bg-[#19D36B] text-black" : "bg-white/10 text-white/55"}`}
                       >
                         {done ? "✓" : num}
                       </span>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#626B65]">
-                        Q{num} · {q.section} · {q.type.replace("_", " ")} · {q.maxScore} pt
+                      <p className="min-w-0 flex-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#626B65]">
+                        Q{num} · {q.section} · {kindLabel(kind)} · {q.maxScore} pt
                       </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFlag(q.id);
+                        }}
+                        aria-pressed={flagged}
+                        title={flagged ? "Unflag (remove from review)" : "Flag for review"}
+                        className={`shrink-0 rounded-lg px-2 py-1 text-xs ring-1 transition ${
+                          flagged
+                            ? "bg-amber-400/15 text-amber-200 ring-amber-400/50"
+                            : "bg-white/[0.04] text-white/35 ring-white/10 hover:text-white"
+                        }`}
+                      >
+                        {flagged ? "⚑ flagged" : "⚑ flag"}
+                      </button>
                     </div>
-                    <p className="mt-2.5 whitespace-pre-wrap text-sm leading-relaxed text-[#F2F5F3]">
+                    <p className="mt-2.5 whitespace-pre-wrap leading-relaxed text-[#F2F5F3]" style={{ fontSize }}>
                       {q.prompt}
                     </p>
-                    {hasOptions ? (
-                      <ul className="mt-3 space-y-1.5">
-                        {q.options!.map((o, oi) => {
-                          const selected = answers[q.id] === o;
-                          return (
-                            <li key={oi}>
-                              <button
-                                type="button"
-                                onClick={() => void handleAnswer(q.id, o)}
-                                aria-pressed={selected}
-                                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-[13px] ring-1 transition ${
-                                  selected
-                                    ? "bg-[#19D36B]/12 text-white ring-[#19D36B]/50"
-                                    : "bg-black/30 text-white/70 ring-white/10 hover:border-white/25 hover:ring-white/25"
-                                }`}
-                              >
-                                <span
-                                  className={`grid size-5 shrink-0 place-items-center rounded-full border text-[11px] font-bold ${
-                                    selected
-                                      ? "border-[#19D36B] bg-[#19D36B] text-black"
-                                      : "border-white/25 text-white/50"
-                                  }`}
-                                >
-                                  {selected ? "✓" : String.fromCharCode(65 + oi)}
-                                </span>
-                                <span>{o}</span>
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : isLong ? (
-                      <textarea
-                        value={answers[q.id] ?? ""}
-                        onChange={(e) => void handleAnswer(q.id, e.target.value)}
-                        placeholder="Write your answer here…"
-                        rows={5}
-                        className="field mt-3 min-h-28 w-full rounded-xl px-3 py-2.5 text-sm leading-relaxed"
-                      />
-                    ) : (
-                      <input
-                        value={answers[q.id] ?? ""}
-                        onChange={(e) => void handleAnswer(q.id, e.target.value)}
-                        placeholder="Type your answer…"
-                        autoComplete="off"
-                        spellCheck={false}
-                        className="field mt-3 w-full rounded-xl px-3 py-2.5 font-mono text-sm"
-                      />
-                    )}
+                    <AnswerWidgets
+                      q={q}
+                      value={answers[q.id] ?? ""}
+                      onChange={(v) => void handleAnswer(q.id, v)}
+                      fontSize={fontSize}
+                    />
                     {savingId === q.id && (
                       <p className="mt-1.5 text-[11px] text-white/30">Saving…</p>
                     )}
@@ -563,36 +628,15 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
         <span className="hidden shrink-0 font-mono text-[11px] tabular-nums text-white/45 md:inline">
           Q{currentNum}/{total}
         </span>
-        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 py-0.5" role="navigation" aria-label="Questions">
-          {start.questions.map((q, i) => {
-            const n = i + 1;
-            const done = (answers[q.id] ?? "").trim().length > 0;
-            const cur = n === currentNum;
-            return (
-              <button
-                key={q.id}
-                type="button"
-                onClick={() => {
-                  const owner = parts.findIndex((p) => p.items.some((it) => it.num === n));
-                  if (owner !== -1 && owner !== partIdx) setPartIdx(owner);
-                  scrollToNum(n);
-                }}
-                title={`Question ${n}${done ? " (answered)" : ""}`}
-                aria-label={`Question ${n}${done ? ", answered" : ""}`}
-                aria-current={cur ? "true" : undefined}
-                className={`grid h-7 w-7 shrink-0 place-items-center rounded-lg font-mono text-[11px] font-bold ring-1 transition ${
-                  cur
-                    ? "bg-[#19D36B] text-black ring-[#19D36B]"
-                    : done
-                      ? "bg-[#19D36B]/15 text-[#19D36B] ring-[#19D36B]/40 hover:bg-[#19D36B]/25"
-                      : "bg-white/[0.05] text-white/45 ring-white/10 hover:text-white"
-                }`}
-              >
-                {done && !cur ? "✓" : n}
-              </button>
-            );
-          })}
-        </div>
+        <button
+          type="button"
+          onClick={() => setReviewOpen(true)}
+          title="Review flagged and unanswered before submitting"
+          className="btn-ghost hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold text-white/70 hover:text-white sm:inline"
+        >
+          Review{flaggedNums.length > 0 ? ` (${flaggedNums.length} ⚑)` : ""}
+        </button>
+        <div className="min-w-0 flex-1" />
         <button
           type="button"
           onClick={onLocked}
@@ -603,17 +647,36 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
         </button>
         <button
           type="button"
-          onClick={() => void handleSubmit()}
+          onClick={handleSubmitClick}
           disabled={submitting || total === 0}
           className="shrink-0 rounded-lg bg-[#19D36B] px-5 py-1.5 text-xs font-black text-black shadow-[0_0_20px_rgba(25,211,107,0.3)] transition hover:brightness-110 disabled:opacity-50"
         >
           {submitting ? "Submitting…" : `Submit ${answered}/${total}`}
         </button>
       </footer>
+
+      <QuestionPalette
+        total={total}
+        answers={answers}
+        questionIds={start.questions.map((q) => q.id)}
+        flags={flags}
+        currentNum={currentNum}
+        onJump={jumpToNum}
+        collapsed={paletteCollapsed}
+        onToggle={() => setPaletteCollapsed((v) => !v)}
+      />
+
+      <ReviewModal
+        open={reviewOpen}
+        answered={answered}
+        total={total}
+        flaggedNums={flaggedNums}
+        unansweredNums={unansweredNums}
+        submitting={submitting}
+        onJump={jumpToNum}
+        onClose={() => setReviewOpen(false)}
+        onSubmit={() => void doSubmit()}
+      />
     </section>
   );
-}
-
-function capitalize(s: string): string {
-  return s.length === 0 ? s : s.charAt(0).toUpperCase() + s.slice(1);
 }

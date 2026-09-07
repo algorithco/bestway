@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import AttemptReview from "@/components/exam/AttemptReview";
 import { myAttempts, type AttemptSummary } from "@/lib/tests";
 
 type Props = {
@@ -38,6 +39,7 @@ export default function History({ refreshKey = 0, onStats }: Props) {
   const [attempts, setAttempts] = useState<AttemptSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,7 +120,10 @@ export default function History({ refreshKey = 0, onStats }: Props) {
 
       {!loading && !error && attempts && attempts.length > 0 && (
         <ul className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
-          {attempts.map((a) => (
+          {attempts.map((a) => {
+            const open = expandedId === a.id;
+            const reviewable = a.status !== "in_progress";
+            return (
             <li key={a.id} className="card rounded-2xl p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -143,8 +148,24 @@ export default function History({ refreshKey = 0, onStats }: Props) {
                   </span>
                 </div>
               </div>
+              {reviewable && (
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(open ? null : a.id)}
+                  aria-expanded={open}
+                  className="btn-ghost mt-3 w-full rounded-xl px-3 py-2 text-xs font-semibold text-white/70 hover:text-white"
+                >
+                  {open ? "▾ Hide answer review" : "⌖ Review answers — locate & explain"}
+                </button>
+              )}
+              {open && (
+                <div className="mt-3 border-t border-white/10 pt-3">
+                  <AttemptReview attemptId={a.id} />
+                </div>
+              )}
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </section>

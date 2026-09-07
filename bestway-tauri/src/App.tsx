@@ -349,6 +349,7 @@ export default function App() {
                   testTitle={activeTest?.title ?? null}
                   autoScore={lastScore?.autoScore ?? null}
                   maxScore={resultMax}
+                  attemptId={activeStart?.attemptId ?? null}
                   onBack={handleBackToExams}
                   onHistory={() => navigate("history")}
                 />
