@@ -71,9 +71,11 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   const flag = useFlagMockCheat(attempt.id);
   const advance = useAdvanceMockSection(attempt.id);
 
-  // Full-test (exam, strict) vs practice (lenient) — qaror #4.
+  // Timed = exam-strict playback (full_test ham, single_skill ham).
+  // Eslatma: `strict` clipboard/contextmenu bloklashni ham yoqadi — Timed
+  // Reading/Writing single_skill da ham ataylab bloklanadi (exam sharti, izchil).
   const isFullTest = (attempt.flowMode ?? "single_skill") === "full_test";
-  const strict = isFullTest && attempt.mode === "timed";
+  const strict = attempt.mode === "timed";
 
   // Boshlang'ich javoblar + speaking audio holati (attempt'dan)
   const initial = React.useMemo(() => {
@@ -181,6 +183,14 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
       toast.error(e instanceof Error ? e.message : tc("unknownError"));
     }
   }, [advance, flush, tc]);
+
+  // Listening review tugashi: full_test da keyingi bo'limga, single_skill da
+  // bo'lim yagona bo'lgani uchun to'g'ridan-to'g'ri auto-submit (advanceSection
+  // faqat full_test'da ishlaydi).
+  const onListeningReviewComplete = React.useCallback(() => {
+    if (isFullTest) void goNextSection();
+    else void doSubmit(true);
+  }, [isFullTest, goNextSection, doSubmit]);
 
   // Anti-cheat: warn-only (qaror #5) — tab/blur ni qayd etadi, imtihonni to'xtatmaydi.
   // Clipboard (copy/cut/paste) + contextmenu + drag ildizda bloklanadi (spec §7).
@@ -321,7 +331,7 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
               answers={answers}
               audioSet={audioSet}
               onAnswer={setAnswer}
-              onReviewComplete={section.skill === "listening" ? () => void goNextSection() : undefined}
+              onReviewComplete={section.skill === "listening" ? onListeningReviewComplete : undefined}
             />
           ))}
         </div>

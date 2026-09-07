@@ -230,7 +230,7 @@ export function SpeakingSectionPanel({
             </Field>
             <Field
               label={tx(t, "duration", "Duration (minutes)")}
-              hint={tx(t, "durationHint", "Required for Timed mode. Empty = untimed.")}
+              hint={tx(t, "durationHintSpeaking", "Not used for timing in Timed exam mode — Speaking has no overall time limit; students end this section by submitting manually.")}
               htmlFor="ss-dur"
             >
               <Input

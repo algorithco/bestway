@@ -924,6 +924,8 @@
     "settings": "settings",
     "duration": "Duration (minutes)",
     "durationHint": "Required for Timed mode. Empty = untimed.",
+    "durationHintListening": "Not used for timing in Timed exam mode — Listening duration is calculated automatically from the audio length plus a 2-minute review period. This field is informational only.",
+    "durationHintSpeaking": "Not used for timing in Timed exam mode — Speaking has no overall time limit; students end this section by submitting manually.",
     "sectionInstructions": "Section instructions",
     "sectionInstrHint": "Shown once at the start of this section.",
     "deleteSection": "Delete section",

@@ -923,6 +923,8 @@
     "settings": "sozlamalar",
     "duration": "Davomiylik (daqiqa)",
     "durationHint": "Vaqtli rejim uchun shart. Bo‘sh = vaqtsiz.",
+    "durationHintListening": "Timed imtihon rejimida vaqt uchun ishlatilmaydi — Listening davomiyligi audio uzunligidan avtomatik hisoblanadi (ustiga 2 daqiqa review). Bu maydon faqat ma’lumot uchun.",
+    "durationHintSpeaking": "Timed imtihon rejimida vaqt uchun ishlatilmaydi — Speaking'da umumiy vaqt cheklovi yo‘q; o‘quvchi bo‘limni o‘zi yakunlaydi.",
     "sectionInstructions": "Bo‘lim yo‘riqnomasi",
     "sectionInstrHint": "Bo‘lim boshida bir marta ko‘rsatiladi.",
     "deleteSection": "Bo‘limni o‘chirish",

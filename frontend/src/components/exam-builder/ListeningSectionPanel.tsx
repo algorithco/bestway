@@ -259,7 +259,7 @@ export function ListeningSectionPanel({
             </Field>
             <Field
               label={tx(t, "duration", "Duration (minutes)")}
-              hint={tx(t, "durationHint", "Required for Timed mode. Empty = untimed.")}
+              hint={tx(t, "durationHintListening", "Not used for timing in Timed exam mode — Listening duration is calculated automatically from the audio length plus a 2-minute review period. This field is informational only.")}
               htmlFor="ls-dur"
             >
               <Input
