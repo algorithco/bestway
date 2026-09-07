@@ -1,4 +1,4 @@
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsArray, IsOptional, IsInt, Max, Min } from 'class-validator';
 
 export class UpdateSettingsDto {
   /** O'qituvchi bir amalda qo'sha/ayira oladigan maksimal ball */
@@ -28,4 +28,23 @@ export class UpdateSettingsDto {
   @Min(1)
   @Max(100000)
   gameThreshold?: number;
+}
+
+/**
+ * IELTS xom→band jadvallari (super_admin). Har bir jadval
+ * `[[minRaw 0..40, band 0..9 (0.5 qadam)], ...]` — batafsil tekshiruv
+ * `parseBandTable` da (service). Berilmagan jadval o'zgarmaydi.
+ */
+export class UpdateIeltsBandsDto {
+  @IsOptional()
+  @IsArray()
+  listening?: unknown;
+
+  @IsOptional()
+  @IsArray()
+  readingAcademic?: unknown;
+
+  @IsOptional()
+  @IsArray()
+  readingGeneral?: unknown;
 }

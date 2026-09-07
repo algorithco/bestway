@@ -323,6 +323,27 @@ export interface UpdateSettingsInput {
   gameThreshold?: number;
 }
 
+/* ── IELTS band tables (super_admin) ─────────────────────────────────────── */
+
+/** Xom→band jadvali: [[minRaw 0..40, band 0..9], ...] (kamayuvchi tartib) */
+export type BandTable = Array<[number, number]>;
+
+export interface IeltsBands {
+  listening: BandTable;
+  readingAcademic: BandTable;
+  readingGeneral: BandTable;
+}
+
+export interface IeltsBandsResponse extends IeltsBands {
+  customized: Record<keyof IeltsBands, boolean>;
+}
+
+export interface UpdateIeltsBandsInput {
+  listening?: BandTable;
+  readingAcademic?: BandTable;
+  readingGeneral?: BandTable;
+}
+
 /* ── Articles ────────────────────────────────────────────────────────────── */
 
 export interface Article {

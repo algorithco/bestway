@@ -326,13 +326,13 @@ Real IELTS/Multilevel mock imtihon tizimi. Mavjud `/tests` moduliga **tegmaydi**
 |---|---|---|---|---|
 | GET | `/mock/attempts?status=&studentId=&examId=` | teacher, admin | — | Paginated (teacher: faqat o'z guruhi) |
 | GET | `/mock/attempts/:attemptId` | tegishli rollar | — | Urinish + `sections` (javoblar, ball, band); xodim: `correctAnswers`, `cheatEvents` |
-| POST | `/mock/attempts/:attemptId/grade` | teacher, admin | `{ questionId, score, feedback? }` | `{ saved, status }` |
+| POST | `/mock/attempts/:attemptId/grade` | teacher, admin | `{ questionId, score?, feedback?, rubricScores? }` | `{ saved, status }` |
 | GET | `/mock/attempts/:attemptId/certificate` | tegishli rollar | — | PDF (band/CEFR bilan) |
 
 **Baholash qoidalari:**
 - **Listening/Reading** — avtomatik (`correctAnswers` bo'yicha). Moslik: registr/probel/tinish belgisiga sezgir emas, boshidagi `a/an/the` ixtiyoriy, raqam↔so'z ekvivalent (`"3"=="three"`). `multi_select` — tanlovlar to'plami aynan mos kelishi kerak.
-- **Writing/Speaking** — qo'lda (`grade`). IELTS uchun `score` = band (0–9, 0.5 qadam), savol `points`=9. Barcha qo'lda savollar baholangach urinish `completed` bo'ladi.
-- **IELTS band**: har bo'lim xom bali 40 balllik ekvivalentga keltirilib standart jadval bo'yicha bandga aylanadi. Writing bo'lim bandi `(task1 + 2·task2)/3`. `overallBand` = 4 bo'lim o'rtachasi (0.5 ga yaxlitlangan). `cefrLevel` banddan chiqariladi.
+- **Writing/Speaking** — qo'lda (`grade`). IELTS uchun `score` = band (0–9, 0.5 qadam), savol `points`=9. `rubricScores` — writing `{ta,cc,lr,gra}` / speaking `{fluency,lexical,grammar,pronunciation}` (har biri 0–9, 0.5 qadam). `score` berilmasa va 4 ta mezon to'liq bo'lsa — score rubric o'rtachasidan avtomatik hisoblanadi. Barcha qo'lda savollar baholangach urinish `completed` bo'ladi.
+- **IELTS band**: har bo'lim xom bali 40 balllik ekvivalentga keltirilib jadval bo'yicha bandga aylanadi. Jadvallar standart (Listening: 39–40=9 … 11–12=4; Reading Academic: 39–40=9 … 10–12=4; Reading GT: 40=9 … 15–18=4; pastdagilar — quyi bandlar) va super_admin `PUT /settings/ielts-bands` orqali har bir test formasi uchun tahrirlashi mumkin (equating). Writing bo'lim bandi `(task1 + 2·task2)/3`. `overallBand` = 4 bo'lim o'rtachasi, rasmiy yaxlitlash bilan (.25 → keyingi .5 ga, .75 → keyingi butunga; masalan 6.625 → 6.5, 6.75 → 7.0). Writing/Speaking baholanmaguncha `overallBand: null` ("Pending") — qisman xom ball final sifatida ko'rsatilmaydi. `cefrLevel` banddan chiqariladi.
 - **Multilevel**: band hisoblanmaydi; `cefrLevel` umumiy foizdan (`A1..C1`) aniqlanadi, `sectionBands`/`overallBand` = `null`.
 - `submit` da qo'lda savol qolgan bo'lsa `status: "grading"` va `overallBand: null` (avto bo'lim bandlari allaqachon `sectionBands` da). Sanitizatsiya: `start` va o'quvchi `GET /mock/exams/:id` da `correctAnswers` **yuborilmaydi**.
 - `durationMinutes` — bo'limlar vaqtlari yig'indisi (frontend har bo'lim uchun alohida taymer qo'yishi mumkin).
@@ -421,6 +421,9 @@ Real IELTS/Multilevel mock imtihon tizimi. Mavjud `/tests` moduliga **tegmaydi**
 |---|---|---|---|---|
 | GET | `/settings` | teacher, admin, super_admin | — | `{ teacherPointLimit: 20, initialPoints: 100 }` |
 | PATCH | `/settings` | **super_admin** | `{ teacherPointLimit?, initialPoints? }` | Yangilangan sozlamalar |
+| GET | `/settings/ielts-bands` | teacher, admin, super_admin | — | `{ listening, readingAcademic, readingGeneral, customized }` — amaldagi xom→band jadvallari `[[minRaw, band], ...]` |
+| PUT | `/settings/ielts-bands` | **super_admin** | `{ listening?, readingAcademic?, readingGeneral? }` | Yangilangan jadvallar (berilmagani o'zgarmaydi) |
+| DELETE | `/settings/ielts-bands` | **super_admin** | — | Standart jadvallarga qaytarildi |
 | GET | `/audit-logs?entity=&userId=&action=` | **super_admin** | — | Paginated audit jurnali |
 | GET | `/health` | ochiq | — | `{ status: "ok", time }` |
 

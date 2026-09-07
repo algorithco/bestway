@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuditService } from '../audit/audit.service';
 import { CurrentUser, Roles } from '../common/decorators';
+import { AppException } from '../common/app.exception';
 import { AuthUser } from '../common/types';
-import { UpdateSettingsDto } from './dto/settings.dto';
+import { parseBandTable } from '../mock/mock-scoring';
+import { UpdateIeltsBandsDto, UpdateSettingsDto } from './dto/settings.dto';
 import { SETTING_KEYS, SettingsService } from './settings.service';
 
 @ApiTags('settings')
@@ -43,6 +45,69 @@ export class SettingsController {
     await this.audit.log({
       userId: user.id,
       action: 'settings.update',
+      entity: 'setting',
+      oldValue: old,
+      newValue: fresh,
+    });
+    return fresh;
+  }
+
+  /** IELTS xom→band jadvallari (amaldagi — standart yoki admin tahrirlagan) */
+  @Get('ielts-bands')
+  @Roles('super_admin', 'admin', 'teacher')
+  async getBands() {
+    const [tables, customized] = await Promise.all([
+      this.settings.getBandTables(),
+      this.settings.bandTablesCustomized(),
+    ]);
+    return { ...tables, customized };
+  }
+
+  /** Band jadvallarini yangilash — faqat Super Admin (equating uchun) */
+  @Put('ielts-bands')
+  @Roles('super_admin')
+  async updateBands(@CurrentUser() user: AuthUser, @Body() dto: UpdateIeltsBandsDto) {
+    const old = await this.settings.getBandTables();
+    const apply = (input: unknown, key: string) => {
+      if (input === undefined) return null;
+      try {
+        return { key, table: parseBandTable(input) };
+      } catch (e) {
+        throw new AppException('VALIDATION_ERROR', (e as Error).message, 400);
+      }
+    };
+    for (const item of [
+      apply(dto.listening, SETTING_KEYS.ieltsBandListening),
+      apply(dto.readingAcademic, SETTING_KEYS.ieltsBandReadingAcademic),
+      apply(dto.readingGeneral, SETTING_KEYS.ieltsBandReadingGeneral),
+    ]) {
+      if (item) await this.settings.setJson(item.key, item.table);
+    }
+    const fresh = await this.settings.getBandTables();
+    await this.audit.log({
+      userId: user.id,
+      action: 'settings.ielts-bands.update',
+      entity: 'setting',
+      oldValue: old,
+      newValue: fresh,
+    });
+    return fresh;
+  }
+
+  /** Band jadvallarini standartga qaytarish — faqat Super Admin */
+  @Delete('ielts-bands')
+  @Roles('super_admin')
+  async resetBands(@CurrentUser() user: AuthUser) {
+    const old = await this.settings.getBandTables();
+    await Promise.all([
+      this.settings.deleteKey(SETTING_KEYS.ieltsBandListening),
+      this.settings.deleteKey(SETTING_KEYS.ieltsBandReadingAcademic),
+      this.settings.deleteKey(SETTING_KEYS.ieltsBandReadingGeneral),
+    ]);
+    const fresh = await this.settings.getBandTables();
+    await this.audit.log({
+      userId: user.id,
+      action: 'settings.ielts-bands.reset',
       entity: 'setting',
       oldValue: old,
       newValue: fresh,

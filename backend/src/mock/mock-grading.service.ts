@@ -25,9 +25,12 @@ import {
   bandFromRaw,
   cefrFromBand,
   cefrFromPercent,
+  criteriaAverage,
   overallBand as computeOverallBand,
   roundHalfBand,
+  rubricKeysFor,
 } from './mock-scoring';
+import { SettingsService } from '../settings/settings.service';
 
 interface SectionAgg {
   skill: MockSkill;
@@ -55,6 +58,7 @@ export class MockGradingService {
     private readonly notifications: NotificationsService,
     private readonly storage: StorageService,
     private readonly audit: AuditService,
+    private readonly settings: SettingsService,
     config: ConfigService,
   ) {
     this.base = `${config.get<string>('PUBLIC_URL') ?? 'http://localhost:3001'}/v1`;
@@ -204,20 +208,41 @@ export class MockGradingService {
     if (AUTO_SKILLS.includes(question.group.section.skill)) {
       throw new AppException('NOT_MANUAL_QUESTION', 'Bu savol avtomatik baholanadi', 400);
     }
+    const skill = question.group.section.skill;
+    this.validateRubrics(skill, dto.rubricScores);
+
+    // Score berilmasa — 4 ta rubric to'liq bo'lsa o'rtachadan hisoblanadi.
+    let finalScore = dto.score;
+    if (finalScore === undefined) {
+      const allowed = rubricKeysFor(skill);
+      const values = allowed.map((k) => dto.rubricScores?.[k]);
+      if (
+        dto.rubricScores &&
+        values.every((v) => typeof v === 'number' && !Number.isNaN(v))
+      ) {
+        finalScore = criteriaAverage(values as number[]) ?? undefined;
+      }
+      if (finalScore === undefined) {
+        throw new AppException(
+          'SCORE_REQUIRED',
+          'Ball kiriting yoki 4 ta mezonni to‘liq baholang',
+          400,
+        );
+      }
+    }
     // Server-side clamp (ilgari faqat frontend cheklagan): 0..points.
-    if (dto.score < 0 || dto.score > question.points) {
+    if (finalScore < 0 || finalScore > question.points) {
       throw new AppException(
         'SCORE_OUT_OF_RANGE',
         `Ball 0 dan ${question.points} gacha bo'lishi kerak`,
         400,
       );
     }
-    this.validateRubrics(question.group.section.skill, dto.rubricScores);
 
     await this.prisma.mockAnswer.upsert({
       where: { attemptId_questionId: { attemptId, questionId: dto.questionId } },
       update: {
-        score: dto.score,
+        score: finalScore,
         isGraded: true,
         gradedById: teacher.id,
         feedback: dto.feedback ?? null,
@@ -227,7 +252,7 @@ export class MockGradingService {
         attemptId,
         questionId: dto.questionId,
         response: '',
-        score: dto.score,
+        score: finalScore,
         isGraded: true,
         gradedById: teacher.id,
         feedback: dto.feedback,
@@ -241,7 +266,7 @@ export class MockGradingService {
       action: 'mock.answer.grade',
       entity: 'mockAnswer',
       entityId: dto.questionId,
-      newValue: { attemptId, score: dto.score, status: result.status },
+      newValue: { attemptId, score: finalScore, status: result.status },
     });
     if (result.status === 'completed') await this.notifyResult(attemptId);
     return { saved: true, status: result.status };
@@ -261,6 +286,8 @@ export class MockGradingService {
     const answerByQ = new Map(attempt.answers.map((a) => [a.questionId, a]));
     const examType = attempt.exam.type;
     const isIelts = examType === 'ielts_academic' || examType === 'ielts_general';
+    // Admin tahrirlagan xom→band jadvallari (bo'lmasa standart).
+    const bandTables = isIelts ? await this.settings.getBandTables() : undefined;
     const updates: Prisma.PrismaPromise<unknown>[] = [];
     const aggs: SectionAgg[] = [];
 
@@ -321,7 +348,7 @@ export class MockGradingService {
       for (const a of aggs) {
         if (a.max === 0) continue;
         if (!a.manual) {
-          bands[a.skill] = bandFromRaw(a.skill, examType, a.score, a.max);
+          bands[a.skill] = bandFromRaw(a.skill, examType, a.score, a.max, bandTables);
         } else if (!a.manualPending) {
           bands[a.skill] = this.manualSectionBand(a.skill, a.tasks);
         }
@@ -564,19 +591,19 @@ export class MockGradingService {
 
   // ─────────────────────────── Helpers ───────────────────────────
 
-  /** Rubric kalitlari: writing {ta,cc,lr,gra}, speaking {fluency,lexical,grammar,pronunciation} — qiymat 0..9. */
+  /** Rubric kalitlari: writing {ta,cc,lr,gra}, speaking {fluency,lexical,grammar,pronunciation} — qiymat 0..9, 0.5 qadam. */
   private validateRubrics(skill: MockSkill, rubrics: Record<string, number> | undefined): void {
     if (rubrics === undefined) return;
-    const allowed =
-      skill === 'writing'
-        ? ['ta', 'cc', 'lr', 'gra']
-        : ['fluency', 'lexical', 'grammar', 'pronunciation'];
+    const allowed = rubricKeysFor(skill);
     for (const [key, value] of Object.entries(rubrics)) {
       if (!allowed.includes(key)) {
         throw new AppException('VALIDATION_ERROR', `Noma'lum rubric: ${key}`, 400);
       }
       if (typeof value !== 'number' || Number.isNaN(value) || value < 0 || value > 9) {
         throw new AppException('VALIDATION_ERROR', `Rubric "${key}" 0 dan 9 gacha bo'lsin`, 400);
+      }
+      if (Math.round(value * 2) !== value * 2) {
+        throw new AppException('VALIDATION_ERROR', `Rubric "${key}" 0.5 qadamda bo'lsin`, 400);
       }
     }
   }

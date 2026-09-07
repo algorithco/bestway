@@ -440,11 +440,16 @@ export class GradeMockAnswerDto {
   @IsNotEmpty()
   questionId: string;
 
-  /** Writing/Speaking uchun band (0–9) yoki ball (0..points), 0.5 qadam mumkin */
+  /**
+   * Writing/Speaking uchun band (0–9) yoki ball (0..points), 0.5 qadam mumkin.
+   * Ixtiyoriy: berilmasa va 4 ta rubric to'liq kiritilsa — score rubric
+   * o'rtachasidan avtomatik hisoblanadi.
+   */
+  @IsOptional()
   @Type(() => Number)
   @IsNumber()
   @Min(0)
-  score: number;
+  score?: number;
 
   @IsOptional()
   @IsString()

@@ -32,6 +32,8 @@ export function MockResultView({ attempt }: { attempt: MockAttemptDetail }) {
 
   const isIelts = attempt.examType !== "multilevel";
   const completed = attempt.status === "completed";
+  // IELTS: Overall Band faqat 4 bo'lim baholangach chiqadi — aks holda Pending.
+  const gradedCount = attempt.sections.filter((s) => s.band != null).length;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -73,7 +75,17 @@ export function MockResultView({ attempt }: { attempt: MockAttemptDetail }) {
           </div>
         )}
 
-        {/* Bo'lim ballari */}
+        {!completed && isIelts && (
+          <div className="mt-4">
+            <p className="text-xs tracking-wide text-fg-subtle uppercase">{t("overallBand")}</p>
+            <p className="text-3xl font-bold text-fg-muted tabular-nums">{t("overallPending")}</p>
+            <p className="mt-1 text-xs text-fg-subtle tabular-nums">
+              {t("sectionsGraded", { done: gradedCount, total: attempt.sections.length })}
+            </p>
+          </div>
+        )}
+
+        {/* Bo'lim ballari — IELTS da har doim BAND (xom ball emas); baholanmagan bo'lim Pending */}
         <div className="mt-5 grid gap-2 sm:grid-cols-2">
           {attempt.sections.map((s) => (
             <div
@@ -82,8 +94,10 @@ export function MockResultView({ attempt }: { attempt: MockAttemptDetail }) {
             >
               <span className="text-sm font-medium text-fg">{t(`skills.${s.skill}`)}</span>
               <span className="text-sm text-fg-muted tabular-nums">
-                {s.band != null && isIelts ? (
+                {s.band != null ? (
                   <span className="font-bold text-brand">{s.band}</span>
+                ) : isIelts ? (
+                  t("awaitingGrade")
                 ) : s.score != null && s.max != null ? (
                   `${s.score}/${s.max}`
                 ) : (
@@ -332,33 +346,44 @@ function GradeForm({
   );
   const saving = grade.isPending && grade.variables?.questionId === q.id;
   const rubricDefs = RUBRICS[skill] ?? [];
-  const rubricAvg =
+  const rubricsComplete =
     rubricDefs.length > 0 &&
-    rubricDefs.every((r) => rubrics[r.key] !== undefined && rubrics[r.key] !== "" && !Number.isNaN(Number(rubrics[r.key])))
-      ? rubricDefs.reduce((s, r) => s + Number(rubrics[r.key]), 0) / rubricDefs.length
-      : null;
+    rubricDefs.every(
+      (r) => rubrics[r.key] !== undefined && rubrics[r.key] !== "" && !Number.isNaN(Number(rubrics[r.key])),
+    );
+  const rubricAvg = rubricsComplete
+    ? rubricDefs.reduce((s, r) => s + Number(rubrics[r.key]), 0) / rubricDefs.length
+    : null;
+  const roundedAvg = rubricAvg != null ? Math.round(rubricAvg * 2) / 2 : null;
 
   function save() {
-    const n = Number(score);
-    if (Number.isNaN(n) || n < 0 || n > q.points) {
-      toast.error(`${t("score")}: 0–${q.points}`);
-      return;
-    }
     const rubricScores: Record<string, number> = {};
     for (const r of rubricDefs) {
       const raw = rubrics[r.key];
       if (raw === undefined || raw === "") continue;
       const v = Number(raw);
-      if (Number.isNaN(v) || v < 0 || v > 9) {
-        toast.error(`${r.label}: 0–9`);
+      if (Number.isNaN(v) || v < 0 || v > 9 || Math.round(v * 2) !== v * 2) {
+        toast.error(`${r.label}: 0–9 (0.5)`);
         return;
       }
       rubricScores[r.key] = v;
     }
+    // Ball bo'sh qoldirilsa — 4 ta mezon to'liq bo'lganda backend o'rtachadan hisoblaydi.
+    let n: number | undefined;
+    if (score.trim() !== "") {
+      n = Number(score);
+      if (Number.isNaN(n) || n < 0 || n > q.points) {
+        toast.error(`${t("score")}: 0–${q.points}`);
+        return;
+      }
+    } else if (Object.keys(rubricScores).length !== rubricDefs.length) {
+      toast.error(t("scoreOrRubrics"));
+      return;
+    }
     grade.mutate(
       {
         questionId: q.id,
-        score: n,
+        ...(n !== undefined ? { score: n } : {}),
         feedback: feedback.trim() || undefined,
         rubricScores: Object.keys(rubricScores).length ? rubricScores : undefined,
       },
@@ -385,9 +410,12 @@ function GradeForm({
           className="h-9 w-24"
         />
         {q.isGraded && <Badge variant="success">✓</Badge>}
-        {rubricAvg != null && (
-          <span className="ml-auto text-xs text-fg-muted tabular-nums">
-            Rubrics avg: {Math.round(rubricAvg * 2) / 2}
+        {roundedAvg != null && (
+          <span className="ml-auto inline-flex items-center gap-2 text-xs text-fg-muted tabular-nums">
+            Rubrics avg: {roundedAvg}
+            <Button size="sm" variant="outline" onClick={() => setScore(String(roundedAvg))}>
+              {t("useRubricAvg")}
+            </Button>
           </span>
         )}
       </div>

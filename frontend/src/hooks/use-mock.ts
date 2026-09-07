@@ -202,7 +202,7 @@ export function useUploadMockSpeaking(attemptId: string) {
 export function useGradeMock(attemptId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { questionId: string; score: number; feedback?: string; rubricScores?: Record<string, number> }) =>
+    mutationFn: (v: { questionId: string; score?: number; feedback?: string; rubricScores?: Record<string, number> }) =>
       api.post<{ saved: boolean; status: MockAttemptStatus }>(
         `/mock/attempts/${attemptId}/grade`,
         v,
