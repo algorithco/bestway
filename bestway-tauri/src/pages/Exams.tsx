@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { listTests, startTest, type StartResult, type TestListItem } from "@/lib/tests";
-import { listMockExams, type MockExamListItem } from "@/lib/mocks";
+import {
+  listMockExams,
+  startMockExam,
+  type MockAttemptMode,
+  type MockExamListItem,
+  type MockStartResult,
+} from "@/lib/mocks";
 
 type Props = {
   studentName: string | null;
   onStart: (test: TestListItem, start: StartResult) => void;
+  onStartMock: (mock: MockExamListItem, start: MockStartResult) => void;
 };
 
 const TYPE_STYLE: Record<string, string> = {
@@ -34,7 +41,7 @@ function Greeting({ name }: { name: string | null }) {
   );
 }
 
-export default function Exams({ studentName, onStart }: Props) {
+export default function Exams({ studentName, onStart, onStartMock }: Props) {
   const [tests, setTests] = useState<TestListItem[] | null>(null);
   const [mocks, setMocks] = useState<MockExamListItem[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +95,19 @@ export default function Exams({ studentName, onStart }: Props) {
       onStart(test, start);
     } catch (e) {
       setStartError(`${test.title}: ${friendlyError(e)}`);
+    } finally {
+      setStartingId(null);
+    }
+  }
+
+  async function handleStartMock(mock: MockExamListItem, mode: MockAttemptMode) {
+    setStartingId(`mock:${mock.id}`);
+    setStartError(null);
+    try {
+      const start = await startMockExam(mock.id, { mode });
+      onStartMock(mock, start);
+    } catch (e) {
+      setStartError(`${mock.title}: ${friendlyError(e)}`);
     } finally {
       setStartingId(null);
     }
@@ -275,8 +295,29 @@ export default function Exams({ studentName, onStart }: Props) {
                   {empty && (
                     <p className="mt-2 text-[11px] text-amber-300/80">This mock has no questions yet — it will be available after an admin adds content.</p>
                   )}
-                  {!empty && (
-                    <p className="mt-2 text-[11px] text-white/30">Full mock exams are taken on the web. This card shows live data from the server.</p>
+                  {!empty && (m.access === "granted" || m.isDemo) && (
+                    <div className="mt-3 flex gap-2">
+                      {(["practice", "timed"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => void handleStartMock(m, mode)}
+                          disabled={startingId !== null}
+                          className={`flex-1 rounded-xl px-4 py-2.5 text-sm font-bold capitalize transition disabled:opacity-50 ${
+                            mode === "timed"
+                              ? "bg-violet-500/20 text-violet-100 ring-1 ring-violet-400/40 hover:bg-violet-500/30"
+                              : "btn-brand"
+                          }`}
+                        >
+                          {startingId === `mock:${m.id}` ? "Starting…" : mode === "timed" ? "⏱ Timed" : "Start →"}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!empty && m.access === "pending" && (
+                    <p className="mt-2 text-[11px] text-amber-300/80">Waiting for admin confirmation before you can start this mock.</p>
+                  )}
+                  {!empty && m.access === "locked" && (
+                    <p className="mt-2 text-[11px] text-white/30">This mock needs a purchase — ask your admin.</p>
                   )}
                 </li>
               );

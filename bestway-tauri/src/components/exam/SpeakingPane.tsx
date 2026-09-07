@@ -5,6 +5,13 @@ type Props = {
   q: RunnerQuestion;
   num: number;
   fontSize: number;
+  /**
+   * Mock-exam mode: called with the recorded take so the caller can upload
+   * it for teacher grading. Absent in the legacy tests flow (device-only).
+   */
+  onBlob?: (blob: Blob) => void;
+  /** Upload state text shown under the recorder (mock mode only). */
+  uploadNote?: string | null;
 };
 
 const PREP_SECONDS = 60;
@@ -28,7 +35,7 @@ type RecState = "idle" | "recording" | "recorded" | "error";
  * the notes/answer text saved on the right. Works without mic (timers + notes
  * still fully usable) and degrades gracefully when denied.
  */
-export default function SpeakingPane({ q, num, fontSize }: Props) {
+export default function SpeakingPane({ q, num, fontSize, onBlob, uploadNote }: Props) {
   const [prepLeft, setPrepLeft] = useState(PREP_SECONDS);
   const [prepRunning, setPrepRunning] = useState(false);
   const [speakLeft, setSpeakLeft] = useState(SPEAK_SECONDS);
@@ -42,6 +49,9 @@ export default function SpeakingPane({ q, num, fontSize }: Props) {
   const streamRef = useRef<MediaStream | null>(null);
   // Speak timer needs to stop the recorder without stale closures.
   const stopRecordingRef = useRef<() => void>(() => {});
+  // Upload callback needs the same treatment (fires from rec.onstop).
+  const onBlobRef = useRef(onBlob);
+  onBlobRef.current = onBlob;
 
   const stopTracks = () => {
     streamRef.current?.getTracks().forEach((t) => {
@@ -160,6 +170,13 @@ export default function SpeakingPane({ q, num, fontSize }: Props) {
         });
         setRecState(blob.size > 0 ? "recorded" : "idle");
         recorderRef.current = null;
+        if (blob.size > 0) {
+          try {
+            onBlobRef.current?.(blob);
+          } catch {
+            /* caller surfaces upload errors */
+          }
+        }
       };
       rec.onerror = () => {
         setRecState("error");
@@ -282,6 +299,9 @@ export default function SpeakingPane({ q, num, fontSize }: Props) {
         )}
         {recError && (
           <p role="alert" className="mt-2 text-[11px] leading-relaxed text-amber-200/90">{recError}</p>
+        )}
+        {uploadNote && (
+          <p className="mt-2 text-[11px] leading-relaxed text-emerald-200/80">{uploadNote}</p>
         )}
         <p className="mt-1.5 text-[11px] leading-relaxed text-white/25">
           Stays on this device — teachers grade your written notes on the right.

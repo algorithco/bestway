@@ -6,6 +6,8 @@ import Exams from "@/pages/Exams";
 import History from "@/pages/History";
 import Profile from "@/pages/Profile";
 import Runner from "@/pages/Runner";
+import MockSectionPicker from "@/pages/MockSectionPicker";
+import MockRunner from "@/pages/MockRunner";
 import Locked from "@/pages/Locked";
 import Result from "@/pages/Result";
 import Sidebar from "@/components/Sidebar";
@@ -17,6 +19,12 @@ import { checkForUpdate, getDismissedVersion, type UpdateInfo } from "@/lib/vers
 import ClickSpark from "@/components/ClickSpark";
 import { clearSession, getAccessToken, getRefreshToken, logout, me, refresh } from "@/lib/api";
 import type { StartResult, TestListItem } from "@/lib/tests";
+import type {
+  MockExamListItem,
+  MockShapedSection,
+  MockStartResult,
+  MockSubmitResult,
+} from "@/lib/mocks";
 
 export type Route =
   | "login"
@@ -25,6 +33,8 @@ export type Route =
   | "history"
   | "profile"
   | "runner"
+  | "mockSections"
+  | "mockRunner"
   | "locked"
   | "result";
 
@@ -40,6 +50,8 @@ const TITLES: Record<Exclude<Route, "login">, string> = {
   history: "History",
   profile: "Profile",
   runner: "Exam runner",
+  mockSections: "Choose section",
+  mockRunner: "Mock runner",
   locked: "Locked",
   result: "Result",
 };
@@ -78,6 +90,11 @@ export default function App() {
   const [activeTest, setActiveTest] = useState<TestListItem | null>(null);
   const [activeStart, setActiveStart] = useState<StartResult | null>(null);
   const [lastScore, setLastScore] = useState<{ autoScore: number | null } | null>(null);
+  // Mock (IELTS) section-by-section flow — parallel to the legacy tests flow.
+  const [activeMock, setActiveMock] = useState<MockExamListItem | null>(null);
+  const [activeMockStart, setActiveMockStart] = useState<MockStartResult | null>(null);
+  const [activeMockSection, setActiveMockSection] = useState<MockShapedSection | null>(null);
+  const [lastMockResult, setLastMockResult] = useState<(MockSubmitResult & { skill: MockShapedSection["skill"] }) | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -184,6 +201,24 @@ export default function App() {
 
   const handleFinishExam = (score: { autoScore: number | null }) => {
     setLastScore(score);
+    setLastMockResult(null);
+    setHistoryKey((k) => k + 1);
+    setRoute("result");
+  };
+
+  const handleStartMock = (mock: MockExamListItem, start: MockStartResult) => {
+    setActiveMock(mock);
+    setActiveMockStart(start);
+    setActiveMockSection(null);
+    setLastMockResult(null);
+    setLastScore(null);
+    setRoute("mockSections");
+  };
+
+  const handleFinishMock = (result: MockSubmitResult) => {
+    if (!activeMockSection) return;
+    setLastMockResult({ ...result, skill: activeMockSection.skill });
+    setLastScore(null);
     setHistoryKey((k) => k + 1);
     setRoute("result");
   };
@@ -191,6 +226,9 @@ export default function App() {
   const handleBackToExams = () => {
     setActiveTest(null);
     setActiveStart(null);
+    setActiveMock(null);
+    setActiveMockStart(null);
+    setActiveMockSection(null);
     setRoute("exams");
   };
 
@@ -219,6 +257,10 @@ export default function App() {
       setStudent(null);
       setActiveTest(null);
       setActiveStart(null);
+      setActiveMock(null);
+      setActiveMockStart(null);
+      setActiveMockSection(null);
+      setLastMockResult(null);
       setStats(null);
       setUpdate(null);
       setRoute("login");
@@ -228,7 +270,11 @@ export default function App() {
   // Student-only gate: force login when unauthenticated.
   const activeRoute: Route = student ? route : "login";
   // Focused exam screens hide the sidebar + topbar so lockdown stays distraction-free.
-  const examActive = activeRoute === "runner" || activeRoute === "locked";
+  const examActive =
+    activeRoute === "runner" ||
+    activeRoute === "mockSections" ||
+    activeRoute === "mockRunner" ||
+    activeRoute === "locked";
   const showChrome = student !== null && !examActive;
   const resultMax = activeStart
     ? activeStart.questions.reduce((s, q) => s + (q.maxScore ?? 0), 0)
@@ -318,7 +364,11 @@ export default function App() {
                 />
               )}
               {activeRoute === "exams" && (
-                <Exams studentName={student?.name ?? null} onStart={handleStartExam} />
+                <Exams
+                  studentName={student?.name ?? null}
+                  onStart={handleStartExam}
+                  onStartMock={handleStartMock}
+                />
               )}
               {activeRoute === "history" && (
                 <History refreshKey={historyKey} onStats={setStats} />
@@ -341,16 +391,64 @@ export default function App() {
                 />
               )}
               {activeRoute === "runner" && (!activeTest || !activeStart) && (
-                <Exams studentName={student?.name ?? null} onStart={handleStartExam} />
+                <Exams
+                  studentName={student?.name ?? null}
+                  onStart={handleStartExam}
+                  onStartMock={handleStartMock}
+                />
+              )}
+              {activeRoute === "mockSections" && activeMockStart && (
+                <MockSectionPicker
+                  start={activeMockStart}
+                  onPick={(section) => {
+                    setActiveMockSection(section);
+                    navigate("mockRunner");
+                  }}
+                  onBack={handleBackToExams}
+                />
+              )}
+              {activeRoute === "mockSections" && !activeMockStart && (
+                <Exams
+                  studentName={student?.name ?? null}
+                  onStart={handleStartExam}
+                  onStartMock={handleStartMock}
+                />
+              )}
+              {activeRoute === "mockRunner" && activeMockStart && activeMockSection && (
+                <MockRunner
+                  start={activeMockStart}
+                  section={activeMockSection}
+                  onExit={handleExitExam}
+                  onBackToSections={() => navigate("mockSections")}
+                  onFinish={handleFinishMock}
+                />
+              )}
+              {activeRoute === "mockRunner" && (!activeMockStart || !activeMockSection) && (
+                <Exams
+                  studentName={student?.name ?? null}
+                  onStart={handleStartExam}
+                  onStartMock={handleStartMock}
+                />
               )}
               {activeRoute === "locked" && <Locked onBack={handleBackToExams} />}
               {activeRoute === "result" && (
                 <Result
-                  testTitle={activeTest?.title ?? null}
+                  testTitle={activeMock?.title ?? activeTest?.title ?? null}
                   autoScore={lastScore?.autoScore ?? null}
                   maxScore={resultMax}
-                  attemptId={activeStart?.attemptId ?? null}
-                  onBack={handleBackToExams}
+                  attemptId={lastMockResult ? null : (activeStart?.attemptId ?? null)}
+                  mock={
+                    lastMockResult
+                      ? {
+                          skill: lastMockResult.skill,
+                          status: lastMockResult.status,
+                          sectionBands: lastMockResult.sectionBands,
+                          overallBand: lastMockResult.overallBand,
+                          cefrLevel: lastMockResult.cefrLevel,
+                        }
+                      : null
+                  }
+                  onBack={lastMockResult ? () => navigate("mockSections") : handleBackToExams}
                   onHistory={() => navigate("history")}
                 />
               )}

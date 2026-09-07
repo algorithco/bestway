@@ -15,6 +15,14 @@ type Props = {
   src: string;
   title: string;
   instructions: string | null;
+  /**
+   * Timed-exam strict mode: play once only — no pause, no seek, no speed
+   * change. After `ended`, the play button locks and `onEnded` fires
+   * (section review countdown / auto-advance handled by the caller).
+   * Practice (default) keeps full controls + replay.
+   */
+  strict?: boolean;
+  onEnded?: () => void;
 };
 
 /**
@@ -22,7 +30,7 @@ type Props = {
  * Practice-friendly (replay allowed) with a played badge so students learn
  * the real once-only rule without being blocked during practice.
  */
-export default function ListeningPane({ src, title, instructions }: Props) {
+export default function ListeningPane({ src, title, instructions, strict, onEnded }: Props) {
   const elRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
@@ -30,12 +38,16 @@ export default function ListeningPane({ src, title, instructions }: Props) {
   const [vol, setVol] = useState(() => getVolume());
   const [rate, setRate] = useState(1);
   const [played, setPlayed] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const onEndedRef = useRef(onEnded);
+  onEndedRef.current = onEnded;
 
   useEffect(() => {
     setPlaying(false);
     setCur(0);
     setDur(0);
     setPlayed(false);
+    setLocked(false);
     const el = elRef.current;
     if (el) {
       el.pause();
@@ -57,12 +69,13 @@ export default function ListeningPane({ src, title, instructions }: Props) {
 
   const toggle = () => {
     const el = elRef.current;
-    if (!el) return;
+    if (!el || locked) return;
     if (el.paused) void el.play().catch(() => setPlaying(false));
-    else el.pause();
+    else if (!strict) el.pause();
   };
 
   const seek = (v: number) => {
+    if (strict) return;
     const el = elRef.current;
     if (!el) return;
     el.currentTime = Math.min(Math.max(0, v), dur || 0);
@@ -89,7 +102,13 @@ export default function ListeningPane({ src, title, instructions }: Props) {
             setPlayed(true);
           }}
           onPause={() => setPlaying(false)}
-          onEnded={() => setPlaying(false)}
+          onEnded={() => {
+            setPlaying(false);
+            if (strict) {
+              setLocked(true);
+              onEndedRef.current?.();
+            }
+          }}
           onTimeUpdate={(e) => setCur(e.currentTarget.currentTime)}
           onLoadedMetadata={(e) => {
             setDur(e.currentTarget.duration || 0);
@@ -100,8 +119,9 @@ export default function ListeningPane({ src, title, instructions }: Props) {
           <button
             type="button"
             onClick={toggle}
+            disabled={locked}
             aria-label={playing ? "Pause audio" : "Play audio"}
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#19D36B] text-black shadow-[0_0_24px_rgba(25,211,107,0.35)] transition hover:brightness-110"
+            className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#19D36B] text-black shadow-[0_0_24px_rgba(25,211,107,0.35)] transition hover:brightness-110 disabled:opacity-40"
           >
             {playing ? (
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -125,8 +145,9 @@ export default function ListeningPane({ src, title, instructions }: Props) {
             <span className="text-[10px] font-bold uppercase">Speed</span>
             <select
               value={rate}
+              disabled={strict}
               onChange={(e) => setRate(Number(e.target.value))}
-              className="rounded-lg bg-white/5 px-1.5 py-1 font-mono text-[11px] text-white ring-1 ring-white/10 outline-none"
+              className="rounded-lg bg-white/5 px-1.5 py-1 font-mono text-[11px] text-white ring-1 ring-white/10 outline-none disabled:opacity-40"
             >
               <option value={0.75}>0.75×</option>
               <option value={1}>1×</option>
@@ -143,7 +164,8 @@ export default function ListeningPane({ src, title, instructions }: Props) {
           value={Math.min(cur, dur || 0)}
           onChange={(e) => seek(Number(e.target.value))}
           aria-label="Seek"
-          className="exam-range mt-3 w-full"
+          disabled={strict}
+          className="exam-range mt-3 w-full disabled:opacity-40"
         />
         <div className="mt-2 flex items-center gap-2">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -168,8 +190,12 @@ export default function ListeningPane({ src, title, instructions }: Props) {
         </div>
       </div>
       <p className="mt-2 text-[11px] leading-relaxed text-white/30">
-        In the real test the recording plays <span className="font-semibold text-white/50">once only</span> —
-        practice without replaying when you feel ready.
+        {strict ? (
+          <>In this timed section the recording plays <span className="font-semibold text-white/50">once only</span> — no pause, rewind or speed change.</>
+        ) : (
+          <>In the real test the recording plays <span className="font-semibold text-white/50">once only</span> —
+          practice without replaying when you feel ready.</>
+        )}
       </p>
       {instructions && (
         <div className="mt-3 rounded-xl bg-[#19D36B]/[0.06] px-3.5 py-2.5 text-xs leading-relaxed text-emerald-100/90 ring-1 ring-[#19D36B]/20">

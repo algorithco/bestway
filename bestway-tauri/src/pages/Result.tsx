@@ -1,11 +1,21 @@
 import { useEffect, useState } from "react";
 import AttemptReview from "@/components/exam/AttemptReview";
+import { MOCK_SKILL_LABEL, type MockSkill } from "@/lib/mocks";
+
+export interface MockResultSummary {
+  skill: MockSkill;
+  status: string;
+  sectionBands: Record<string, number> | null;
+  overallBand: number | null;
+  cefrLevel: string | null;
+}
 
 type Props = {
   testTitle?: string | null;
   autoScore?: number | null;
   maxScore?: number | null;
   attemptId?: string | null;
+  mock?: MockResultSummary | null;
   onBack: () => void;
   onHistory: () => void;
 };
@@ -56,8 +66,67 @@ function ScoreRing({ score, max }: { score: number; max: number | null }) {
   );
 }
 
-export default function Result({ testTitle, autoScore, maxScore, attemptId, onBack, onHistory }: Props) {
+export default function Result({ testTitle, autoScore, maxScore, attemptId, mock, onBack, onHistory }: Props) {
   const hasScore = autoScore !== null && autoScore !== undefined;
+  if (mock) {
+    const band = mock.sectionBands?.[mock.skill] ?? mock.overallBand;
+    return (
+      <section>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300/70">
+          submitted ✓
+        </p>
+        <h1 className="mt-1 text-2xl font-black tracking-tight">
+          {testTitle ?? "Exam submitted"}
+        </h1>
+
+        <div className="mt-4 grid items-start gap-3 xl:grid-cols-2">
+          <div className="card rounded-2xl p-6 text-center">
+            {band != null ? (
+              <>
+                <p className="text-5xl font-black text-white tabular-nums">{band.toFixed(1)}</p>
+                <p className="mt-2 text-sm font-semibold text-white">
+                  {MOCK_SKILL_LABEL[mock.skill]} band
+                </p>
+                {mock.cefrLevel && (
+                  <p className="mt-1 text-xs text-white/40">CEFR level: {mock.cefrLevel}</p>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-400/10 text-2xl ring-1 ring-emerald-400/30">📨</p>
+                <p className="mt-3 text-sm font-semibold text-white">Submitted for grading</p>
+                <p className="mt-1 text-xs text-white/40">
+                  {MOCK_SKILL_LABEL[mock.skill]} answers are with your teacher now. Check History for the final band.
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="card rounded-2xl p-6">
+            <h2 className="text-sm font-bold text-white">What's next?</h2>
+            <ul className="mt-3 space-y-2 text-xs leading-relaxed text-white/50">
+              <li className="flex gap-2">
+                <span className="text-emerald-300">→</span>
+                Pick another section from the exam to keep going.
+              </li>
+              <li className="flex gap-2">
+                <span className="text-emerald-300">→</span>
+                Head back to Exams to start your next assigned test.
+              </li>
+            </ul>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <button onClick={onBack} className="btn-brand rounded-xl px-4 py-2.5 text-sm font-bold">
+                More sections
+              </button>
+              <button onClick={onHistory} className="btn-ghost rounded-xl px-4 py-2.5 text-sm text-white">
+                View history
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
   return (
     <section>
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-300/70">
