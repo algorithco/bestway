@@ -324,7 +324,9 @@
     "myPoints": "Мои баллы",
     "children": "Мои дети",
     "gallery": "Галерея",
-    "examBuilder": "Конструктор экзаменов"
+    "examBuilder": "Конструктор экзаменов",
+    "collapseSidebar": "Свернуть панель",
+    "expandSidebar": "Развернуть панель"
   },
   "roles": {
     "super_admin": "Супер админ",

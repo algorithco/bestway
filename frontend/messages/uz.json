@@ -324,7 +324,9 @@
     "myPoints": "Ballarim",
     "children": "Farzandlarim",
     "gallery": "Galereya",
-    "examBuilder": "Imtihon konstruktori"
+    "examBuilder": "Imtihon konstruktori",
+    "collapseSidebar": "Yon panelni yig'ish",
+    "expandSidebar": "Yon panelni ochish"
   },
   "roles": {
     "super_admin": "Super admin",

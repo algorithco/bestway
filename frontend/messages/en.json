@@ -324,7 +324,9 @@
     "myPoints": "My points",
     "children": "My children",
     "gallery": "Gallery",
-    "examBuilder": "Exam Builder"
+    "examBuilder": "Exam Builder",
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar"
   },
   "roles": {
     "super_admin": "Super admin",

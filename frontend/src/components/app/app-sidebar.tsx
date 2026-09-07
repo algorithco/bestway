@@ -1,5 +1,7 @@
 "use client";
 
+import * as React from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
@@ -8,21 +10,55 @@ import { CENTER } from "@/lib/config";
 import type { Role } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/** Yon panel holati — sahifa yangilanganda ham saqlanadi */
+const COLLAPSED_KEY = "bw-sidebar-collapsed";
+
 export function AppSidebar({ role }: { role: Role }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const items = navForRole(role);
+  // Lazy init — serverda har doim ochiq (hydration mos), mijozda saqlangan holat
+  const [collapsed, setCollapsed] = React.useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+    } catch {
+      /* private mode — saqlanmaydi, lekin panel ishlaydi */
+      return false;
+    }
+  });
+
+  const toggle = React.useCallback(() => {
+    setCollapsed((c) => {
+      try {
+        window.localStorage.setItem(COLLAPSED_KEY, c ? "0" : "1");
+      } catch {
+        /* ignore */
+      }
+      return !c;
+    });
+  }, []);
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-surface lg:flex">
+    <aside
+      className={cn(
+        "sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-200 lg:flex",
+        collapsed ? "w-[76px]" : "w-64",
+      )}
+    >
       {/* logo + nozik yashil yog'du */}
-      <div className="relative flex h-16 items-center border-b border-border px-5">
+      <div
+        className={cn(
+          "relative flex h-16 items-center border-b border-border",
+          collapsed ? "justify-center px-2" : "px-5",
+        )}
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute -top-10 left-0 h-24 w-40 rounded-full bg-brand/10 blur-2xl"
         />
         <Link href="/" aria-label={CENTER.name} className="relative transition-transform hover:scale-[1.02]">
-          <Brand />
+          {collapsed ? <Brand variant="mark" showText={false} size="sm" /> : <Brand />}
         </Link>
       </div>
 
@@ -35,8 +71,10 @@ export function AppSidebar({ role }: { role: Role }) {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
+              title={collapsed ? t(item.key) : undefined}
               className={cn(
                 "group relative flex items-center gap-3 rounded-[10px] px-3 py-2 text-sm font-medium transition-all duration-200",
+                collapsed && "justify-center px-2",
                 active
                   ? "bg-brand-subtle text-brand-subtle-fg"
                   : "text-fg-muted hover:translate-x-0.5 hover:bg-surface-hover hover:text-fg",
@@ -56,16 +94,34 @@ export function AppSidebar({ role }: { role: Role }) {
                   active ? "text-brand" : "group-hover:scale-110",
                 )}
               />
-              {t(item.key)}
+              {!collapsed && t(item.key)}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-border px-5 py-3">
-        <p className="text-xs text-fg-subtle">
-          {CENTER.name} · <span className="text-fg-muted">{CENTER.established}</span>
-        </p>
+      {/* pastki: brend + yig'ish/ochish strelkasi */}
+      <div
+        className={cn(
+          "flex items-center gap-2 border-t border-border py-3",
+          collapsed ? "justify-center px-2" : "justify-between px-5",
+        )}
+      >
+        {!collapsed && (
+          <p className="truncate text-xs text-fg-subtle">
+            {CENTER.name} · <span className="text-fg-muted">{CENTER.established}</span>
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={toggle}
+          aria-expanded={!collapsed}
+          aria-label={t(collapsed ? "expandSidebar" : "collapseSidebar")}
+          title={t(collapsed ? "expandSidebar" : "collapseSidebar")}
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-[8px] border border-border bg-surface text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg"
+        >
+          {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
+        </button>
       </div>
     </aside>
   );
