@@ -490,6 +490,18 @@ export class StartAttemptDto {
   flow?: string;
 }
 
+/**
+ * Submit filtri (masalan desktop section-by-section): faqat berilgan
+ * skill'lar baholanadi, status/overall ham shulardan hisoblanadi.
+ * Berilmasa — butun urinish (eski xatti).
+ */
+export class SubmitMockAttemptDto {
+  @IsOptional()
+  @IsArray()
+  @IsEnum(MockSkill, { each: true })
+  skills?: MockSkill[];
+}
+
 /* ─────────────────────────── Savol parse / import ─────────────────────────── */
 
 export class ParseQuestionsDto {

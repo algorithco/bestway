@@ -39,6 +39,7 @@ import {
   SaveAnnotationsDto,
   SaveAnswerDto,
   StartAttemptDto,
+  SubmitMockAttemptDto,
   UpdateGroupDto,
   UpdateMockExamDto,
   UpdateQuestionDto,
@@ -201,8 +202,12 @@ export class MockController {
   @ApiBearerAuth()
   @Roles('student')
   @Post('attempts/:attemptId/submit')
-  submit(@CurrentUser() user: AuthUser, @Param('attemptId') attemptId: string) {
-    return this.grading.submit(user, attemptId);
+  submit(
+    @CurrentUser() user: AuthUser,
+    @Param('attemptId') attemptId: string,
+    @Body() dto?: SubmitMockAttemptDto,
+  ) {
+    return this.grading.submit(user, attemptId, dto?.skills);
   }
 
   /** Xodim: qotib qolgan urinishni majburan yakunlash */

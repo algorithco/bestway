@@ -317,7 +317,7 @@ Real IELTS/Multilevel mock imtihon tizimi. Mavjud `/tests` moduliga **tegmaydi**
 | POST | `/mock/attempts/:attemptId/answer` | student | `{ questionId, response }` | `{ saved: true }` |
 | POST | `/mock/attempts/:attemptId/answers` | student | `{ answers: [{ questionId, response }] }` | `{ saved: N }` |
 | POST | `/mock/attempts/:attemptId/flag-cheat` | student | `{ event }` | `{ saved: true }` |
-| POST | `/mock/attempts/:attemptId/submit` | student | — | `{ status, rawScores, sectionBands, overallBand, cefrLevel }` |
+| POST | `/mock/attempts/:attemptId/submit` | student | `{ skills?: ("listening"\|"reading"\|"writing"\|"speaking")[] }` — berilsa faqat shu bo'limlar baholanadi (section-only), berilmasa butun urinish | `{ status, rawScores, sectionBands, overallBand, cefrLevel }` |
 | GET | `/mock/attempts/mine?status=` | student | — | Paginated o'z urinishlari |
 
 **Baholash / natija:**

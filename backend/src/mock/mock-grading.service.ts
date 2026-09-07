@@ -64,8 +64,12 @@ export class MockGradingService {
     this.base = `${config.get<string>('PUBLIC_URL') ?? 'http://localhost:3001'}/v1`;
   }
 
-  /** POST /mock/attempts/:attemptId/submit — avtomatik baholash + band hisoblash */
-  async submit(student: AuthUser, attemptId: string) {
+  /**
+   * POST /mock/attempts/:attemptId/submit — avtomatik baholash + band hisoblash.
+   * `skills` berilsa faqat shu bo'limlar baholanadi (section-by-section submit);
+   * berilmasa butun urinish (eski xatti).
+   */
+  async submit(student: AuthUser, attemptId: string, skills?: MockSkill[]) {
     const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
     if (!attempt || attempt.studentId !== student.id) {
       throw new AppException('MOCK_ATTEMPT_NOT_FOUND', 'Urinish topilmadi', 404);
@@ -73,7 +77,7 @@ export class MockGradingService {
     if (attempt.status !== 'in_progress') {
       throw new AppException('MOCK_ATTEMPT_FINISHED', 'Bu urinish allaqachon topshirilgan', 400);
     }
-    const result = await this.gradeAndCompute(attemptId, true);
+    const result = await this.gradeAndCompute(attemptId, true, skills);
     if (result.status === 'completed') {
       await this.notifyResult(attemptId);
     } else {
@@ -275,8 +279,9 @@ export class MockGradingService {
   /**
    * Auto savollarni baholaydi, bo'lim bo'yicha xom ball va IELTS band /
    * Multilevel CEFR ni hisoblab saqlaydi. Manual savol qolgan bo'lsa — "grading".
+   * `skills` berilsa faqat shu skill'lar hisobga olinadi (section-only submit).
    */
-  private async gradeAndCompute(attemptId: string, markSubmitted: boolean) {
+  private async gradeAndCompute(attemptId: string, markSubmitted: boolean, skills?: MockSkill[]) {
     const attempt = await this.prisma.mockAttempt.findUnique({
       where: { id: attemptId },
       include: { exam: { include: MOCK_EXAM_INCLUDE }, answers: true },
@@ -286,12 +291,20 @@ export class MockGradingService {
     const answerByQ = new Map(attempt.answers.map((a) => [a.questionId, a]));
     const examType = attempt.exam.type;
     const isIelts = examType === 'ielts_academic' || examType === 'ielts_general';
+    // Section-only submit: faqat so'ralgan skill'lar (bo'sh massiv = filtr yo'q).
+    const wanted = skills && skills.length > 0 ? new Set<string>(skills) : null;
+    const examSections = wanted
+      ? attempt.exam.sections.filter((s) => wanted.has(s.skill))
+      : attempt.exam.sections;
+    if (wanted && examSections.length === 0) {
+      throw new AppException('VALIDATION_ERROR', 'Bunday bo‘lim bu imtihonda yo‘q', 400);
+    }
     // Admin tahrirlagan xom→band jadvallari (bo'lmasa standart).
     const bandTables = isIelts ? await this.settings.getBandTables() : undefined;
     const updates: Prisma.PrismaPromise<unknown>[] = [];
     const aggs: SectionAgg[] = [];
 
-    for (const section of attempt.exam.sections) {
+    for (const section of examSections) {
       const auto = AUTO_SKILLS.includes(section.skill);
       const agg: SectionAgg = {
         skill: section.skill,

@@ -268,7 +268,7 @@ matching, matching_headings`) need ≥2 options; auto-skill questions need
 | `POST /mock/attempts/:id/speaking/:questionId` | multipart audio ≤25 MB, must be speaking question |
 | `PUT /mock/attempts/:id/annotations` | highlights/notes JSON |
 | `POST /mock/attempts/:id/flag-cheat` | 30/min, cap 50, warn-only |
-| `POST /mock/attempts/:id/submit` | auto-grade L/R, bands, or `grading` if manual pending |
+| `POST /mock/attempts/:id/submit` | auto-grade L/R, bands, or `grading` if manual pending; optional `{skills:[...]}` grades only those sections (section-only submit) |
 | `POST /mock/attempts/:id/advance` | full-test flow: listening → reading → writing (no going back) |
 | `GET /mock/attempts/mine` | own history |
 | `GET /mock/attempts/:attemptId` | detail; keys revealed to students only after `completed`; cheat list staff-only |
