@@ -33,12 +33,15 @@ const TONE: Record<PaymentState, CellTone> = {
   paid: "success",
   partial: "warning",
   unpaid: "danger",
+  // Empty = yozuv yo'q: neytral (davomat panelidagi empty/blank kabi)
+  empty: "neutral",
 };
 
+/** Tsikl: Empty → Paid → Partially Paid → Unpaid → Empty (yozuv yo'qligi = Empty) */
 function nextState(cur?: PaymentState): PaymentState {
   if (cur === "paid") return "partial";
   if (cur === "partial") return "unpaid";
-  if (cur === "unpaid") return "paid";
+  if (cur === "unpaid") return "empty";
   return "paid";
 }
 
@@ -117,6 +120,11 @@ export function PaymentsPanel() {
     (studentId: string, studentName: string, month: number) => {
       const cur = rowMap.get(`${studentId}|${month}`);
       const state = nextState(cur?.state);
+      // Unpaid → Empty: yozuv o'chiriladi (backend deleteMany), amount/note kerak emas
+      if (state === "empty") {
+        commit({ studentId, studentName, month, state });
+        return;
+      }
       let amount = cur?.amount ?? 0;
       if (state === "paid") amount = amount > 0 ? amount : monthlyFee;
       else if (state === "unpaid") amount = 0;

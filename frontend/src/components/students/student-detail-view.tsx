@@ -32,6 +32,7 @@ const PAY_TONE: Record<PaymentState, string> = {
   paid: "bg-success-bg text-success border-success-border",
   partial: "bg-warning-bg text-warning border-warning-border",
   unpaid: "bg-danger-bg text-danger border-danger-border",
+  empty: "border-border bg-surface text-fg-subtle",
 };
 
 export function StudentDetailView({ studentId }: { studentId: string }) {

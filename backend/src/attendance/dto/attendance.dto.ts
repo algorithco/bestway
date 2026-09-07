@@ -3,7 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsArray,
-  IsEnum,
+  IsIn,
   IsISO8601,
   IsNotEmpty,
   IsOptional,
@@ -28,13 +28,24 @@ export class QueryAttendanceDto {
   studentId?: string;
 }
 
+/**
+ * Katakni tozalash belgilari — DB'da saqlanmaydi, existing yozuv o'chiriladi.
+ * DB enum (AttendanceState) faqat present/absent/late ni biladi.
+ */
+export const EMPTY_ATTENDANCE_STATES = ['empty', 'blank'] as const;
+export type EmptyAttendanceState = (typeof EMPTY_ATTENDANCE_STATES)[number];
+
+export function isEmptyAttendanceState(state: string): state is EmptyAttendanceState {
+  return (EMPTY_ATTENDANCE_STATES as readonly string[]).includes(state);
+}
+
 export class AttendanceRecordDto {
   @IsString()
   @IsNotEmpty()
   studentId: string;
 
-  @IsEnum(AttendanceState)
-  state: AttendanceState;
+  @IsIn([...Object.values(AttendanceState), ...EMPTY_ATTENDANCE_STATES])
+  state: AttendanceState | EmptyAttendanceState;
 }
 
 /** Bitta so'rovda butun kunlik jadval saqlanadi (Excel-simon panel) */

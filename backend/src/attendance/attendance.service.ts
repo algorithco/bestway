@@ -7,8 +7,10 @@ import { AuthUser } from '../common/types';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  AttendanceRecordDto,
   AttendanceStatsQueryDto,
   BulkAttendanceDto,
+  isEmptyAttendanceState,
   QueryAttendanceDto,
 } from './dto/attendance.dto';
 
@@ -89,8 +91,13 @@ export class AttendanceService {
     });
     const prev = new Map(existing.map((e) => [e.studentId, e.state]));
 
-    await this.prisma.$transaction(
-      dto.records.map((r) =>
+    // 'empty'/'blank' — tozalash: yozuv upsert emas, o'chiriladi (DB enum'da yo'q)
+    type MarkedRecord = AttendanceRecordDto & { state: AttendanceState };
+    const toUpsert = dto.records.filter((r): r is MarkedRecord => !isEmptyAttendanceState(r.state));
+    const toClear = dto.records.filter((r) => isEmptyAttendanceState(r.state));
+
+    await this.prisma.$transaction([
+      ...toUpsert.map((r) =>
         this.prisma.attendance.upsert({
           where: {
             studentId_groupId_date: { studentId: r.studentId, groupId: dto.groupId, date },
@@ -105,7 +112,18 @@ export class AttendanceService {
           },
         }),
       ),
-    );
+      ...(toClear.length > 0
+        ? [
+            this.prisma.attendance.deleteMany({
+              where: {
+                groupId: dto.groupId,
+                date,
+                studentId: { in: toClear.map((r) => r.studentId) },
+              },
+            }),
+          ]
+        : []),
+    ]);
 
     // Yangi "kelmadi" deb belgilanganlarning ota-onasiga avtomatik xabar
     const newlyAbsent = dto.records.filter(
@@ -137,7 +155,7 @@ export class AttendanceService {
       newValue: { date: dto.date.slice(0, 10), records: dto.records.length },
     });
 
-    return { updated: dto.records.length };
+    return { updated: toUpsert.length, cleared: toClear.length };
   }
 
   /** Oylik statistika: har bir o'quvchi bo'yicha keldi/kelmadi/kechikdi soni */

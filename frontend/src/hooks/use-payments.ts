@@ -35,19 +35,26 @@ export function useSavePaymentCell(year: number) {
       api.put("/payments/bulk", {
         year,
         records: [
-          {
-            studentId: v.studentId,
-            month: v.month,
-            state: v.state,
-            ...(v.amount !== undefined ? { amount: v.amount } : {}),
-            ...(v.note !== undefined && v.note !== null ? { note: v.note } : {}),
-          },
+          v.state === "empty"
+            ? // Empty = yozuvni o'chirish: amount/note keraksiz (backend yozuvni o'chiradi)
+              { studentId: v.studentId, month: v.month, state: v.state }
+            : {
+                studentId: v.studentId,
+                month: v.month,
+                state: v.state,
+                ...(v.amount !== undefined ? { amount: v.amount } : {}),
+                ...(v.note !== undefined && v.note !== null ? { note: v.note } : {}),
+              },
         ],
       }),
     onMutate: async (v) => {
       await qc.cancelQueries({ queryKey: key });
       const prev = qc.getQueryData<PaymentRow[]>(key);
       qc.setQueryData<PaymentRow[]>(key, (old = []) => {
+        // Empty = yozuv yo'qligi: keshdan o'chiramiz (soxta "empty" yozuv yaratmaymiz)
+        if (v.state === "empty") {
+          return old.filter((r) => !(r.studentId === v.studentId && r.month === v.month));
+        }
         const idx = old.findIndex((r) => r.studentId === v.studentId && r.month === v.month);
         if (idx >= 0) {
           const copy = old.slice();

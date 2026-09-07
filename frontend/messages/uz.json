@@ -403,10 +403,11 @@
   },
   "payments": {
     "title": "To'lovlar",
-    "subtitle": "Katakka bosing — to'landi, qisman, to'lanmadi holatlari almashadi. O'ng klik: summa va izoh",
+    "subtitle": "Katakka bosing — to'landi, qisman, to'lanmadi, bo'sh holatlari almashadi. O'ng klik: summa va izoh",
     "paid": "To'landi",
     "unpaid": "To'lanmadi",
     "partial": "Qisman to'landi",
+    "empty": "Bo'sh",
     "notMarked": "Belgilanmagan",
     "amount": "Summa",
     "note": "Izoh",

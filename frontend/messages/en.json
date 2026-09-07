@@ -403,10 +403,11 @@
   },
   "payments": {
     "title": "Payments",
-    "subtitle": "Click a cell — paid, partial, unpaid cycle through. Right-click: amount and note",
+    "subtitle": "Click a cell — paid, partial, unpaid, empty cycle through. Right-click: amount and note",
     "paid": "Paid",
     "unpaid": "Unpaid",
     "partial": "Partially paid",
+    "empty": "Empty",
     "notMarked": "Not marked",
     "amount": "Amount",
     "note": "Note",

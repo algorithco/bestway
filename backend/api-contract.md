@@ -78,7 +78,7 @@ HTTP status kodlari: `200` OK, `201` Created, `400` Validation error, `401` Unau
 ```
 Role            = "super_admin" | "admin" | "teacher" | "student" | "parent"
 AttendanceState = "present" | "absent" | "late"
-PaymentState    = "paid" | "unpaid" | "partial"
+PaymentState    = "paid" | "unpaid" | "partial"   // + client-only "empty" (yozuv yo'qligi) — A.6 ga qarang
 PaymentMethod   = "manual"                      // hozircha faqat shu, kelajakda "payme" | "click" qo'shiladi
 TestType        = "ielts" | "multilevel"
 TestSection     = "listening" | "reading" | "writing" | "speaking"
@@ -247,8 +247,9 @@ NotificationType = "points" | "payment_reminder" | "test_result" | "attendance"
 | POST | `/payments/remind` | admin, super_admin | `{ month?, year?, studentIds?: string[] }` | `{ notified: number }` |
 
 - `month`/`year` berilmasa — **joriy oy**. `studentIds` berilmasa — o'sha oyning barcha qarzdorlariga eslatma ketadi. To'lagan (`paid`) o'quvchiga eslatma yuborilmaydi.
-- `GET /payments` query: `?studentId=&year=&month=&state=`; javobda `studentName` ham bor.
-- `PUT /payments/bulk` `{ updated: number }` qaytaradi.
+- `GET /payments` query: `?studentId=&year=&month=&state=`; javobda `studentName` ham bor. Faqat mavjud yozuvlar qaytadi — yozuv yo'qligi = **Empty** (holat hali qayd etilmagan).
+- `PUT /payments/bulk` `{ updated: number }` qaytaradi. `state: "empty"` — client-only holat: shu katakdagi Payment yozuvini **o'chiradi** (DB enum'da `empty` yo'q, ustun nullable emas). Tsikl: `empty → paid → partial → unpaid → empty`.
+- `GET /payments/debtors` dagi `state` — `"paid" | "partial" | "unpaid" | "empty"`: yozuv yo'q bo'lsa `"empty"` qaytadi (`"unpaid"` bilan adashtirmaslik — `unpaid` admin aniq belgilagan qarzdorlik).
 - **Onlayn to'lov yo'q**: `method` doim `"manual"`. To'lov holatini faqat admin qo'lda belgilaydi.
 
 ## A.7 Tests (qo'shimcha)

@@ -68,7 +68,9 @@ export function DebtorsCard({ year, month }: { year: number; month: number }) {
                       {formatMoney(d.amount)}
                     </span>
                   )}
-                  <Badge variant={d.state === "partial" ? "warning" : "danger"}>
+                  <Badge
+                    variant={d.state === "partial" ? "warning" : d.state === "empty" ? "neutral" : "danger"}
+                  >
                     {t(d.state)}
                   </Badge>
                 </div>

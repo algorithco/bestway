@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { PaymentState, Prisma } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AccessService } from '../common/access.service';
 import { AppException } from '../common/app.exception';
@@ -99,14 +99,19 @@ export class PaymentsService {
     });
     const prev = new Map(existing.map((e) => [`${e.studentId}:${e.month}`, e]));
 
-    await this.prisma.$transaction(
-      dto.records.map((r) =>
+    // `empty` — client-only holat: DB yozuvini o'chirish (holat hali qayd etilmagan).
+    // Payment.state nullable emas va enum'da `empty` yo'q — shuning uchun Empty = yozuv yo'qligi.
+    const upserts = dto.records.filter((r) => r.state !== 'empty');
+    const clears = dto.records.filter((r) => r.state === 'empty');
+
+    await this.prisma.$transaction([
+      ...upserts.map((r) =>
         this.prisma.payment.upsert({
           where: {
             studentId_month_year: { studentId: r.studentId, month: r.month, year: dto.year },
           },
           update: {
-            state: r.state,
+            state: r.state as PaymentState,
             ...(r.amount !== undefined ? { amount: r.amount } : {}),
             note: r.note ?? null,
             markedById: actor.id,
@@ -115,18 +120,36 @@ export class PaymentsService {
             studentId: r.studentId,
             month: r.month,
             year: dto.year,
-            state: r.state,
+            state: r.state as PaymentState,
             amount: r.amount ?? 0,
             note: r.note,
             markedById: actor.id,
           },
         }),
       ),
-    );
+      ...clears.map((r) =>
+        this.prisma.payment.deleteMany({
+          where: { studentId: r.studentId, month: r.month, year: dto.year },
+        }),
+      ),
+    ]);
 
     // Audit: faqat haqiqatda o'zgarganlarni yozamiz
     for (const r of dto.records) {
       const old = prev.get(`${r.studentId}:${r.month}`);
+      if (r.state === 'empty') {
+        if (old) {
+          await this.audit.log({
+            userId: actor.id,
+            action: 'payment.set',
+            entity: 'payment',
+            entityId: `${r.studentId}:${dto.year}-${r.month}`,
+            oldValue: { state: old.state, amount: old.amount },
+            newValue: { state: 'empty' },
+          });
+        }
+        continue;
+      }
       if (!old || old.state !== r.state || old.amount !== (r.amount ?? 0)) {
         await this.audit.log({
           userId: actor.id,
@@ -172,7 +195,8 @@ export class PaymentsService {
           name: s.user.name,
           phone: s.user.phone,
           groupName: s.group?.name ?? null,
-          state: p?.state ?? 'unpaid',
+          // Yozuv yo'q = Empty (hali qayd etilmagan) — `unpaid` (qayd etilgan qarzdorlik) bilan adashtirmaslik!
+          state: p?.state ?? 'empty',
           amount: p?.amount ?? 0,
           note: p?.note ?? null,
         };

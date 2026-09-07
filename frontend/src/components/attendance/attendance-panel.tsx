@@ -20,6 +20,7 @@ import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid"
 import { StateCell, type CellTone } from "@/components/data-grid/state-cell";
 import { useGroups, useGroupDetail } from "@/hooks/use-groups";
 import { useAttendance, useSaveAttendanceCell } from "@/hooks/use-attendance";
+import { ApiError } from "@/lib/api-client";
 import type { AttendanceState, ScheduleItem } from "@/lib/types";
 import { currentMonthKey, daysInMonth, toDateKey } from "@/lib/utils";
 
@@ -123,7 +124,23 @@ export function AttendancePanel() {
 
   const commit = React.useCallback(
     (studentId: string, date: string, state: AttendanceState) => {
-      save.mutate({ studentId, date, state }, { onError: () => toast.error(t("saveError")) });
+      save.mutate(
+        { studentId, date, state },
+        {
+          onError: (e) => {
+            // Haqiqiy sabab dev-log'da qoladi; backend xatosini userga
+            // "internet" deb ko'rsatmaymiz — bu xabar faqat tarmoq uzilganda.
+            if (process.env.NODE_ENV !== "production") {
+              console.error("[attendance] save failed", { studentId, date, state, error: e });
+            }
+            const backendMessage =
+              e instanceof ApiError && e.status > 0 && e.code !== "UNKNOWN" && e.message
+                ? e.message
+                : null;
+            toast.error(backendMessage ?? t("saveError"));
+          },
+        },
+      );
     },
     [save, t],
   );

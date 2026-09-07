@@ -6,7 +6,13 @@
 
 export type Role = "super_admin" | "admin" | "teacher" | "student" | "parent";
 export type AttendanceState = "present" | "absent" | "late" | "empty" | "blank";
-export type PaymentState = "paid" | "unpaid" | "partial";
+/**
+ * To'lov holati. `empty` — client-only: DB da Payment yozuvi yo'q
+ * (holat hali qayd etilmagan). `unpaid` dan farqi: unpaid — admin
+ * "to'lamadi" deb aniq belgilagan; empty — hali hech narsa belgilanmagan.
+ * Backend PUT /payments/bulk da `state: "empty"` yozuvni o'chiradi.
+ */
+export type PaymentState = "paid" | "unpaid" | "partial" | "empty";
 export type PaymentMethod = "manual";
 export type TestType = "ielts" | "multilevel";
 export type TestSection = "listening" | "reading" | "writing" | "speaking";

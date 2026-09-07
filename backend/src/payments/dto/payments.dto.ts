@@ -4,6 +4,7 @@ import {
   ArrayNotEmpty,
   IsArray,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -13,6 +14,15 @@ import {
   Min,
   ValidateNested,
 } from 'class-validator';
+
+/**
+ * PUT /payments/bulk da qabul qilinadigan holatlar.
+ * `empty` — DB dagi enum qiymati EMAS, mijoz-tomon (client-only) holat:
+ * shu katakdagi Payment yozuvini o'chirish (= holat hali qayd etilmagan).
+ * Payment.state ustuni nullable emas, shuning uchun Empty yozuv yo'qligi bilan ifodalanadi.
+ */
+export const PAYMENT_BULK_STATES = ['paid', 'unpaid', 'partial', 'empty'] as const;
+export type PaymentBulkState = (typeof PAYMENT_BULK_STATES)[number];
 
 export class QueryPaymentsDto {
   @IsOptional()
@@ -49,8 +59,8 @@ export class PaymentRecordDto {
   @Max(12)
   month: number;
 
-  @IsEnum(PaymentState)
-  state: PaymentState;
+  @IsIn([...PAYMENT_BULK_STATES])
+  state: PaymentBulkState;
 
   /** To'langan summa (so'mda) */
   @IsOptional()

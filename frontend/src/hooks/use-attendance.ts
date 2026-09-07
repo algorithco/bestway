@@ -64,5 +64,9 @@ export function useSaveAttendanceCell(groupId: string, month: string) {
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev);
     },
+    // Server haqiqati bilan sinxronlash (masalan, tozalangan katak keshda qolib ketmasin)
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: key });
+    },
   });
 }

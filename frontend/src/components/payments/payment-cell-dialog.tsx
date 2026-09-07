@@ -24,12 +24,13 @@ export interface PaymentCellTarget {
   note: string | null;
 }
 
-const STATES: PaymentState[] = ["paid", "partial", "unpaid"];
+const STATES: PaymentState[] = ["paid", "partial", "unpaid", "empty"];
 
 const stateStyle: Record<PaymentState, string> = {
   paid: "border-success bg-success-bg text-success",
   partial: "border-warning bg-warning-bg text-warning",
   unpaid: "border-danger bg-danger-bg text-danger",
+  empty: "border-border bg-surface text-fg-muted",
 };
 
 export function PaymentCellDialog({
@@ -98,7 +99,7 @@ function PaymentCellFields({
     <>
       <DialogBody className="space-y-4">
         <Field label={tc("confirm")}>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {STATES.map((s) => (
               <button
                 key={s}
@@ -106,7 +107,7 @@ function PaymentCellFields({
                 onClick={() => {
                   setState(s);
                   if (s === "paid" && (!amount || amount === "0")) setAmount(String(defaultAmount || ""));
-                  if (s === "unpaid") setAmount("0");
+                  if (s === "unpaid" || s === "empty") setAmount("0");
                 }}
                 aria-pressed={state === s}
                 className={cn(
