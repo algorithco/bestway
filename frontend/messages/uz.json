@@ -335,7 +335,8 @@
     "gallery": "Galereya",
     "examBuilder": "Imtihon konstruktori",
     "collapseSidebar": "Yon panelni yig'ish",
-    "expandSidebar": "Yon panelni ochish"
+    "expandSidebar": "Yon panelni ochish",
+    "more": "Yana"
   },
   "roles": {
     "super_admin": "Super admin",

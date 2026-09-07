@@ -335,7 +335,8 @@
     "gallery": "Галерея",
     "examBuilder": "Конструктор экзаменов",
     "collapseSidebar": "Свернуть панель",
-    "expandSidebar": "Развернуть панель"
+    "expandSidebar": "Развернуть панель",
+    "more": "Ещё"
   },
   "roles": {
     "super_admin": "Супер админ",

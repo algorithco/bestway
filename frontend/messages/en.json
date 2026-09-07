@@ -335,7 +335,8 @@
     "gallery": "Gallery",
     "examBuilder": "Exam Builder",
     "collapseSidebar": "Collapse sidebar",
-    "expandSidebar": "Expand sidebar"
+    "expandSidebar": "Expand sidebar",
+    "more": "More"
   },
   "roles": {
     "super_admin": "Super admin",
