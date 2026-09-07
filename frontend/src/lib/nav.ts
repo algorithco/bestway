@@ -38,7 +38,7 @@ const ALL: Role[] = ["super_admin", "admin", "teacher", "student", "parent"];
 const NAV: NavItem[] = [
   { href: "/dashboard", key: "dashboard", icon: LayoutDashboard, roles: ALL, mobile: true },
   { href: "/attendance", key: "attendance", icon: CalendarCheck, roles: STAFF, mobile: true },
-  { href: "/payments", key: "payments", icon: Wallet, roles: OFFICE, mobile: true },
+  { href: "/payments", key: "payments", icon: Wallet, roles: STAFF, mobile: true },
   { href: "/students", key: "students", icon: Users, roles: OFFICE, mobile: true },
   { href: "/groups", key: "groups", icon: BookOpen, roles: STAFF },
   { href: "/staff", key: "staff", icon: UserCog, roles: OFFICE },

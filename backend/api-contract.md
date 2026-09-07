@@ -108,8 +108,8 @@ NotificationType = "points" | "payment_reminder" | "test_result" | "attendance"
 ### Payments
 | Method | Path | Rol | Request | Response |
 |---|---|---|---|---|
-| GET | `/payments?studentId=&year=` | admin, parent, student | — | `[{ studentId, month, year, state, amount, method:"manual", note }]` |
-| PUT | `/payments/bulk` | admin | `{ year, records: [{studentId, month, state, amount, note}] }` | `{ updated: number }` |
+| GET | `/payments?studentId=&year=` | admin, parent, student, teacher | — | `[{ studentId, month, year, state, amount, method:"manual", note }]` |
+| PUT | `/payments/bulk` | admin, teacher | `{ year, records: [{studentId, month, state, amount, note}] }` | `{ updated: number }` |
 
 ### Points
 | Method | Path | Rol | Request | Response |
@@ -243,14 +243,15 @@ NotificationType = "points" | "payment_reminder" | "test_result" | "attendance"
 
 | Method | Path | Rol | Request | Response |
 |---|---|---|---|---|
-| GET | `/payments/debtors?month=&year=` | admin, super_admin | — | `[{ studentId, name, phone, groupName, state, amount, note }]` |
-| POST | `/payments/remind` | admin, super_admin | `{ month?, year?, studentIds?: string[] }` | `{ notified: number }` |
+| GET | `/payments/debtors?month=&year=` | admin, super_admin, teacher | — | `[{ studentId, name, phone, groupName, state, amount, note }]` |
+| POST | `/payments/remind` | admin, super_admin, teacher | `{ month?, year?, studentIds?: string[] }` | `{ notified: number }` |
 
 - `month`/`year` berilmasa — **joriy oy**. `studentIds` berilmasa — o'sha oyning barcha qarzdorlariga eslatma ketadi. To'lagan (`paid`) o'quvchiga eslatma yuborilmaydi.
 - `GET /payments` query: `?studentId=&year=&month=&state=`; javobda `studentName` ham bor. Faqat mavjud yozuvlar qaytadi — yozuv yo'qligi = **Empty** (holat hali qayd etilmagan).
 - `PUT /payments/bulk` `{ updated: number }` qaytaradi. `state: "empty"` — client-only holat: shu katakdagi Payment yozuvini **o'chiradi** (DB enum'da `empty` yo'q, ustun nullable emas). Tsikl: `empty → paid → partial → unpaid → empty`.
 - `GET /payments/debtors` dagi `state` — `"paid" | "partial" | "unpaid" | "empty"`: yozuv yo'q bo'lsa `"empty"` qaytadi (`"unpaid"` bilan adashtirmaslik — `unpaid` admin aniq belgilagan qarzdorlik).
-- **Onlayn to'lov yo'q**: `method` doim `"manual"`. To'lov holatini faqat admin qo'lda belgilaydi.
+- **O'qituvchi scoping:** `teacher` roli barcha 4 endpointga kira oladi, lekin faqat o'ziga biriktirilgan guruhlar o'quvchilari bo'yicha: `GET` begona `studentId` ga `403 FORBIDDEN`, `PUT /bulk` dagi begona yozuv butun so'rovni `403` qiladi, `debtors`/`remind` avtomatik o'z guruhlariga torayadi.
+- **Onlayn to'lov yo'q**: `method` doim `"manual"`. To'lov holatini faqat xodim qo'lda belgilaydi (admin — barcha guruhda, o'qituvchi — o'z guruhlarida).
 
 ## A.7 Tests (qo'shimcha)
 
@@ -523,6 +524,7 @@ Markazda hamma bitta Wi-Fi'dan kirishi mumkinligi hisobga olingan.
 | 409 | `DUPLICATE` | Takrorlanuvchi yozuv (unique cheklov) |
 | 400 | `GROUP_ID_REQUIRED` | teacher/admin `groupId` siz davomat so'radi |
 | 400 | `STUDENT_NOT_IN_GROUP` | Davomat saqlashda begona o'quvchi yuborilgan |
+| 400 | `STUDENT_BLOCKED` | Bloklangan (faol bo'lmagan) o'quvchiga davomat/to'lov holati belgilamoqchi — yozuvlar o'chirilmaydi, saqlanmaydi ham |
 | 400 | `TEACHER_NOT_FOUND` | Guruhga o'qituvchi biriktirishda noto'g'ri `teacherId` |
 | 400 | `ATTEMPT_FINISHED` | Topshirilgan testga javob yozilmoqchi |
 | 400 | `ATTEMPT_NOT_SUBMITTED` / `ATTEMPT_NOT_COMPLETED` | Hali topshirilmagan/baholanmagan |

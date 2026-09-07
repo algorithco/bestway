@@ -300,7 +300,9 @@
     "logout": "Chiqish",
     "profile": "Profil",
     "saveFailed": "Javob saqlanmadi",
-    "unknownError": "Kutilmagan xatolik yuz berdi"
+    "unknownError": "Kutilmagan xatolik yuz berdi",
+    "blocked": "Bloklangan",
+    "studentBlocked": "Bu o'quvchi bloklangan — holat saqlanmadi"
   },
   "nav": {
     "mock": "Imtihonlar",

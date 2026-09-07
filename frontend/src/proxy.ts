@@ -47,7 +47,7 @@ const AUTH_PAGES = ["/login", "/register"];
 /** Prefiks -> ruxsat etilgan rollar (backend controllerlardagi @Roles bilan bir xil) */
 const ROUTE_ROLES: [string, Role[]][] = [
   ["/attendance", ["teacher", "admin", "super_admin"]],
-  ["/payments", ["admin", "super_admin"]],
+  ["/payments", ["teacher", "admin", "super_admin"]],
   ["/students", ["admin", "super_admin"]],
   ["/staff", ["admin", "super_admin"]],
   ["/groups", ["teacher", "admin", "super_admin"]],

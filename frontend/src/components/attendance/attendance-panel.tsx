@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/app/page-header";
 import { ExportButton } from "@/components/app/export-button";
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid";
@@ -122,8 +123,15 @@ export function AttendancePanel() {
     return map;
   }, [attendanceQ.data]);
 
+  const studentsById = React.useMemo(() => new Map(students.map((s) => [s.studentId, s])), [students]);
+
   const commit = React.useCallback(
     (studentId: string, date: string, state: AttendanceState) => {
+      // Bloklangan o'quvchi: so'rov yubormaymiz — darhol xabardor qilamiz
+      if (studentsById.get(studentId)?.isActive === false) {
+        toast.error(tc("studentBlocked"));
+        return;
+      }
       save.mutate(
         { studentId, date, state },
         {
@@ -132,6 +140,11 @@ export function AttendancePanel() {
             // "internet" deb ko'rsatmaymiz — bu xabar faqat tarmoq uzilganda.
             if (process.env.NODE_ENV !== "production") {
               console.error("[attendance] save failed", { studentId, date, state, error: e });
+            }
+            // Backend STUDENT_BLOCKED rad etsa — aniq sababni ko'rsatamiz
+            if (e instanceof ApiError && e.code === "STUDENT_BLOCKED") {
+              toast.error(tc("studentBlocked"));
+              return;
             }
             const backendMessage =
               e instanceof ApiError && e.status > 0 && e.code !== "UNKNOWN" && e.message
@@ -142,12 +155,25 @@ export function AttendancePanel() {
         },
       );
     },
-    [save, t],
+    [save, t, tc, studentsById],
   );
 
   const rows = React.useMemo(
-    () => students.map((s) => ({ id: s.studentId, header: <span className="truncate">{s.name}</span> })),
-    [students],
+    () =>
+      students.map((s) => ({
+        id: s.studentId,
+        header: (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{s.name}</span>
+            {!s.isActive && (
+              <Badge variant="neutral" className="shrink-0">
+                {tc("blocked")}
+              </Badge>
+            )}
+          </span>
+        ),
+      })),
+    [students, tc],
   );
 
   const renderCell = React.useCallback(

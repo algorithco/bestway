@@ -300,7 +300,9 @@
     "logout": "Log out",
     "profile": "Profile",
     "saveFailed": "Answer not saved",
-    "unknownError": "An unexpected error occurred"
+    "unknownError": "An unexpected error occurred",
+    "blocked": "Blocked",
+    "studentBlocked": "This student is blocked — status was not saved"
   },
   "nav": {
     "mock": "Exams",

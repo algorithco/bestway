@@ -213,7 +213,55 @@ const YEAR = now.getFullYear();
   check('to\'lagan o\'quvchiga eslatma ketmaydi', remindPaid.json.data.notified === 0, remindPaid.json);
 
   const teacherPay = await call('GET', '/payments', { token: teacher.accessToken });
-  check('teacher /payments -> 403', teacherPay.status === 403, teacherPay.json);
+  check('teacher /payments faqat o\'z guruhlari (begona yo\'q)',
+    teacherPay.json.success && teacherPay.json.data.some((p) => p.studentId === student2.user.id) &&
+    teacherPay.json.data.every((p) => p.studentId !== student3.json.data.id), teacherPay.json.data?.length);
+  const teacherPayForeign = await call('GET', `/payments?studentId=${student3.json.data.id}`, { token: teacher.accessToken });
+  check('teacher begona o\'quvchi to\'lovini ko\'ra olmaydi -> 403 FORBIDDEN',
+    teacherPayForeign.status === 403 && teacherPayForeign.json.error.code === 'FORBIDDEN', teacherPayForeign.json);
+
+  const teacherBulkOwn = await call('PUT', '/payments/bulk', {
+    token: teacher.accessToken,
+    body: { year: YEAR, records: [{ studentId: student.user.id, month: MONTH, state: 'partial', amount: 100000 }] },
+  });
+  check('teacher o\'z guruhiga to\'lov belgilaydi', teacherBulkOwn.json.success && teacherBulkOwn.json.data.updated === 1, teacherBulkOwn.json);
+  const teacherBulkForeign = await call('PUT', '/payments/bulk', {
+    token: teacher.accessToken,
+    body: { year: YEAR, records: [{ studentId: student3.json.data.id, month: MONTH, state: 'paid', amount: 1 }] },
+  });
+  check('teacher begona guruhga to\'lov belgilay olmaydi -> 403 FORBIDDEN',
+    teacherBulkForeign.status === 403 && teacherBulkForeign.json.error.code === 'FORBIDDEN', teacherBulkForeign.json);
+
+  const teacherDebtors = await call('GET', '/payments/debtors', { token: teacher.accessToken });
+  check('teacher debtors faqat o\'z guruhlari (begona yo\'q)',
+    teacherDebtors.json.success && teacherDebtors.json.data.some((d) => d.studentId === student.user.id) &&
+    teacherDebtors.json.data.every((d) => d.studentId !== student3.json.data.id),
+    teacherDebtors.json.data?.map((d) => `${d.name}:${d.state}`));
+
+  // Bloklangan o'quvchi: status belgilash rad etiladi, tarix o'chirilmaydi
+  const blockStudent = await call('DELETE', `/users/${student.user.id}`, { token: superA.accessToken });
+  check('o\'quvchini bloklash', blockStudent.json?.success === true, blockStudent.json);
+  const blockedPay = await call('PUT', '/payments/bulk', {
+    token: admin.accessToken,
+    body: { year: YEAR, records: [{ studentId: student.user.id, month: MONTH, state: 'paid', amount: 500000 }] },
+  });
+  check('bloklangan o\'quvchiga to\'lov -> 400 STUDENT_BLOCKED',
+    blockedPay.status === 400 && blockedPay.json.error.code === 'STUDENT_BLOCKED', blockedPay.json);
+  const blockedAtt = await call('PUT', '/attendance/bulk', {
+    token: teacher.accessToken,
+    body: { groupId, date: today, records: [{ studentId: student.user.id, state: 'present' }] },
+  });
+  check('bloklangan o\'quvchiga davomat -> 400 STUDENT_BLOCKED',
+    blockedAtt.status === 400 && blockedAtt.json.error.code === 'STUDENT_BLOCKED', blockedAtt.json);
+  const payKept = await call('GET', `/payments?studentId=${student.user.id}&year=${YEAR}&month=${MONTH}`, { token: admin.accessToken });
+  check('bloklangan o\'quvchi tarixi o\'chmagan', payKept.json.success && payKept.json.data.some((p) => p.studentId === student.user.id), payKept.json.data);
+  const unblock = await call('PATCH', `/users/${student.user.id}`, { token: admin.accessToken, body: { isActive: true } });
+  check('o\'quvchini qayta faollashtirish', unblock.json?.success === true, unblock.json);
+  const payAfter = await call('PUT', '/payments/bulk', {
+    token: admin.accessToken,
+    body: { year: YEAR, records: [{ studentId: student.user.id, month: MONTH, state: 'partial', amount: 100000 }] },
+  });
+  check('faollashgandan keyin to\'lov belgilanadi', payAfter.json.success === true, payAfter.json);
 
   console.log('\n== TESTS ==');
   const guestTests = await call('GET', '/tests');

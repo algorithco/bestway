@@ -11,30 +11,30 @@ import { PaymentsService } from './payments.service';
 export class PaymentsController {
   constructor(private readonly payments: PaymentsService) {}
 
-  /** To'lovlar tarixi. O'quvchi/ota-ona faqat o'zinikini ko'radi */
+  /** To'lovlar tarixi. O'quvchi/ota-ona faqat o'zinikini, o'qituvchi faqat o'z guruhlarinikini ko'radi */
   @Get()
-  @Roles('admin', 'super_admin', 'parent', 'student')
+  @Roles('admin', 'super_admin', 'parent', 'student', 'teacher')
   list(@CurrentUser() user: AuthUser, @Query() q: QueryPaymentsDto) {
     return this.payments.list(user, q);
   }
 
-  /** To'lanmaganlar ro'yxati (oy bo'yicha) */
+  /** To'lanmaganlar ro'yxati (oy bo'yicha). O'qituvchi faqat o'z guruhlarinikini ko'radi */
   @Get('debtors')
-  @Roles('admin', 'super_admin')
-  debtors(@Query() q: DebtorsQueryDto) {
-    return this.payments.debtors(q);
+  @Roles('admin', 'super_admin', 'teacher')
+  debtors(@CurrentUser() user: AuthUser, @Query() q: DebtorsQueryDto) {
+    return this.payments.debtors(user, q);
   }
 
-  /** Oylik to'lov jadvalini bitta so'rovda saqlash (faqat qo'lda belgilash) */
+  /** Oylik to'lov jadvalini bitta so'rovda saqlash (faqat qo'lda belgilash; o'qituvchi — o'z guruhlarida) */
   @Put('bulk')
-  @Roles('admin', 'super_admin')
+  @Roles('admin', 'super_admin', 'teacher')
   bulk(@CurrentUser() user: AuthUser, @Body() dto: BulkPaymentsDto) {
     return this.payments.bulkUpsert(user, dto);
   }
 
-  /** Qarzdorlarga bir tugma bilan to'lov eslatmasi yuborish */
+  /** Qarzdorlarga bir tugma bilan to'lov eslatmasi yuborish (o'qituvchi — o'z guruhlariga) */
   @Post('remind')
-  @Roles('admin', 'super_admin')
+  @Roles('admin', 'super_admin', 'teacher')
   remind(@CurrentUser() user: AuthUser, @Body() dto: RemindDto) {
     return this.payments.remind(user, dto);
   }

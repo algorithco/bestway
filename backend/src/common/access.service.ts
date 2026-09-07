@@ -59,4 +59,13 @@ export class AccessService {
     });
     return groups.map((g) => g.id);
   }
+
+  /** O'qituvchining guruhlaridagi o'quvchilar (user id ro'yxati) */
+  async teacherStudentIds(teacherUserId: string): Promise<string[]> {
+    const rows = await this.prisma.studentProfile.findMany({
+      where: { group: { teacherId: teacherUserId } },
+      select: { userId: true },
+    });
+    return rows.map((r) => r.userId);
+  }
 }

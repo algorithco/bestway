@@ -14,9 +14,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
+import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/app/page-header";
 import { ExportButton } from "@/components/app/export-button";
 import { DataGrid, type DataGridColumn } from "@/components/data-grid/data-grid";
+import { ApiError } from "@/lib/api-client";
 import { StateCell, type CellTone } from "@/components/data-grid/state-cell";
 import {
   PaymentCellDialog,
@@ -24,6 +26,7 @@ import {
 } from "@/components/payments/payment-cell-dialog";
 import { DebtorsCard } from "@/components/payments/debtors-card";
 import { useGroups, useGroupDetail } from "@/hooks/use-groups";
+import { useMe } from "@/hooks/use-me";
 import { usePayments, useSavePaymentCell, type PaymentCellChange } from "@/hooks/use-payments";
 import { useSettings } from "@/hooks/use-settings";
 import type { PaymentRow, PaymentState } from "@/lib/types";
@@ -74,6 +77,9 @@ export function PaymentsPanel() {
 
   const detailQ = useGroupDetail(activeGroupId || undefined);
   const paymentsQ = usePayments(year);
+  // CSV eksport backend'da admin-only — o'qituvchiga tugmani ko'rsatmaymiz
+  const { data: me } = useMe();
+  const canExport = me?.user.role === "admin" || me?.user.role === "super_admin";
   const save = useSavePaymentCell(year);
   const monthlyFee = settingsQ.data?.monthlyFee ?? 0;
 
@@ -84,8 +90,21 @@ export function PaymentsPanel() {
   const studentsById = React.useMemo(() => new Map(students.map((s) => [s.studentId, s])), [students]);
 
   const rows = React.useMemo(
-    () => students.map((s) => ({ id: s.studentId, header: <span className="truncate">{s.name}</span> })),
-    [students],
+    () =>
+      students.map((s) => ({
+        id: s.studentId,
+        header: (
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate">{s.name}</span>
+            {!s.isActive && (
+              <Badge variant="neutral" className="shrink-0">
+                {tc("blocked")}
+              </Badge>
+            )}
+          </span>
+        ),
+      })),
+    [students, tc],
   );
 
   // "studentId|month" -> PaymentRow
@@ -111,13 +130,27 @@ export function PaymentsPanel() {
 
   const commit = React.useCallback(
     (change: PaymentCellChange) => {
-      save.mutate(change, { onError: () => toast.error(tc("unknownError")) });
+      save.mutate(change, {
+        onError: (e) => {
+          // Backend STUDENT_BLOCKED rad etsa — aniq sababni ko'rsatamiz
+          if (e instanceof ApiError && e.code === "STUDENT_BLOCKED") {
+            toast.error(tc("studentBlocked"));
+            return;
+          }
+          toast.error(tc("unknownError"));
+        },
+      });
     },
     [save, tc],
   );
 
   const cycle = React.useCallback(
     (studentId: string, studentName: string, month: number) => {
+      // Bloklangan o'quvchi: so'rov yubormaymiz — darhol xabardor qilamiz
+      if (studentsById.get(studentId)?.isActive === false) {
+        toast.error(tc("studentBlocked"));
+        return;
+      }
       const cur = rowMap.get(`${studentId}|${month}`);
       const state = nextState(cur?.state);
       // Unpaid → Empty: yozuv o'chiriladi (backend deleteMany), amount/note kerak emas
@@ -130,7 +163,7 @@ export function PaymentsPanel() {
       else if (state === "unpaid") amount = 0;
       commit({ studentId, studentName, month, state, amount, note: cur?.note ?? undefined });
     },
-    [rowMap, monthlyFee, commit],
+    [studentsById, rowMap, monthlyFee, commit, tc],
   );
 
   const renderCell = React.useCallback(
@@ -173,7 +206,7 @@ export function PaymentsPanel() {
         description={t("subtitle")}
         actions={
           <>
-            <ExportButton path={`/stats/export/payments?year=${year}`} />
+            {canExport && <ExportButton path={`/stats/export/payments?year=${year}`} />}
             {groupsQ.data && groupsQ.data.length > 0 && (
               <Select value={activeGroupId} onValueChange={setGroupId}>
                 <SelectTrigger className="w-full min-w-[9rem] max-w-full sm:w-44">

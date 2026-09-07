@@ -73,13 +73,24 @@ export class AttendanceService {
     // Barcha o'quvchilar shu guruhda ekanini tekshirish
     const members = await this.prisma.studentProfile.findMany({
       where: { groupId: dto.groupId },
-      select: { userId: true },
+      select: { userId: true, user: { select: { isActive: true } } },
     });
     const memberIds = new Set(members.map((m) => m.userId));
     for (const r of dto.records) {
       if (!memberIds.has(r.studentId)) {
         throw new AppException('STUDENT_NOT_IN_GROUP', "Ro'yxatda guruhga tegishli bo'lmagan o'quvchi bor", 400);
       }
+    }
+
+    // Bloklangan (markazda o'qimaydigan) o'quvchiga holat belgilab bo'lmaydi.
+    // Mavjud yozuvlar o'chirilmaydi — ular tarix sifatida saqlanib qoladi.
+    const inactiveIds = new Set(members.filter((m) => !m.user.isActive).map((m) => m.userId));
+    if (dto.records.some((r) => inactiveIds.has(r.studentId))) {
+      throw new AppException(
+        'STUDENT_BLOCKED',
+        "Bloklangan o'quvchi uchun davomat belgilab bo'lmaydi",
+        400,
+      );
     }
 
     const existing = await this.prisma.attendance.findMany({

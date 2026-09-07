@@ -51,6 +51,17 @@ export class PaymentsService {
       } else {
         where.studentId = { in: kids };
       }
+    } else if (viewer.role === 'teacher') {
+      // O'qituvchi faqat o'z guruhlari o'quvchilarini ko'radi
+      const ids = await this.access.teacherStudentIds(viewer.id);
+      if (q.studentId) {
+        if (!ids.includes(q.studentId)) {
+          throw new AppException('FORBIDDEN', "Bu o'quvchi sizning guruhingizda emas", 403);
+        }
+        where.studentId = q.studentId;
+      } else {
+        where.studentId = { in: ids };
+      }
     } else if (q.studentId) {
       where.studentId = q.studentId;
     }
@@ -81,13 +92,33 @@ export class PaymentsService {
     const ids = [...new Set(dto.records.map((r) => r.studentId))];
     const profiles = await this.prisma.studentProfile.findMany({
       where: { userId: { in: ids } },
-      select: { userId: true },
+      select: { userId: true, user: { select: { isActive: true } } },
     });
     const known = new Set(profiles.map((p) => p.userId));
     for (const r of dto.records) {
       if (!known.has(r.studentId)) {
         throw new AppException('STUDENT_NOT_FOUND', "Ro'yxatda mavjud bo'lmagan o'quvchi bor", 400);
       }
+    }
+
+    // O'qituvchi faqat o'z guruhlari o'quvchilari to'lovini belgilaydi
+    if (actor.role === 'teacher') {
+      const allowed = new Set(await this.access.teacherStudentIds(actor.id));
+      const foreign = dto.records.find((r) => !allowed.has(r.studentId));
+      if (foreign) {
+        throw new AppException('FORBIDDEN', "Bu o'quvchi sizning guruhingizda emas", 403);
+      }
+    }
+
+    // Bloklangan (markazda o'qimaydigan) o'quvchiga holat belgilab bo'lmaydi.
+    // Mavjud yozuvlar o'chirilmaydi — ular tarix sifatida saqlanib qoladi.
+    const inactiveIds = new Set(profiles.filter((p) => !p.user.isActive).map((p) => p.userId));
+    if (dto.records.some((r) => inactiveIds.has(r.studentId))) {
+      throw new AppException(
+        'STUDENT_BLOCKED',
+        "Bloklangan o'quvchi uchun to'lov holatini belgilab bo'lmaydi",
+        400,
+      );
     }
 
     const existing = await this.prisma.payment.findMany({
@@ -172,10 +203,16 @@ export class PaymentsService {
   }
 
   /** To'lanmagan/qisman to'langan o'quvchilar ro'yxati (eslatma paneli uchun) */
-  async debtors(q: DebtorsQueryDto) {
+  async debtors(viewer: AuthUser, q: DebtorsQueryDto) {
     const { month, year } = this.resolvePeriod(q);
     const students = await this.prisma.studentProfile.findMany({
-      where: { user: { isActive: true }, groupId: { not: null } },
+      where: {
+        user: { isActive: true },
+        // O'qituvchi faqat o'z guruhlari qarzdorlarini ko'radi
+        ...(viewer.role === 'teacher'
+          ? { group: { teacherId: viewer.id } }
+          : { groupId: { not: null } }),
+      },
       include: {
         user: { select: { id: true, name: true, phone: true } },
         group: { select: { name: true } },
@@ -209,7 +246,8 @@ export class PaymentsService {
    */
   async remind(actor: AuthUser, dto: RemindDto) {
     const { month, year } = this.resolvePeriod(dto);
-    const all = await this.debtors({ month, year });
+    // debtors() rolga qarab scope'laydi — o'qituvchi begona guruhga eslatma yubora olmaydi
+    const all = await this.debtors(actor, { month, year });
     const targets = dto.studentIds?.length
       ? all.filter((d) => dto.studentIds!.includes(d.studentId))
       : all;
