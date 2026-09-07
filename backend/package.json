@@ -20,6 +20,7 @@
     "seed:init": "ts-node --transpile-only prisma/seed-init.ts",
     "seed:mock": "ts-node --transpile-only prisma/seed-mock.ts",
     "test:smoke": "node scripts/smoke-test.mjs",
+    "test:timing": "ts-node --transpile-only scripts/verify-timing.ts",
     "tg:link": "node scripts/telegram-link.mjs",
     "db:backup": "bash scripts/backup.sh",
     "postinstall": "patch-package"

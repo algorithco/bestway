@@ -13,7 +13,7 @@ import {
   StartAttemptDto,
 } from './dto/mock.dto';
 import { MockAccessService } from './mock-access.service';
-import { ExamRow, shapeExam, totalDuration } from './mock-shape';
+import { ExamRow, SKILL_ORDER, computeSkillTiming, shapeExam, totalDuration } from './mock-shape';
 
 export const MOCK_EXAM_INCLUDE = {
   sections: {
@@ -29,15 +29,7 @@ export const MOCK_EXAM_INCLUDE = {
 
 const CHEAT_EVENT_CAP = 50;
 
-/** IELTS full-test flow: Listening review time (spec §2.1 — dynamic audio + 2 min). */
-const LISTENING_REVIEW_SEC = 120;
-/** Reading/Writing default bo'lim vaqti (spec §2.2–2.3) — section.durationMinutes bo'lmasa. */
-const DEFAULT_READING_MIN = 60;
-const DEFAULT_WRITING_MIN = 60;
-/** Listening fallback — audioDurationSec kiritilmagan bo'lsa ~30 min (spec §2.1). */
-const FALLBACK_LISTENING_SEC = 30 * 60;
-
-type SectionDeadlines = Partial<Record<'listening' | 'reading' | 'writing', string>>;
+type SectionDeadlines = Partial<Record<'listening' | 'reading' | 'writing' | 'speaking', string>>;
 
 @Injectable()
 export class MockAttemptService {
@@ -88,14 +80,47 @@ export class MockAttemptService {
     }
 
     const mode = dto.mode ?? 'practice';
+    // Single_skill timed: skill-aware deadline (IELTS qoidalari).
+    // listening = audio yig'indisi + 120s review, reading/writing = durationMinutes,
+    // speaking = deadline'siz. `totalDuration` faqat ko'rinish (display) uchun.
     const duration = totalDuration(exam as unknown as ExamRow);
-    const deadlineAt =
-      mode === 'timed' && duration ? new Date(Date.now() + duration * 60_000) : null;
+    let deadlineAt: Date | null = null;
+    let overallDeadlineAt: Date | null = null;
+    let sectionDeadlines: SectionDeadlines | null = null;
+    if (mode === 'timed') {
+      const now = Date.now();
+      const bySkill = new Map((exam.sections ?? []).map((s) => [s.skill, s]));
+      const map: SectionDeadlines = {};
+      let last: Date | null = null;
+      for (const skill of SKILL_ORDER) {
+        const section = bySkill.get(skill);
+        if (!section) continue;
+        const { deadline } = computeSkillTiming(skill, section, now);
+        if (!deadline) continue; // speaking — deadline yo'q
+        if (skill !== 'speaking') {
+          map[skill as keyof SectionDeadlines] = deadline.toISOString();
+        }
+        last = deadline;
+      }
+      if (last) {
+        deadlineAt = last;
+        overallDeadlineAt = last;
+        sectionDeadlines = map;
+      }
+      // Faqat speaking'dan iborat exam timed bo'lsa ham — deadline null.
+    }
 
     let attempt: MockAttempt;
     try {
       attempt = await this.prisma.mockAttempt.create({
-        data: { examId, studentId: student.id, mode, deadlineAt },
+        data: {
+          examId,
+          studentId: student.id,
+          mode,
+          deadlineAt,
+          ...(sectionDeadlines ? { sectionDeadlines: sectionDeadlines as unknown as Prisma.InputJsonValue } : {}),
+          ...(overallDeadlineAt ? { overallDeadlineAt } : {}),
+        },
       });
     } catch (err) {
       const raced = await this.prisma.mockAttempt.findFirst({
@@ -124,31 +149,36 @@ export class MockAttemptService {
   }
 
   /**
-   * Full-test start (exam, strict): L→R→W ketma-ket, server-soat.
-   * Listening = sum(audioDurationSec || fallback) + 120s review (qaror #2).
+   * Full-test start (exam, strict): L→R→W→S ketma-ket, server-soat.
+   * Har bir skill deadline `computeSkillTiming` bilan (listening = audio+120s
+   * review, reading/writing = durationMinutes), zanjir ketma-ket ulanadi.
    * Practice dan farqli — mode har doim timed, currentSkill=listening.
    */
   private async startFullTest(student: AuthUser, examId: string, exam: ExamRow, shaped: ReturnType<typeof shapeExam>) {
     const now = Date.now();
     const sections = exam.sections ?? [];
     const bySkill = new Map(sections.map((s) => [s.skill, s]));
+    // Speaking has no time box (see startFullTest docstring): no per-section
+    // deadline key and no overall deadline, otherwise the unconditional
+    // overall check in assertNotTimedOut would MOCK_TIME_UP every speaking
+    // action once writing's clock runs out.
+    const hasSpeaking = bySkill.has('speaking' as never);
 
-    const listeningGroups = (bySkill.get('listening' as never)?.groups ?? []) as Array<{ audioDurationSec?: number | null }>;
-    const listeningAudioSec = listeningGroups.length
-      ? listeningGroups.reduce((sum, g) => sum + (g.audioDurationSec ?? 0), 0)
-      : 0;
-    const listeningSec = (listeningAudioSec > 0 ? listeningAudioSec : FALLBACK_LISTENING_SEC) + LISTENING_REVIEW_SEC;
-    const readingMin = (bySkill.get('reading' as never) as { durationMinutes?: number | null } | undefined)?.durationMinutes ?? DEFAULT_READING_MIN;
-    const writingMin = (bySkill.get('writing' as never) as { durationMinutes?: number | null } | undefined)?.durationMinutes ?? DEFAULT_WRITING_MIN;
-
-    const listeningDeadline = new Date(now + listeningSec * 1000);
-    const readingDeadline = new Date(listeningDeadline.getTime() + readingMin * 60_000);
-    const writingDeadline = new Date(readingDeadline.getTime() + writingMin * 60_000);
-    const sectionDeadlines: SectionDeadlines = {
-      listening: listeningDeadline.toISOString(),
-      reading: readingDeadline.toISOString(),
-      writing: writingDeadline.toISOString(),
-    };
+    // Zanjirli deadline: har bir bo'lim oldingisi tugagach boshlanadi.
+    let cursor = now;
+    const sectionDeadlines: SectionDeadlines = {};
+    for (const skill of ['listening', 'reading', 'writing'] as const) {
+      const { seconds } = computeSkillTiming(skill, bySkill.get(skill), cursor);
+      if (seconds == null) continue;
+      cursor += seconds * 1000;
+      sectionDeadlines[skill] = new Date(cursor).toISOString();
+    }
+    const writingDeadline = new Date(cursor);
+    // Speaking is untimed: no overall deadline, otherwise the unconditional
+    // overall check in assertNotTimedOut would MOCK_TIME_UP every speaking
+    // action once writing's clock runs out. Per-skill sectionDeadlines alone
+    // guard L/R/W; the speaking key is simply omitted (missing key tolerated).
+    const overallDeadline: Date | null = hasSpeaking ? null : writingDeadline;
 
     let attempt: MockAttempt;
     try {
@@ -157,11 +187,11 @@ export class MockAttemptService {
           examId,
           studentId: student.id,
           mode: 'timed',
-          deadlineAt: writingDeadline,
+          deadlineAt: overallDeadline,
           flowMode: 'full_test',
           currentSkill: 'listening',
           sectionDeadlines: sectionDeadlines as unknown as Prisma.InputJsonValue,
-          overallDeadlineAt: writingDeadline,
+          overallDeadlineAt: overallDeadline,
           audioPlays: {} as unknown as Prisma.InputJsonValue,
           submittedSections: [] as unknown as Prisma.InputJsonValue,
         },
@@ -185,7 +215,7 @@ export class MockAttemptService {
       flowMode: 'full_test' as const,
       currentSkill: 'listening' as const,
       sectionDeadlines,
-      overallDeadlineAt: writingDeadline,
+      overallDeadlineAt: overallDeadline,
       exam: shaped,
       annotations: [],
       savedAnswers: {},
@@ -193,8 +223,11 @@ export class MockAttemptService {
   }
 
   /**
-   * Full-test advance: joriy bo'limni yakunlab keyingisiga o'tish (L→R→W).
+   * Full-test advance: joriy bo'limni yakunlab keyingisiga o'tish (L→R→W→S).
    * Server-soat asosida; orqaga qaytish yo'q (exam strict, qaror #4).
+   * Speaking faqat imtihonda speaking bo'limi bo'lsa ro'yxatda bo'ladi —
+   * bo'lmasa writing oxirgi bo'lib qoladi. Oxirgi bo'limdan keyin advance
+   * FLOW_COMPLETE beradi (yakunlash submit orqali).
    */
   async advanceSection(student: AuthUser, attemptId: string) {
     const attempt = await this.ownAttempt(student, attemptId);
@@ -202,8 +235,16 @@ export class MockAttemptService {
     if (attempt.flowMode !== 'full_test') {
       throw new AppException('NOT_FULL_TEST', 'Bu urinish full_test rejimida emas', 400);
     }
-    const order = ['listening', 'reading', 'writing'] as const;
-    const current = attempt.currentSkill as (typeof order)[number] | null;
+    const skills = await this.prisma.mockSection.findMany({
+      where: { examId: attempt.examId },
+      select: { skill: true },
+    });
+    const base = ['listening', 'reading', 'writing'] as const;
+    type FlowSkill = (typeof base)[number] | 'speaking';
+    const order: readonly FlowSkill[] = skills.some((s) => s.skill === 'speaking')
+      ? [...base, 'speaking']
+      : base;
+    const current = attempt.currentSkill as FlowSkill | null;
     const idx = current ? order.indexOf(current) : -1;
     if (idx === -1 || idx >= order.length - 1) {
       throw new AppException('FLOW_COMPLETE', 'Oxirgi bo‘limdasiz — imtihonni yakunlang', 400);
@@ -216,6 +257,9 @@ export class MockAttemptService {
       data: {
         currentSkill: next,
         submittedSections: submitted as unknown as Prisma.InputJsonValue,
+        // Entering speaking clears any overall deadline (heals attempts
+        // started before overallDeadlineAt=null; speaking is untimed).
+        ...(next === 'speaking' ? { overallDeadlineAt: null, deadlineAt: null } : {}),
       },
     });
     return {
@@ -229,14 +273,15 @@ export class MockAttemptService {
   }
 
   /**
-   * Listening once-only nazorati (spec §2.1; qaror #4: practice=cheksiz, exam=1 marta).
+   * Listening once-only nazorati (spec §2.1; qaror #4: practice=cheksiz, timed=1 marta).
+   * Timed rejimda full_test VA single_skill listening'da qo'llanadi.
    * Audio stream dan oldin chaqiriladi. Qayta urinish → 403 AUDIO_REPLAY_BLOCKED.
    */
   async recordAudioPlay(student: AuthUser | undefined, attemptId: string | undefined, groupId: string) {
     if (!attemptId || !student) return { allowed: true, plays: 0, limited: false };
     const attempt = await this.prisma.mockAttempt.findUnique({ where: { id: attemptId } });
     if (!attempt || attempt.studentId !== student.id) return { allowed: true, plays: 0, limited: false };
-    if (attempt.flowMode !== 'full_test' || attempt.mode !== 'timed') {
+    if (attempt.mode !== 'timed') {
       return { allowed: true, plays: 0, limited: false };
     }
     const group = await this.prisma.mockQuestionGroup.findUnique({
@@ -427,8 +472,11 @@ export class MockAttemptService {
     if (attempt.mode === 'timed' && overall && now > overall.getTime()) {
       throw new AppException('MOCK_TIME_UP', 'Vaqt tugadi — imtihonni yakunlang', 400);
     }
-    // Full-test: joriy bo'lim deadline o'tgan bo'lsa ham saqlash bloklanadi (oldin advance/submit).
-    if (attempt.flowMode === 'full_test' && attempt.currentSkill) {
+    // Joriy bo'lim deadline (currentSkill o'rnatilgan bo'lsa — flowMode dan
+    // qat'iy nazar; single_skill urinishlarda currentSkill null bo'ladi va
+    // umumiy deadlineAt tekshiruvi yuqorida ishlaydi; eski urinishlar ham
+    // shu fallback orqali buzilmasdan ishlaydi).
+    if (attempt.currentSkill) {
       const deadlines = (attempt.sectionDeadlines as SectionDeadlines | null) ?? null;
       const iso = deadlines?.[attempt.currentSkill as keyof SectionDeadlines];
       if (iso && now > new Date(iso).getTime()) {

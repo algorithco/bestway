@@ -284,8 +284,16 @@ matching, matching_headings`) need ≥2 options; auto-skill questions need
 
 ### 4.4 Modes & flows
 
-* `practice` (default): no deadline, unlimited audio replays.
-* `timed`: `deadlineAt = startedAt + Σ section durations`; late answers → `MOCK_TIME_UP`.
+* `practice` (default): no deadline, unlimited audio replays, native audio controls.
+* `timed`: skill-specific deadlines (IELTS rules, `computeSkillTiming` in
+  `mock-shape.ts`): **listening** = Σ `audioDurationSec` + 120s review
+  (no audio → 30min fallback; `durationMinutes` never used);
+  **reading/writing** = `durationMinutes` (missing → 60min default), strict
+  countdown; **speaking** = no deadline at all (`deadlineAt` stays null —
+  student submits manually). Single_skill timed attempts also populate
+  `sectionDeadlines`; `overallDeadlineAt` = last timed section's deadline
+  (speaking skipped; speaking-only exam → both null). Late answers →
+  `MOCK_TIME_UP` / `MOCK_SECTION_TIME_UP`.
 * `single_skill` (default): any section answerable.
 * `full_test`: forced timed, starts at listening, chained per-section
   deadlines, `advance` locks previous sections (`403 SECTION_LOCKED`),
