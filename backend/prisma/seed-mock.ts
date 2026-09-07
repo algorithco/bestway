@@ -19,6 +19,10 @@ async function main() {
       where: { section: { examId: existing.id, skill: 'listening' } },
       data: { partNumber: 1, audioDurationSec: 1800, audioPlayLimit: 1 },
     });
+    // Eski demo bayrog'i bo'lsa — oddiy imtihonga aylantirish.
+    if (existing.isDemo) {
+      await prisma.mockExam.update({ where: { id: existing.id }, data: { isDemo: false } });
+    }
     console.log(`"${title}" allaqachon mavjud (id=${existing.id}). Listening guruhlari full-test maydonlari bilan yangilandi.`);
     return;
   }
@@ -30,7 +34,8 @@ async function main() {
       description: 'To\'liq 4 bo\'limli IELTS Academic amaliy mock imtihon (band baholash bilan).',
       level: 'Academic',
       isPublished: true,
-      isDemo: true,
+      // Demo emas — admin qo'shgan oddiy imtihon sifatida (desktop faqat shularni ko'rsatadi).
+      isDemo: false,
       sections: {
         create: [
           // ─────────── Listening ───────────

@@ -157,49 +157,6 @@ async function main() {
     });
   }
 
-  // --- Demo IELTS test ---
-  const ieltsTitle = 'IELTS Mock Test #1 (Demo)';
-  let ielts = await prisma.test.findFirst({ where: { title: ieltsTitle } });
-  if (!ielts) {
-    ielts = await prisma.test.create({
-      data: {
-        type: 'ielts' as TestType,
-        title: ieltsTitle,
-        level: 'Academic',
-        isDemo: true,
-        durationMinutes: 60,
-        sectionQuestionCounts: { listening: 3, reading: 3 },
-      },
-    });
-    const q = (
-      section: TestSection,
-      type: QuestionType,
-      prompt: string,
-      options?: string[],
-      correctAnswer?: string,
-      maxScore = 1,
-    ) => ({ testId: ielts!.id, section, type, prompt, options: options ?? undefined, correctAnswer, maxScore });
-
-    await prisma.question.createMany({
-      data: [
-        // Listening
-        q('listening', 'multiple_choice', 'The woman wants to book a room for ___ nights.', ['two', 'three', 'four'], 'three'),
-        q('listening', 'multiple_choice', 'What time does the library open on weekends?', ['8 AM', '9 AM', '10 AM'], '10 AM'),
-        q('listening', 'short_answer', 'Write the caller\'s postcode.', undefined, 'BH246GL|bh24 6gl|bh246gl'),
-        q('listening', 'multiple_choice', 'The lecture is mainly about ___.', ['urban planning', 'marine biology', 'renewable energy'], 'renewable energy'),
-        // Reading
-        q('reading', 'multiple_choice', 'According to the passage, the main cause of soil erosion is ___.', ['deforestation', 'flooding', 'construction'], 'deforestation'),
-        q('reading', 'multiple_choice', 'The word "profound" in paragraph 2 is closest in meaning to ___.', ['deep', 'quick', 'visible'], 'deep'),
-        q('reading', 'short_answer', 'In which year was the research station established? (Write a number)', undefined, '1987'),
-        q('reading', 'multiple_choice', 'What does the author suggest in the final paragraph?', ['further research is needed', 'the problem is solved', 'funding should stop'], 'further research is needed'),
-        // Writing (qo'lda baholanadi)
-        q('writing', 'essay', 'Task 2: Some people believe that students should study online instead of attending school. To what extent do you agree or disagree? Write at least 250 words.', undefined, undefined, 9),
-        // Speaking (qo'lda baholanadi)
-        q('speaking', 'speaking_prompt', 'Part 2: Describe a teacher who has influenced you. You should say: who this person is, how you met them, and why they influenced you.', undefined, undefined, 9),
-      ],
-    });
-  }
-
   // --- Multilevel (CEFR) test ---
   const mlTitle = 'Multilevel Mock Test #1';
   let ml = await prisma.test.findFirst({ where: { title: mlTitle } });

@@ -24,6 +24,7 @@
     "test:fulltest-speaking": "ts-node --transpile-only scripts/verify-fulltest-speaking.ts",
     "tg:link": "node scripts/telegram-link.mjs",
     "db:backup": "bash scripts/backup.sh",
+    "db:clean-demos": "ts-node --transpile-only prisma/clean-demos.ts",
     "postinstall": "patch-package"
   },
   "prisma": {
