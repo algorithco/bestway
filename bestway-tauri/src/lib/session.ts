@@ -1,8 +1,10 @@
 /**
  * Student session helpers for the Tauri frontend.
  *
- * - Access token lives ONLY in memory (never localStorage/sessionStorage).
- * - Device id persists in localStorage for backend device binding.
+ * - Access token lives in memory + AES-GCM encrypted localStorage (see api.ts
+ *   + secure-storage.ts, enc:v2). Device id persists in localStorage plaintext
+ *   for backend device binding (it is the PBKDF2 password input, not a secret
+ *   on its own — the per-value random salt provides install binding).
  * - Role gate: this app shell is student-only.
  *
  * NOTE: framework-agnostic — no imports from src/lib/api*.

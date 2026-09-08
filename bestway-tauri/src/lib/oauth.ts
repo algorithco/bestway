@@ -19,7 +19,7 @@
 
 import { post, setSession } from "./api";
 import { ensureDeviceId } from "./session";
-import { isSafeHttpUrl, secureGetItem, secureRemoveItem, secureSetItem } from "./secure-storage";
+import { isSafeHttpUrl, secureGetItemAsync, secureRemoveItemAsync, secureSetItemAsync } from "./secure-storage";
 
 export const DESKTOP_SCHEME = "bestway-exam";
 export const DESKTOP_CALLBACK = `${DESKTOP_SCHEME}://auth/callback`;
@@ -89,7 +89,7 @@ function oauthStorage(): Storage | null {
   return null;
 }
 
-export function newBrowserLoginState(): BrowserLoginState {
+export async function newBrowserLoginState(): Promise<BrowserLoginState> {
   const s: BrowserLoginState = {
     state: randomToken(16),
     verifier: randomToken(32),
@@ -97,12 +97,14 @@ export function newBrowserLoginState(): BrowserLoginState {
     createdAt: Date.now(),
   };
   try {
-    // Encrypted at-rest: uses secure-storage (XOR-obfuscated with device key).
+    // Encrypted at-rest: AES-GCM-256 via secure-storage (PBKDF2 from deviceId
+    // + per-value salt, enc:v2). Falls back to memory-only when subtle is
+    // unavailable — never plaintext on disk.
     // localStorage survives app restarts / deep-link cold-starts; sessionStorage
     // would vanish when the webview reloads or the app is relaunched by the OS URL handler.
     const payload = JSON.stringify(s);
     try {
-      secureSetItem(STORAGE_KEY, payload);
+      await secureSetItemAsync(STORAGE_KEY, payload);
     } catch {
       oauthStorage()?.setItem(STORAGE_KEY, payload);
     }
@@ -112,18 +114,18 @@ export function newBrowserLoginState(): BrowserLoginState {
   return s;
 }
 
-export function readBrowserLoginState(): BrowserLoginState | null {
+export async function readBrowserLoginState(): Promise<BrowserLoginState | null> {
   try {
     // Prefer encrypted store; fallback to legacy plaintext for migration.
     let raw: string | null = null;
     try {
-      raw = secureGetItem(STORAGE_KEY) ?? null;
+      raw = (await secureGetItemAsync(STORAGE_KEY)) ?? null;
     } catch {
       raw = null;
     }
     if (!raw) raw = oauthStorage()?.getItem(STORAGE_KEY) ?? null;
     if (!raw) return null;
-    // Handle double-encrypted envelope edge: if secureGetItem returned envelope
+    // Handle double-encrypted envelope edge: if secureGetItemAsync returned envelope
     // that was not decrypted (corrupted), try raw directly.
     let s: BrowserLoginState | null = null;
     try {
@@ -133,7 +135,7 @@ export function readBrowserLoginState(): BrowserLoginState | null {
     }
     if (!s?.state || !s?.verifier || !s?.deviceId) return null;
     if (typeof s.createdAt === "number" && Date.now() - s.createdAt > OAUTH_STATE_TTL_MS) {
-      clearBrowserLoginState();
+      await clearBrowserLoginState();
       return null;
     }
     return s;
@@ -142,10 +144,10 @@ export function readBrowserLoginState(): BrowserLoginState | null {
   }
 }
 
-export function clearBrowserLoginState(): void {
+export async function clearBrowserLoginState(): Promise<void> {
   try {
     try {
-      secureRemoveItem(STORAGE_KEY);
+      await secureRemoveItemAsync(STORAGE_KEY);
     } catch {
       /* ignore */
     }
@@ -218,7 +220,7 @@ export interface StartedBrowserLogin {
 }
 
 export async function startBrowserLogin(): Promise<StartedBrowserLogin> {
-  const s = newBrowserLoginState();
+  const s = await newBrowserLoginState();
   const authorizeUrl = await buildAuthorizeUrl(s);
   await openInBrowser(authorizeUrl);
   return { state: s, authorizeUrl };
@@ -236,7 +238,7 @@ export async function exchangeCode(code: string, verifier: string, deviceId: str
     { code, verifier, deviceId },
     { token: null },
   );
-  if (session?.accessToken) setSession(session.accessToken, session.refreshToken ?? null);
+  if (session?.accessToken) await setSession(session.accessToken, session.refreshToken ?? null);
   return session;
 }
 

@@ -16,7 +16,7 @@
  *
  * api.ts `request()` already unwraps `{ success, data }` -> `data`.
  */
-import { API_BASE_URL, get, getAccessToken, post } from "./api";
+import { API_BASE_URL, get, getAccessTokenCached, post } from "./api";
 
 export type MockExamType = "ielts_academic" | "ielts_general" | "multilevel";
 export type MockSkill = "listening" | "reading" | "writing" | "speaking";
@@ -195,7 +195,7 @@ export async function uploadMockSpeaking(
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      ...(getAccessToken() ? { Authorization: `Bearer ${getAccessToken()}` } : {}),
+      ...(getAccessTokenCached() ? { Authorization: `Bearer ${getAccessTokenCached()}` } : {}),
     },
     body: form,
   });

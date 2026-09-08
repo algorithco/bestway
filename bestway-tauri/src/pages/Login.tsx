@@ -117,18 +117,18 @@ export default function Login({ onLogin }: Props) {
     setError(null);
     try {
       const session = await exchangeCode(p.code, s.verifier, s.deviceId);
-      clearBrowserLoginState();
+      await clearBrowserLoginState();
       // Fail-closed role gate: missing role must NOT pass.
       const role = String((session.user as { role?: unknown } | undefined)?.role ?? "");
       if (role !== "student") {
-        clearSession();
+        await clearSession();
         setError("This app is for students only.");
         setBusy("idle");
         return;
       }
       const id = (session.user?.id as string | undefined) ?? null;
       if (!id) {
-        clearSession();
+        await clearSession();
         setError("Sign-in failed. Please try again.");
         setBusy("idle");
         return;
@@ -159,11 +159,13 @@ export default function Login({ onLogin }: Props) {
       seen.add(url);
       void handleCallback(url, s);
     };
-    void readInitialDeepLink().then((urls) => {
+    void readInitialDeepLink().then(async (urls) => {
       if (dead) return;
-      for (const hit of urls) handleOnce(hit, pendingRef.current ?? readBrowserLoginState());
+      for (const hit of urls) handleOnce(hit, pendingRef.current ?? (await readBrowserLoginState()));
     });
-    const onUrl = (url: string) => handleOnce(url, pendingRef.current ?? readBrowserLoginState());
+    const onUrl = (url: string) => {
+      void (async () => handleOnce(url, pendingRef.current ?? (await readBrowserLoginState())))();
+    };
     listenDeepLink(onUrl)
       .then((u) => {
         if (dead) u();
@@ -199,7 +201,7 @@ export default function Login({ onLogin }: Props) {
         }
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once deep-link wiring; handleCallback refs are stable via pendingRef/onLoginRef
   }, []);
 
   async function handleBrowser() {
@@ -212,7 +214,7 @@ export default function Login({ onLogin }: Props) {
     let s: BrowserLoginState;
     let url: string;
     try {
-      s = newBrowserLoginState();
+      s = await newBrowserLoginState();
       url = await buildAuthorizeUrl(s);
     } catch {
       setError("Could not create the login link. Check connection and try again.");
@@ -233,7 +235,7 @@ export default function Login({ onLogin }: Props) {
   }
 
   function cancelBrowser() {
-    clearBrowserLoginState();
+    void clearBrowserLoginState();
     pendingRef.current = null;
     setPending(null);
     setAuthorizeUrl(null);
@@ -244,7 +246,7 @@ export default function Login({ onLogin }: Props) {
 
   async function handleManualUrl(e: React.FormEvent) {
     e.preventDefault();
-    const s = pendingRef.current ?? readBrowserLoginState();
+    const s = pendingRef.current ?? (await readBrowserLoginState());
     const raw = manualUrl.trim();
     if (!raw) {
       setError("Paste the full callback URL or code from the browser first.");
@@ -290,13 +292,13 @@ export default function Login({ onLogin }: Props) {
       // Fail-closed: missing/unknown role must NOT default to student.
       const role = String(session.user?.role ?? "");
       if (role !== "student") {
-        clearSession();
+        await clearSession();
         setError("This app is for students only.");
         setBusy("idle");
         return;
       }
       if (!session.user?.id) {
-        clearSession();
+        await clearSession();
         setError("Sign-in failed. Please try again.");
         setBusy("idle");
         return;

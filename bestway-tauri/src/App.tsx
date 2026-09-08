@@ -17,7 +17,7 @@ import UpdateNotifier from "@/components/UpdateNotifier";
 import ExitConfirmModal from "@/components/ExitConfirmModal";
 import { checkForUpdate, getDismissedVersion, type UpdateInfo } from "@/lib/version";
 import ClickSpark from "@/components/ClickSpark";
-import { clearSession, getAccessToken, getRefreshToken, logout, me, refresh } from "@/lib/api";
+import { clearSession, getAccessToken, getRefreshToken, initSecureSession, logout, me, refresh } from "@/lib/api";
 import type { StartResult, TestListItem } from "@/lib/tests";
 import type {
   MockExamListItem,
@@ -146,20 +146,21 @@ export default function App() {
     return () => window.clearTimeout(t);
   }, [student]);
 
-  // Restore persisted session (api.ts stores tokens in localStorage).
+  // Restore persisted session (api.ts stores tokens AES-GCM encrypted in localStorage).
   // Without this, every reload forced re-login even with valid tokens.
   useEffect(() => {
     let dead = false;
     (async () => {
       try {
-        if (!getAccessToken() && getRefreshToken()) {
+        await initSecureSession();
+        if (!(await getAccessToken()) && (await getRefreshToken())) {
           try {
             await refresh();
           } catch {
-            clearSession();
+            await clearSession();
           }
         }
-        if (getAccessToken()) {
+        if (await getAccessToken()) {
           const profile = await me();
           if (!dead) {
             if (profile?.user?.role === "student" && profile.user.id) {
@@ -170,14 +171,14 @@ export default function App() {
               });
               setRoute("dashboard");
             } else {
-              clearSession();
+              await clearSession();
             }
           }
         }
       } catch {
         // Offline / expired — stay on login; request() already tried refresh.
         try {
-          if (!getAccessToken()) clearSession();
+          if (!(await getAccessToken())) await clearSession();
         } catch {
           /* ignore */
         }
@@ -253,7 +254,7 @@ export default function App() {
     try {
       await logout();
     } finally {
-      clearSession();
+      await clearSession();
       setStudent(null);
       setActiveTest(null);
       setActiveStart(null);
