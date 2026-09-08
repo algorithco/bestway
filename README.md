@@ -153,4 +153,23 @@ parent      +998900000020 / Parent123!
 
 ---
 
+## CI/CD
+
+- Every PR targeting `main` (and every push to `main`) runs `.github/workflows/ci.yml`:
+  - `backend`: Postgres 16 service → `npm ci` → `prisma generate` → `prisma migrate deploy` → `nest build` → start built app, wait for `/v1/health`, run `npm run test:smoke`.
+  - `frontend`: `npm ci` → `npm run lint` → `npm run build`. Lint or build failure fails the check.
+- `.github/workflows/release-desktop.yml` is only for tagged desktop releases (`git tag bestway-app-vX.Y.Z`); it does not run on PRs.
+- Run the same checks locally before pushing:
+
+```bash
+# backend (needs Postgres at localhost:5432 + JWT_SECRET>=32 chars)
+cd backend && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+npm run start:prod &  # then wait for http://localhost:3001/v1/health -> 200
+npm run test:smoke; kill %1
+# frontend
+cd frontend && npm ci && npm run lint && npm run build
+```
+
+---
+
 *Built for a single center, modular for growth — StorageService & Notifications swappable to S3/CDN. Feedback: `otashdev1@gmail.com` · `SECURITY.md`*
