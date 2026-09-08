@@ -268,3 +268,16 @@ export function validatePart(skill: MockSkill, part: BuilderPart): string[] {
   }
   return errors;
 }
+
+export function validateOneQuestion(skill: MockSkill, q: BuilderQuestion): string[] {
+  const part: BuilderPart = {
+    clientId: "probe",
+    title: "",
+    instructions: "",
+    passageText: skill === "reading" ? "probe" : "",
+    audioPlayLimit: 1,
+    hasAudio: false,
+    questions: [q],
+  };
+  return validatePart(skill, part);
+}

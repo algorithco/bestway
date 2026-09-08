@@ -677,36 +677,27 @@ function QuestionPreview({ question }: { question: BuilderQuestion }) {
   );
 }
 
-/* ── Main editor ───────────────────────────────────────────────────────── */
-
-export function QuestionEditor(props: {
+/* ── Reusable field set (inline editor + Task 7 drawer share this) ────────
+ * Prompt textarea + per-kind answer branches + wordLimit/points controls.
+ * Excludes card chrome, header row, number/type switching UI, and preview —
+ * those stay in QuestionEditor. Drawer edits content/keys only.
+ */
+export function QuestionFieldSet(props: {
   question: BuilderQuestion;
   skill: MockSkill;
   allowedTypes: MockQuestionType[];
   onChange: (q: BuilderQuestion) => void;
-  onRemove: () => void;
 }): JSX.Element {
-  const { question, skill, allowedTypes, onChange, onRemove } = props;
+  // allowedTypes is accepted (same call shape as QuestionEditor) but unused:
+  // number/type switching UI stays out of the drawer set.
+  const { question, skill, onChange } = props;
   const t = useTranslations("wizard");
-  const tc = useTranslations("common");
 
   const kind = kindOf(question.type);
   const manual = !isAutoType(question.type);
-  const allowed = new Set<MockQuestionType>(allowedTypes);
   const errors = getQuestionFieldErrors(question, skill);
 
-  const [pendingType, setPendingType] = React.useState<MockQuestionType | null>(null);
-  const [pendingLosses, setPendingLosses] = React.useState<string[]>([]);
   const optionRefs = React.useRef<Array<HTMLInputElement | null>>([]);
-  const confirmRef = React.useRef<HTMLButtonElement | null>(null);
-
-  function focusOption(index: number): void {
-    window.setTimeout(() => optionRefs.current[index]?.focus(), 0);
-  }
-
-  React.useEffect(() => {
-    if (pendingType) confirmRef.current?.focus();
-  }, [pendingType]);
 
   const ids = {
     number: `qe-${question.clientId}-number`,
@@ -716,29 +707,8 @@ export function QuestionEditor(props: {
     wordLimit: `qe-${question.clientId}-wordlimit`,
   };
 
-  function requestTypeChange(next: MockQuestionType): void {
-    if (next === question.type) return;
-    const losses = describeTypeLoss(question, next);
-    if (losses.length === 0) {
-      onChange(buildSwitchedQuestion(question, next));
-      return;
-    }
-    setPendingType(next);
-    setPendingLosses(losses);
-  }
-
-  function confirmTypeChange(): void {
-    if (!pendingType) return;
-    onChange(buildSwitchedQuestion(question, pendingType));
-    setPendingType(null);
-    setPendingLosses([]);
-    document.getElementById(ids.type)?.focus();
-  }
-
-  function cancelTypeChange(): void {
-    setPendingType(null);
-    setPendingLosses([]);
-    document.getElementById(ids.type)?.focus();
+  function focusOption(index: number): void {
+    window.setTimeout(() => optionRefs.current[index]?.focus(), 0);
   }
 
   function editOption(index: number, text: string): void {
@@ -802,95 +772,10 @@ export function QuestionEditor(props: {
 
   const singleSelected = nonEmpty(question.correctAnswers)[0] ?? "";
   const singleResolved = singleSelected ? resolveOption(question.options, singleSelected) : null;
-  const multiSet = new Set(question.correctAnswers);
   const mappingResolved = singleSelected ? resolveOption(question.options, singleSelected) : null;
 
   return (
-    <div className="space-y-3 rounded-[8px] border border-border bg-surface p-3">
-      {/* Question + Type */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-fg">#{question.number}</span>
-          <span className="shrink-0 rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-fg-muted">
-            {QTYPE_LABEL[question.type]}
-          </span>
-          {question.savedQuestionId ? (
-            <span className="shrink-0 rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-fg-muted">
-              saved
-            </span>
-          ) : null}
-        </div>
-        <Button type="button" variant="danger" size="sm" onClick={onRemove}>
-          {tc("delete")}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={t("questionNumber")} htmlFor={ids.number} error={errors.number}>
-          <Input
-            id={ids.number}
-            type="number"
-            min={1}
-            max={200}
-            value={question.number}
-            aria-invalid={errors.number ? true : undefined}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              onChange({ ...question, number: Number.isFinite(v) ? Math.trunc(v) : question.number });
-            }}
-          />
-        </Field>
-        <Field label={t("questionType")} htmlFor={ids.type}>
-          <Select value={question.type} onValueChange={(v) => requestTypeChange(v as MockQuestionType)}>
-            <SelectTrigger id={ids.type}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {GROUPED_TYPES.map((g) => {
-                const types = g.types.filter((qt) => allowed.has(qt) || qt === question.type);
-                if (types.length === 0) return null;
-                return (
-                  <SelectGroup key={g.group}>
-                    <SelectLabel>{g.group}</SelectLabel>
-                    {types.map((qt) => (
-                      <SelectItem key={qt} value={qt}>
-                        {QTYPE_LABEL[qt]}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </Field>
-      </div>
-
-      {pendingType && (
-        <div
-          role="alertdialog"
-          aria-labelledby={`qe-${question.clientId}-switch-title`}
-          aria-describedby={`qe-${question.clientId}-switch-desc`}
-          className="space-y-2 rounded-[8px] border border-warning/40 bg-warning/5 p-3"
-        >
-          <p id={`qe-${question.clientId}-switch-title`} className="text-sm font-semibold text-fg">
-            Change question type to {QTYPE_LABEL[pendingType]}?
-          </p>
-          <ul id={`qe-${question.clientId}-switch-desc`} className="list-disc space-y-0.5 pl-4 text-sm text-fg-muted">
-            {pendingLosses.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={cancelTypeChange}>
-              Cancel
-            </Button>
-            <Button ref={confirmRef} type="button" size="sm" onClick={confirmTypeChange}>
-              Continue
-            </Button>
-          </div>
-        </div>
-      )}
-
+    <>
       {/* Content */}
       <div className="space-y-1.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Content</p>
@@ -1345,6 +1230,159 @@ export function QuestionEditor(props: {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+/* ── Main editor ───────────────────────────────────────────────────────── */
+
+export function QuestionEditor(props: {
+  question: BuilderQuestion;
+  skill: MockSkill;
+  allowedTypes: MockQuestionType[];
+  onChange: (q: BuilderQuestion) => void;
+  onRemove: () => void;
+}): JSX.Element {
+  const { question, skill, allowedTypes, onChange, onRemove } = props;
+  const t = useTranslations("wizard");
+  const tc = useTranslations("common");
+
+  const allowed = new Set<MockQuestionType>(allowedTypes);
+  const errors = getQuestionFieldErrors(question, skill);
+
+  const [pendingType, setPendingType] = React.useState<MockQuestionType | null>(null);
+  const [pendingLosses, setPendingLosses] = React.useState<string[]>([]);
+  const confirmRef = React.useRef<HTMLButtonElement | null>(null);
+
+  React.useEffect(() => {
+    if (pendingType) confirmRef.current?.focus();
+  }, [pendingType]);
+
+  const ids = {
+    number: `qe-${question.clientId}-number`,
+    type: `qe-${question.clientId}-type`,
+    prompt: `qe-${question.clientId}-prompt`,
+    points: `qe-${question.clientId}-points`,
+    wordLimit: `qe-${question.clientId}-wordlimit`,
+  };
+
+  function requestTypeChange(next: MockQuestionType): void {
+    if (next === question.type) return;
+    const losses = describeTypeLoss(question, next);
+    if (losses.length === 0) {
+      onChange(buildSwitchedQuestion(question, next));
+      return;
+    }
+    setPendingType(next);
+    setPendingLosses(losses);
+  }
+
+  function confirmTypeChange(): void {
+    if (!pendingType) return;
+    onChange(buildSwitchedQuestion(question, pendingType));
+    setPendingType(null);
+    setPendingLosses([]);
+    document.getElementById(ids.type)?.focus();
+  }
+
+  function cancelTypeChange(): void {
+    setPendingType(null);
+    setPendingLosses([]);
+    document.getElementById(ids.type)?.focus();
+  }
+
+  return (
+    <div className="space-y-3 rounded-[8px] border border-border bg-surface p-3">
+      {/* Question + Type */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-medium text-fg">#{question.number}</span>
+          <span className="shrink-0 rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-fg-muted">
+            {QTYPE_LABEL[question.type]}
+          </span>
+          {question.savedQuestionId ? (
+            <span className="shrink-0 rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-fg-muted">
+              saved
+            </span>
+          ) : null}
+        </div>
+        <Button type="button" variant="danger" size="sm" onClick={onRemove}>
+          {tc("delete")}
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <Field label={t("questionNumber")} htmlFor={ids.number} error={errors.number}>
+          <Input
+            id={ids.number}
+            type="number"
+            min={1}
+            max={200}
+            value={question.number}
+            aria-invalid={errors.number ? true : undefined}
+            onChange={(e) => {
+              const v = Number(e.target.value);
+              onChange({ ...question, number: Number.isFinite(v) ? Math.trunc(v) : question.number });
+            }}
+          />
+        </Field>
+        <Field label={t("questionType")} htmlFor={ids.type}>
+          <Select value={question.type} onValueChange={(v) => requestTypeChange(v as MockQuestionType)}>
+            <SelectTrigger id={ids.type}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {GROUPED_TYPES.map((g) => {
+                const types = g.types.filter((qt) => allowed.has(qt) || qt === question.type);
+                if (types.length === 0) return null;
+                return (
+                  <SelectGroup key={g.group}>
+                    <SelectLabel>{g.group}</SelectLabel>
+                    {types.map((qt) => (
+                      <SelectItem key={qt} value={qt}>
+                        {QTYPE_LABEL[qt]}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+
+      {pendingType && (
+        <div
+          role="alertdialog"
+          aria-labelledby={`qe-${question.clientId}-switch-title`}
+          aria-describedby={`qe-${question.clientId}-switch-desc`}
+          className="space-y-2 rounded-[8px] border border-warning/40 bg-warning/5 p-3"
+        >
+          <p id={`qe-${question.clientId}-switch-title`} className="text-sm font-semibold text-fg">
+            Change question type to {QTYPE_LABEL[pendingType]}?
+          </p>
+          <ul id={`qe-${question.clientId}-switch-desc`} className="list-disc space-y-0.5 pl-4 text-sm text-fg-muted">
+            {pendingLosses.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={cancelTypeChange}>
+              Cancel
+            </Button>
+            <Button ref={confirmRef} type="button" size="sm" onClick={confirmTypeChange}>
+              Continue
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <QuestionFieldSet
+        question={question}
+        skill={skill}
+        allowedTypes={allowedTypes}
+        onChange={onChange}
+      />
 
       {/* Preview (always the student control, never the key) */}
       <div className="space-y-1.5">
