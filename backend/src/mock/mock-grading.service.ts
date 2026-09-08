@@ -38,6 +38,8 @@ interface SectionAgg {
   max: number;
   manual: boolean;
   manualPending: boolean;
+  /** Non-blank javoblar soni — bandFromRaw dagi attempted bayrog'i uchun. */
+  answeredCount: number;
   tasks: Array<{ type: MockQuestionType; score: number }>;
 }
 
@@ -312,6 +314,7 @@ export class MockGradingService {
         max: 0,
         manual: !auto,
         manualPending: false,
+        answeredCount: 0,
         tasks: [],
       };
       for (const group of section.groups) {
@@ -319,6 +322,9 @@ export class MockGradingService {
           agg.max += q.points;
           const ans = answerByQ.get(q.id);
           if (auto) {
+            // Bo'sh bo'lmagan javob "urinish" hisoblanadi (mock-answer.ts dagi
+            // bo'sh-javob qoidasi bilan bir xil: trim() qilinganda bo'sh emas).
+            if (ans?.response?.trim()) agg.answeredCount += 1;
             const key = (q.correctAnswers as string[] | null) ?? [];
             // Spec §3: wordLimit (NO MORE THAN X) + Br/Am acceptedVariants.
             const wordLimit = (q as { wordLimit?: number | null }).wordLimit ?? null;
@@ -361,7 +367,7 @@ export class MockGradingService {
       for (const a of aggs) {
         if (a.max === 0) continue;
         if (!a.manual) {
-          bands[a.skill] = bandFromRaw(a.skill, examType, a.score, a.max, bandTables);
+          bands[a.skill] = bandFromRaw(a.skill, examType, a.score, a.max, bandTables, a.answeredCount > 0);
         } else if (!a.manualPending) {
           bands[a.skill] = this.manualSectionBand(a.skill, a.tasks);
         }

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "nest build",
+    "test": "vitest run",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
@@ -61,7 +62,8 @@
     "postinstall-postinstall": "^2.1.0",
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^5.0.0"
   },
   "overrides": {
     "js-yaml": "4.3.1",

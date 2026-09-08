@@ -122,7 +122,11 @@ function tableFor(skill: MockSkill, examType: MockExamType, tables: BandTables):
 /**
  * Xom ballni (score/max) 40 balllik ekvivalentga keltirib, IELTS band chiqaradi.
  * Full-test da max har doim 40 bo'lishi kerak (scale buzilmasligi uchun).
- * max=0 bo'lsa 0 qaytadi. Bo'sh (javobsiz) urinish → 0.
+ * max=0 bo'lsa 0 qaytadi.
+ * `attempted=false` (birorta ham javob berilmagan) → 0 — "urinilmagan" holat.
+ * `attempted=true` (default) bo'lsa jadval har doim qo'llanadi, jumladan
+ * 0 xom ball jadvalning nol-qatoriga tushadi (standart jadvallarda band 2) —
+ * "urindi, lekin 0 topladi" holati "urinmadi" holatidan shu bilan farqlanadi.
  * `tables` berilmasa standart jadval ishlatiladi (admin `Setting` orqali
  * o'zgartirgan bo'lsa, grading service DB dagi jadvalni uzatadi).
  */
@@ -132,9 +136,10 @@ export function bandFromRaw(
   score: number,
   max: number,
   tables: BandTables = DEFAULT_BAND_TABLES,
+  attempted = true,
 ): number {
   if (max <= 0) return 0;
-  if (score <= 0) return 0;
+  if (!attempted) return 0;
   const scaled = Math.round((Math.max(0, Math.min(score, max)) / max) * 40);
   const table = tableFor(skill, examType, tables);
   for (const [minRaw, band] of table) {
