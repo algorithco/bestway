@@ -6,7 +6,9 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import { QuestionNode } from "./question-node-extension";
 import { serializeVisualDocument } from "./serialize";
+import { QuestionSettingsDrawer, excerptFor } from "./QuestionSettingsDrawer";
 import { QuestionTypeToolbar } from "./QuestionTypeToolbar";
+import { TYPES_BY_SKILL } from "@/components/exam-builder/types";
 import type { BuilderQuestion } from "@/components/mock/exam-builder/types";
 import {
   isAutoType,
@@ -57,9 +59,8 @@ export function VisualQuestionCanvas(props: {
   const [order, setOrder] = React.useState<string[]>(
     props.initialQuestions.map((q) => q.clientId),
   );
-  // Drawer UI mounts in Task 7; for now store the id and render nothing.
+  // Settings drawer host (Task 7): openId selects the question being edited.
   const [openId, setOpenId] = React.useState<string | null>(null);
-  void openId;
 
   // Ledger ruling: mapRef BEFORE useEditor (plan snippet order bug).
   const mapRef = React.useRef(map);
@@ -70,6 +71,8 @@ export function VisualQuestionCanvas(props: {
   baseNumberRef.current = props.baseNumber;
   const skillRef = React.useRef(props.skill);
   skillRef.current = props.skill;
+  const openIdRef = React.useRef(openId);
+  openIdRef.current = openId;
   const onChangeRef = React.useRef(props.onChange);
   onChangeRef.current = props.onChange;
 
@@ -217,10 +220,13 @@ export function VisualQuestionCanvas(props: {
   });
 
   // GC effect: 500ms debounce removing map keys absent from order.
+  // Skips openId so the open question is never GC'd mid-edit.
   React.useEffect(() => {
     const t = setTimeout(() => {
       setMap((prev) => {
         const alive = new Set(orderRef.current);
+        const keep = openIdRef.current;
+        if (keep !== null) alive.add(keep);
         let changed = false;
         const next = { ...prev };
         for (const k of Object.keys(next)) {
@@ -235,10 +241,36 @@ export function VisualQuestionCanvas(props: {
     return () => clearTimeout(t);
   }, [order]);
 
+  // Drawer host: question/excerpt for the open node; controlled edits
+  // write the canvas map immediately (no Apply step).
+  const openQuestion = openId !== null ? (map[openId] ?? null) : null;
+  const excerpt = openId !== null ? (editor ? excerptFor(editor.getJSON(), openId) : "") : "";
+  const allowedTypes = TYPES_BY_SKILL[props.skill];
+
+  const handleQuestionChange = React.useCallback((q: BuilderQuestion) => {
+    mapRef.current = { ...mapRef.current, [q.clientId]: q };
+    setMap((prev) => ({ ...prev, [q.clientId]: q }));
+  }, []);
+
+  const handleDrawerClose = React.useCallback(() => {
+    setOpenId(null);
+  }, []);
+
   return (
     <div className="rounded border border-border bg-surface">
       <QuestionTypeToolbar skill={props.skill} onInsert={insertQuestionType} />
       <EditorContent editor={editor} />
+      {openId !== null ? (
+        <QuestionSettingsDrawer
+          open
+          onClose={handleDrawerClose}
+          question={openQuestion}
+          skill={props.skill}
+          allowedTypes={allowedTypes}
+          excerpt={excerpt}
+          onChange={handleQuestionChange}
+        />
+      ) : null}
     </div>
   );
 }
