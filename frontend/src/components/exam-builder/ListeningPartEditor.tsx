@@ -43,6 +43,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { ImportPanel, type ImportedServerQuestion } from "./ImportPanel";
 import { ListeningAudioCard } from "./ListeningAudioCard";
 import { StudentPreview } from "./StudentPreview";
+import { VisualQuestionCanvas } from "./visual-editor/VisualQuestionCanvas";
 import { TYPES_BY_SKILL, nextQuestionNumber, tx, type Selection } from "./types";
 
 const LISTENING_TYPES = TYPES_BY_SKILL["listening"];
@@ -142,6 +143,17 @@ export function ListeningPartEditor({
   // Fresh server snapshot per part (parent keys by groupId).
   const [snapshot, setSnapshot] = React.useState<BuilderPart | null>(() => (group ? toBuilderPart(group) : null));
   const [part, setPart] = React.useState<BuilderPart | null>(() => snapshot);
+  // Visual paste mode (Task 8): second view over the same part state.
+  const [mode, setMode] = React.useState<"form" | "visual">(() =>
+    typeof window !== "undefined" && window.localStorage.getItem("examBuilder.questionMode") === "visual"
+      ? "visual"
+      : "form",
+  );
+  const [visualText, setVisualText] = React.useState(part?.passageText ?? "");
+  const [visualQuestions, setVisualQuestions] = React.useState<BuilderQuestion[]>(part?.questions ?? []);
+  const baseNumber = visualQuestions.length
+    ? Math.min(...visualQuestions.map((q) => q.number)) - 1
+    : nextQuestionNumber(detail.sections) - 1;
   React.useEffect(
     () => () => {
       if (localAudioUrl) URL.revokeObjectURL(localAudioUrl);
@@ -151,16 +163,26 @@ export function ListeningPartEditor({
   );
 
   const dirty = React.useMemo(
-    () => JSON.stringify(part) !== JSON.stringify(snapshot) || imageFile != null,
-    [part, snapshot, imageFile],
+    () =>
+      JSON.stringify(part) !== JSON.stringify(snapshot) ||
+      imageFile != null ||
+      (mode === "visual" &&
+        snapshot != null &&
+        (visualText !== snapshot.passageText ||
+          JSON.stringify(visualQuestions) !== JSON.stringify(snapshot.questions))),
+    [part, snapshot, imageFile, mode, visualText, visualQuestions],
   );
   React.useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   const save = React.useCallback(async () => {
-    const p = part;
     const g = group;
-    if (!p || !g) return false;
+    if (!part || !g) return false;
+    // Visual mode: run the same save body against the visual copies.
+    const p = mode === "visual" ? { ...part, passageText: visualText, questions: visualQuestions } : part;
     const errs = [...validatePart("listening", p), ...duplicateErrors(detail, g.id, p.questions)];
+    if (p.passageText.length > 20000) {
+      errs.push(tx(t, "passageTooLong", "Passage text must be 20000 characters or fewer."));
+    }
     setErrors(errs);
     if (errs.length > 0) {
       // Open every row that needs attention so nothing hides below the fold.
@@ -263,6 +285,10 @@ export function ListeningPartEditor({
       const cleaned: BuilderPart = { ...p, audioPendingFile: null, audioFileName: p.audioPendingFile ? p.audioPendingFile.name : p.audioFileName };
       setSnapshot(JSON.parse(JSON.stringify(cleaned)));
       setPart(cleaned);
+      if (mode === "visual") {
+        setVisualText(cleaned.passageText);
+        setVisualQuestions(cleaned.questions);
+      }
       if (imageFile) setImageFile(null);
       if (localAudioUrl) {
         URL.revokeObjectURL(localAudioUrl);
@@ -281,7 +307,7 @@ export function ListeningPartEditor({
     } finally {
       setSaving(false);
     }
-  }, [part, group, detail, imageFile, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
+  }, [part, group, detail, imageFile, mode, visualText, visualQuestions, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
 
   React.useEffect(() => {
     registerSave(() => save());
@@ -321,6 +347,23 @@ export function ListeningPartEditor({
 
   function update(fn: (p: BuilderPart) => BuilderPart) {
     setPart((p) => (p ? fn(p) : p));
+  }
+
+  function selectMode(m: "form" | "visual") {
+    const current = part;
+    if (m === "visual" && current) {
+      setVisualText(current.passageText);
+      setVisualQuestions(current.questions);
+    }
+    if (m === "form" && mode === "visual") {
+      update((p) => ({ ...p, passageText: visualText, questions: visualQuestions }));
+    }
+    setMode(m);
+    try {
+      window.localStorage.setItem("examBuilder.questionMode", m);
+    } catch {
+      // Private-mode storage may throw — mode still switches for this session.
+    }
   }
 
   function toggleExpanded(id: string) {
@@ -547,7 +590,31 @@ export function ListeningPartEditor({
               </span>
             </h3>
           </div>
-          <div className="ml-auto flex flex-wrap gap-2">
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <div
+              className="flex items-center gap-1 rounded-[8px] border border-border p-0.5"
+              role="tablist"
+              aria-label={tx(t, "questionMode", "Question mode")}
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "form"}
+                onClick={() => selectMode("form")}
+                className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "form" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+              >
+                {tx(t, "formList", "Form list")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "visual"}
+                onClick={() => selectMode("visual")}
+                className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "visual" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+              >
+                {tx(t, "visualPaste", "Visual paste")}
+              </button>
+            </div>
             <Button size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)} aria-expanded={showPreview}>
               {showPreview ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
               {tx(t, "preview", "Preview")}
@@ -556,10 +623,12 @@ export function ListeningPartEditor({
               <Upload className="size-4" aria-hidden />
               {tx(t, "import", "Import")}
             </Button>
-            <Button size="sm" variant="outline" onClick={addQuestion}>
-              <Plus className="size-4" aria-hidden />
-              {tx(t, "addQuestionNumbered", `Add question (Q${nextNumber})`)}
-            </Button>
+            {mode === "form" && (
+              <Button size="sm" variant="outline" onClick={addQuestion}>
+                <Plus className="size-4" aria-hidden />
+                {tx(t, "addQuestionNumbered", `Add question (Q${nextNumber})`)}
+              </Button>
+            )}
           </div>
         </div>
 
@@ -582,7 +651,20 @@ export function ListeningPartEditor({
           </div>
         )}
 
-        {part.questions.length === 0 ? (
+        {mode === "visual" ? (
+          <div className="mt-3">
+            <VisualQuestionCanvas
+              skill="listening"
+              initialText={visualText}
+              initialQuestions={visualQuestions}
+              baseNumber={baseNumber}
+              onChange={(text, questions) => {
+                setVisualText(text);
+                setVisualQuestions(questions);
+              }}
+            />
+          </div>
+        ) : part.questions.length === 0 ? (
           <div className="mt-3 rounded-[8px] border border-dashed border-border-strong p-4">
             <p className="text-sm font-semibold text-fg">
               {tx(t, "emptyGroupTitle", "This question group is empty.")}
