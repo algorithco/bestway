@@ -63,7 +63,7 @@ Edit `frontend/package.json` scripts (keep existing, add one line):
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests" (flag required: bare `vitest run` exits 1 on empty suite)
   }
 }
 ```
