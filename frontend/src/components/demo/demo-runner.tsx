@@ -101,7 +101,7 @@ export default function DemoRunner({
     if (remaining === 0 && !submitted) {
       handleSubmit();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSubmit intentionally omitted to avoid re-trigger loop; effect keyed on remaining only
   }, [remaining]);
 
   const answeredCount = React.useMemo(

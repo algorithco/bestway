@@ -50,7 +50,6 @@ export function AudioPlayer({
           {fallbackLabel}
         </span>
       </div>
-      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio controls src={url} preload="none" className="h-10 w-full rounded-[8px]">
         <track kind="captions" />
       </audio>

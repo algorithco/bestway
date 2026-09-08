@@ -102,7 +102,7 @@ function PreviewBody({ group, skill }: { group: PreviewGroup; skill: MockSkill }
           </audio>
         )}
         {group.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
+          // eslint-disable-next-line @next/next/no-img-element -- authenticated /api/backend mock image route; next/image optimizer bypass is intentional
           <img
             src={`/api/backend/mock/groups/${group.id}/image`}
             alt=""

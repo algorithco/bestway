@@ -76,7 +76,7 @@ function Slider({
   // Report committed value changes to the parent (throttled by motion frames).
   useEffect(() => {
     onValueChange?.(value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onValueChange intentionally omitted; reporting keyed on value to avoid parent-feedback loops
   }, [value]);
 
   useMotionValueEvent(clientX, "change", (latest) => {

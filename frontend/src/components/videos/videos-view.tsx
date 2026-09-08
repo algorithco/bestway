@@ -110,7 +110,7 @@ export function VideosView() {
                 {/* muqova */}
                 <div className="relative aspect-video overflow-hidden">
                   {v.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
+                    // eslint-disable-next-line @next/next/no-img-element -- dynamic thumbnail URL; next/image requires fixed dims + remotePatterns, plain img with lazy is intentional
                     <img
                       src={v.thumbnailUrl}
                       alt={v.title}

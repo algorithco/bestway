@@ -136,7 +136,7 @@ function GalleryFormFields({
         )}
         {isEdit && item?.image && !file && (
           <div className="overflow-hidden rounded-xl border border-border bg-bg-subtle">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- dynamic admin-uploaded preview URL; next/image optimizer cannot handle, plain img with lazy is intentional */}
             <img src={item.image} alt={item.alt || item.label || ""} loading="lazy" decoding="async" className="max-h-52 w-full object-cover" />
           </div>
         )}

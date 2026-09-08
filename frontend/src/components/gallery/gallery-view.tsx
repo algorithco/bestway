@@ -84,7 +84,7 @@ export function GalleryView() {
           {items.map((item) => (
             <Card key={item.id} className="group flex flex-col overflow-hidden p-0">
               <div className="relative aspect-[4/3] overflow-hidden bg-surface">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- dynamic admin-uploaded URL; next/image requires fixed dims + remotePatterns, plain img with lazy is intentional */}
                 <img
                   src={item.image}
                   alt={item.alt || item.label || ""}

@@ -151,7 +151,7 @@ export default function Runner({ test, start, onLocked, onExit, onFinish }: Prop
       }
       return changed ? next : prev;
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-once answer-cache hydration; setters are stable, re-running would wipe in-progress answers
   }, []);
 
   // Debounced server sync timers die with the runner.

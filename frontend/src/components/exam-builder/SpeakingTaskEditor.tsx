@@ -70,7 +70,7 @@ export function SpeakingTaskEditor({
     const sorted = [...section.groups].sort((a, b) => a.sortOrder - b.sortOrder);
     const i = sorted.findIndex((g) => g.id === groupId);
     return i >= 0 ? i : 0;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on groupIdsKey string to avoid recompute on section object identity
   }, [groupIdsKey, groupId]);
   const partLabel = group?.title?.trim() || `Part ${partIndex + 1}`;
 
@@ -91,7 +91,7 @@ export function SpeakingTaskEditor({
       context: group.passageText ?? "",
       questions: qs,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial snapshot only; group/detail omitted to avoid wiping draft edits
   }, [groupId]);
 
   const [title, setTitle] = React.useState(initial?.title ?? "");

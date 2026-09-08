@@ -324,7 +324,7 @@ export default function MockRunner({ start, section, onExit, onBackToSections, o
             </div>
           )}
           {imageSrc && (
-            // eslint-disable-next-line @next/next/no-img-element
+            // eslint-disable-next-line @next/next/no-img-element -- Tauri app (no next/image optimizer); authenticated exam media URL with lazy loading
             <img src={imageSrc} alt="" loading="lazy" className="mt-3 max-h-96 w-full rounded-2xl border border-white/10 object-contain" />
           )}
           {group.instructions && skill !== "listening" && (

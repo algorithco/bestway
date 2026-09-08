@@ -251,7 +251,7 @@ export default function Particles({
         container.removeChild(canvas);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- OGL renderer init keyed on visual props; three/gl callbacks omitted to avoid re-creating WebGL context
   }, [
     particleCount,
     particleSpread,

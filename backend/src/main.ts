@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ValidationError, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -110,10 +111,10 @@ async function bootstrap() {
 
   const port = parseInt(process.env.PORT ?? '3001', 10);
   await app.listen(port);
-  /* eslint-disable no-console */
-  console.log(`API:         http://localhost:${port}/v1`);
-  console.log(`Admin panel: http://localhost:${port}/admin`);
-  if (process.env.NODE_ENV !== 'production') console.log(`Swagger:     http://localhost:${port}/docs`);
+  const logger = new Logger('Bootstrap');
+  logger.log(`API:         http://localhost:${port}/v1`);
+  logger.log(`Admin panel: http://localhost:${port}/admin`);
+  if (process.env.NODE_ENV !== 'production') logger.log(`Swagger:     http://localhost:${port}/docs`);
 }
 
 void bootstrap();

@@ -280,7 +280,7 @@ export default function PixelCard({
       observer.disconnect();
       cancelAnimationFrame(animationRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initPixels defined inline; effect keyed on resolved props to avoid observer churn on fn identity
   }, [finalGap, finalSpeed, finalColors, finalNoFocus]);
 
   // Allow per-variant active color to drive the radial overlay via CSS variable

@@ -196,17 +196,11 @@ export function ThemeProvider({
     };
     // Initial
     setSystemTheme(media.matches ? "dark" : "light");
-    // Modern browsers use addEventListener
-    if (media.addEventListener) {
-      media.addEventListener("change", handleChange);
-      return () => media.removeEventListener("change", handleChange);
-    } else {
-      // Safari <14
-      // @ts-ignore
-      media.addListener(handleChange);
-      // @ts-ignore
-      return () => media.removeListener(handleChange);
-    }
+    // addEventListener("change") is supported in all evergreen browsers and
+    // Safari >= 14 (2020). The legacy addListener fallback branch (with its
+    // type suppressions) was removed as no longer needed.
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
   }, [enableSystem, theme, forcedTheme, applyTheme]);
 
   // Listen to storage events (sync across tabs)

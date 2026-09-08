@@ -151,7 +151,7 @@ const TextType = ({
     }
 
     return () => clearTimeout(timeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- typing-animation closure; deps listed explicitly to avoid restart on fn identity
   }, [
     currentCharIndex,
     displayedText,

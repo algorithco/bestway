@@ -479,7 +479,7 @@ export function ListeningPartEditor({
               <span className="font-normal text-fg-subtle">{tx(t, "optional", "(optional)")}</span>
             </p>
             {(group.imageUrl || localImageUrl) && (
-              // eslint-disable-next-line @next/next/no-img-element
+              // eslint-disable-next-line @next/next/no-img-element -- blob: object URL preview (URL.createObjectURL); next/image cannot optimize blob: URLs
               <img
                 src={localImageUrl ?? serverImage}
                 alt=""

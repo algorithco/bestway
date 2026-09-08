@@ -106,7 +106,7 @@ export function WritingTaskEditor({
 
   const kind: TaskKind = React.useMemo(
     () => (group && section ? resolveTaskKind(group, section.groups) : "task1"),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on groupId/sectionId to avoid recompute on object identity
     [groupId, sectionId],
   );
   const meta = TASK_META[kind];
@@ -135,7 +135,7 @@ export function WritingTaskEditor({
       questions: qs,
       _q0type: group.questions[0]?.type ?? meta.type,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initial snapshot only; group/detail omitted to avoid wiping draft edits
   }, [groupId]);
 
   const [title, setTitle] = React.useState(initial?.title ?? "");
@@ -320,7 +320,7 @@ export function WritingTaskEditor({
               Diagram / image <span className="font-normal text-fg-subtle">(optional)</span>
             </p>
             {(group.imageUrl || localImageUrl) && (
-              // eslint-disable-next-line @next/next/no-img-element
+              // eslint-disable-next-line @next/next/no-img-element -- blob: object URL preview (URL.createObjectURL); next/image cannot optimize blob: URLs
               <img
                 src={localImageUrl ?? serverImage}
                 alt=""
@@ -434,7 +434,7 @@ export function WritingTaskEditor({
             </p>
           )}
           {(group.imageUrl || localImageUrl) && (
-            // eslint-disable-next-line @next/next/no-img-element
+            // eslint-disable-next-line @next/next/no-img-element -- blob: object URL preview (URL.createObjectURL); next/image cannot optimize blob: URLs
             <img
               src={localImageUrl ?? serverImage}
               alt=""

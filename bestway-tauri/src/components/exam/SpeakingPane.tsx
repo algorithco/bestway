@@ -92,7 +92,7 @@ export default function SpeakingPane({ q, num, fontSize, onBlob, uploadNote }: P
     });
     setRecState("idle");
     setRecError(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- question-change reset; recorder fns omitted to avoid re-init loop, keyed on q.id
   }, [q.id]);
 
   // Prep countdown.
@@ -109,7 +109,7 @@ export default function SpeakingPane({ q, num, fontSize, onBlob, uploadNote }: P
       });
     }, 1000);
     return () => window.clearInterval(t);
-  }, [prepRunning, prepLeft <= 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [prepRunning, prepLeft <= 0]); // eslint-disable-line react-hooks/exhaustive-deps -- boolean-coerced dep restarts timer exactly at zero; raw prepLeft would reset every tick
 
   // Speak countdown — auto-stops the recorder at zero.
   useEffect(() => {
@@ -126,7 +126,7 @@ export default function SpeakingPane({ q, num, fontSize, onBlob, uploadNote }: P
       });
     }, 1000);
     return () => window.clearInterval(t);
-  }, [speakRunning, speakLeft <= 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [speakRunning, speakLeft <= 0]); // eslint-disable-line react-hooks/exhaustive-deps -- boolean-coerced dep restarts timer exactly at zero; raw speakLeft would reset every tick
 
   // Release mic + clip on unmount.
   useEffect(

@@ -60,7 +60,7 @@ export default function History({ refreshKey = 0, onStats }: Props) {
     } finally {
       setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load is a stable fetch closure; effect keyed on refreshKey only to avoid refetch loops
   }, [refreshKey]);
 
   useEffect(() => {

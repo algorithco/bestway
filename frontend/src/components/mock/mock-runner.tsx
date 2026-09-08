@@ -405,7 +405,7 @@ function GroupBlock({
         )
       )}
       {group.imageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
+        // eslint-disable-next-line @next/next/no-img-element -- authenticated /api/backend media URL; next/image optimizer bypass is intentional (auth headers)
         <img
           src={media(`/mock/groups/${group.id}/image`)}
           alt=""
