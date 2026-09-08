@@ -82,18 +82,24 @@ export function VisualQuestionCanvas(props: {
   const [openId, setOpenId] = React.useState<string | null>(null);
 
   // Ledger ruling: mapRef BEFORE useEditor (plan snippet order bug).
+  // Ref mirror sync lives in an effect (never render-time): react-hooks/refs
+  // forbids writing .current during render. No-dep effect runs after every
+  // commit, before any user/editor callback can observe stale values; the
+  // useRef() initializers above already seed first-render values.
   const mapRef = React.useRef(map);
-  mapRef.current = map;
   const orderRef = React.useRef(order);
-  orderRef.current = order;
   const baseNumberRef = React.useRef(props.baseNumber);
-  baseNumberRef.current = props.baseNumber;
   const skillRef = React.useRef(props.skill);
-  skillRef.current = props.skill;
   const openIdRef = React.useRef(openId);
-  openIdRef.current = openId;
   const onChangeRef = React.useRef(props.onChange);
-  onChangeRef.current = props.onChange;
+  React.useEffect(() => {
+    mapRef.current = map;
+    orderRef.current = order;
+    baseNumberRef.current = props.baseNumber;
+    skillRef.current = props.skill;
+    openIdRef.current = openId;
+    onChangeRef.current = props.onChange;
+  });
   const scratchKeyRef = React.useRef<string | null>(props.scratchKey ?? null);
   // Effect assignment (never render-time): keeps the debounced writer's key
   // live without a render-time ref write. Mount-stable in practice — every
@@ -267,8 +273,10 @@ export function VisualQuestionCanvas(props: {
   );
 
   // Storage wiring for QuestionChip (Task 6 toolbar reuses same contract).
+  // eslint-disable-next-line react-hooks/immutability -- TipTap's editor.storage is a deliberately mutable plugin registry; assigning the `visual` slot is the documented integration point for NodeView<->React communication (ReactNodeViewRenderer roots cannot see our context), not component state.
   React.useEffect(() => {
     if (!editor) return;
+    // eslint-disable-next-line react-hooks/immutability -- see above: intentional external-registry write, stable per editor instance.
     (editor.storage as VisualStorage).visual = {
       getNumber: (id: string) =>
         orderRef.current.indexOf(id) + baseNumberRef.current + 1,
