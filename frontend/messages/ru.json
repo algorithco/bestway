@@ -1117,6 +1117,12 @@
     "record": "record",
     "addPart": "Add Part",
     "addPassage": "Add Passage",
-    "addQuestionNumbered": "Add question"
+    "addQuestionNumbered": "Add question",
+    "visualPaste": "Визуальная вставка",
+    "visualPasteHint": "Вставьте текст, затем разместите поля ответов в нужных местах.",
+    "formList": "Список форм",
+    "pastePlaceholder": "Вставьте текст вопроса сюда, затем используйте панель инструментов, чтобы добавить поля ответов в нужных местах.",
+    "visualPreview": "Предпросмотр для ученика",
+    "listeningScratchHint": "Вставленный текст в частях аудирования — это черновик для размещения, сохраняются только вопросы."
   }
 }

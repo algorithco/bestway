@@ -1117,6 +1117,12 @@
     "record": "record",
     "addPart": "Add Part",
     "addPassage": "Add Passage",
-    "addQuestionNumbered": "Add question"
+    "addQuestionNumbered": "Add question",
+    "visualPaste": "Visual paste",
+    "visualPasteHint": "Paste text, then place answer inputs where they belong.",
+    "formList": "Form list",
+    "pastePlaceholder": "Paste question text here, then use the toolbar to add answer inputs where they belong.",
+    "visualPreview": "Preview as student",
+    "listeningScratchHint": "Pasted text is a placement scratchpad in listening parts — only the questions are saved."
   }
 }
