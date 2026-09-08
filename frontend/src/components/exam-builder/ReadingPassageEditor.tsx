@@ -44,6 +44,7 @@ import { questionIssues } from "./checks";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { ImportPanel, type ImportedServerQuestion } from "./ImportPanel";
 import { StudentPreview } from "./StudentPreview";
+import { VisualQuestionCanvas } from "./visual-editor/VisualQuestionCanvas";
 import { TYPES_BY_SKILL, nextQuestionNumber, tx, type Selection } from "./types";
 
 const READING_TYPES = TYPES_BY_SKILL["reading"];
@@ -263,6 +264,17 @@ export function ReadingPassageEditor({
   // Fresh server snapshot per passage (parent keys by groupId).
   const [snapshot, setSnapshot] = React.useState<BuilderPart | null>(() => (group ? toBuilderPart(group) : null));
   const [part, setPart] = React.useState<BuilderPart | null>(() => snapshot);
+  // Visual paste mode (Task 8): second view over the same part state.
+  const [mode, setMode] = React.useState<"form" | "visual">(() =>
+    typeof window !== "undefined" && window.localStorage.getItem("examBuilder.questionMode") === "visual"
+      ? "visual"
+      : "form",
+  );
+  const [visualText, setVisualText] = React.useState(part?.passageText ?? "");
+  const [visualQuestions, setVisualQuestions] = React.useState<BuilderQuestion[]>(part?.questions ?? []);
+  const baseNumber = visualQuestions.length
+    ? Math.min(...visualQuestions.map((q) => q.number)) - 1
+    : nextQuestionNumber(detail.sections) - 1;
   React.useEffect(
     () => () => {
       if (localImageUrl) URL.revokeObjectURL(localImageUrl);
@@ -271,15 +283,22 @@ export function ReadingPassageEditor({
   );
 
   const dirty = React.useMemo(
-    () => JSON.stringify(part) !== JSON.stringify(snapshot) || imageFile != null,
-    [part, snapshot, imageFile],
+    () =>
+      JSON.stringify(part) !== JSON.stringify(snapshot) ||
+      imageFile != null ||
+      (mode === "visual" &&
+        snapshot != null &&
+        (visualText !== snapshot.passageText ||
+          JSON.stringify(visualQuestions) !== JSON.stringify(snapshot.questions))),
+    [part, snapshot, imageFile, mode, visualText, visualQuestions],
   );
   React.useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   const save = React.useCallback(async () => {
-    const p = part;
     const g = group;
-    if (!p || !g) return false;
+    if (!part || !g) return false;
+    // Visual mode: run the same save body against the visual copies.
+    const p = mode === "visual" ? { ...part, passageText: visualText, questions: visualQuestions } : part;
     // Display order changed vs server (by identity)? Then sortOrder persists too.
     const serverIds = g.questions.map((q) => q.id);
     const localIds = p.questions.map((q) => q.savedQuestionId).filter(Boolean);
@@ -287,6 +306,9 @@ export function ReadingPassageEditor({
       localIds.length > 0 &&
       (localIds.length !== serverIds.length || localIds.some((id, i) => id !== serverIds[i]));
     const errs = [...validatePart("reading", p), ...duplicateErrors(detail, g.id, p.questions)];
+    if (p.passageText.length > 20000) {
+      errs.push(tx(t, "passageTooLong", "Passage text must be 20000 characters or fewer."));
+    }
     setErrors(errs);
     if (errs.length > 0) {
       const bad = p.questions.find(
@@ -355,6 +377,10 @@ export function ReadingPassageEditor({
       toast.success(tc("saved"));
       setErrors([]);
       setSnapshot(JSON.parse(JSON.stringify(p)));
+      if (mode === "visual") {
+        setVisualText(p.passageText);
+        setVisualQuestions(p.questions);
+      }
       if (imageFile) setImageFile(null);
       if (localImageUrl) {
         URL.revokeObjectURL(localImageUrl);
@@ -369,7 +395,7 @@ export function ReadingPassageEditor({
     } finally {
       setSaving(false);
     }
-  }, [part, group, detail, imageFile, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
+  }, [part, group, detail, imageFile, mode, visualText, visualQuestions, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
 
   React.useEffect(() => {
     registerSave(() => save());
@@ -401,6 +427,23 @@ export function ReadingPassageEditor({
 
   function update(fn: (p: BuilderPart) => BuilderPart) {
     setPart((p) => (p ? fn(p) : p));
+  }
+
+  function selectMode(m: "form" | "visual") {
+    const current = part;
+    if (m === "visual" && current) {
+      setVisualText(current.passageText);
+      setVisualQuestions(current.questions);
+    }
+    if (m === "form" && mode === "visual") {
+      update((p) => ({ ...p, passageText: visualText, questions: visualQuestions }));
+    }
+    setMode(m);
+    try {
+      window.localStorage.setItem("examBuilder.questionMode", m);
+    } catch {
+      // Private-mode storage may throw — mode still switches for this session.
+    }
   }
 
   function addQuestion(type: MockQuestionType) {
@@ -616,13 +659,37 @@ export function ReadingPassageEditor({
 
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-bold text-fg">
-              {tx(t, "questionGroups", "Question groups")} ({runs.length})
+              {tx(t, "questionGroups", "Question groups")} ({mode === "visual" ? visualQuestions.length : runs.length})
               <span className="ml-2 font-normal text-fg-muted">
-                {part.questions.length}{" "}
-                {part.questions.length === 1 ? tx(t, "questionOne", "question") : tx(t, "questions", "questions")}
+                {mode === "visual" ? visualQuestions.length : part.questions.length}{" "}
+                {(mode === "visual" ? visualQuestions.length : part.questions.length) === 1 ? tx(t, "questionOne", "question") : tx(t, "questions", "questions")}
               </span>
             </h3>
-            <div className="ml-auto flex flex-wrap gap-2">
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <div
+                className="flex items-center gap-1 rounded-[8px] border border-border p-0.5"
+                role="tablist"
+                aria-label={tx(t, "questionMode", "Question mode")}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "form"}
+                  onClick={() => selectMode("form")}
+                  className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "form" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+                >
+                  {tx(t, "formList", "Form list")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "visual"}
+                  onClick={() => selectMode("visual")}
+                  className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "visual" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+                >
+                  {tx(t, "visualPaste", "Visual paste")}
+                </button>
+              </div>
               <Button size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)} aria-expanded={showPreview}>
                 {showPreview ? <EyeOff className="size-4" aria-hidden /> : <Eye className="size-4" aria-hidden />}
                 {tx(t, "preview", "Preview")}
@@ -631,14 +698,29 @@ export function ReadingPassageEditor({
                 <Upload className="size-4" aria-hidden />
                 {tx(t, "import", "Import")}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowTypeChooser((v) => !v)} aria-expanded={showTypeChooser}>
-                <Plus className="size-4" aria-hidden />
-                {tx(t, "addQuestionGroup", "Add question group")}
-              </Button>
+              {mode === "form" && (
+                <Button size="sm" variant="outline" onClick={() => setShowTypeChooser((v) => !v)} aria-expanded={showTypeChooser}>
+                  <Plus className="size-4" aria-hidden />
+                  {tx(t, "addQuestionGroup", "Add question group")}
+                </Button>
+              )}
             </div>
           </div>
 
-          {showTypeChooser && (
+          {mode === "visual" && (
+            <VisualQuestionCanvas
+              skill="reading"
+              initialText={visualText}
+              initialQuestions={visualQuestions}
+              baseNumber={baseNumber}
+              onChange={(text, questions) => {
+                setVisualText(text);
+                setVisualQuestions(questions);
+              }}
+            />
+          )}
+
+          {mode === "form" && showTypeChooser && (
             <div className="rounded-[8px] border border-brand/30 bg-surface p-3">
               <p className="text-sm font-semibold text-fg">
                 {tx(t, "chooseGroupType", "What kind of questions will this group hold?")}
@@ -675,7 +757,7 @@ export function ReadingPassageEditor({
           )}
 
           {/* Sticky group navigator for long passages. */}
-          {runs.length > 1 && (
+          {mode === "form" && runs.length > 1 && (
             <nav
               aria-label={tx(t, "questionGroups", "Question groups")}
               className="sticky top-36 z-[5] flex flex-wrap gap-1.5 rounded-[8px] border border-border bg-bg/95 py-1.5 backdrop-blur"
@@ -692,7 +774,7 @@ export function ReadingPassageEditor({
             </nav>
           )}
 
-          {runs.length === 0 ? (
+          {mode === "form" && (runs.length === 0 ? (
             <div className="rounded-[8px] border border-dashed border-border-strong p-4">
               <p className="text-sm font-semibold text-fg">
                 {tx(t, "emptyGroupsTitle", "No question groups yet.")}
@@ -888,7 +970,8 @@ export function ReadingPassageEditor({
                 </section>
               );
             })
-          )}
+          )
+        )}
         </div>
       </div>
 
