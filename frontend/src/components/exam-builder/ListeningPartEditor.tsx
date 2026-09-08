@@ -43,7 +43,7 @@ import { ConfirmDialog } from "./ConfirmDialog";
 import { ImportPanel, type ImportedServerQuestion } from "./ImportPanel";
 import { ListeningAudioCard } from "./ListeningAudioCard";
 import { StudentPreview } from "./StudentPreview";
-import { VisualQuestionCanvas } from "./visual-editor/VisualQuestionCanvas";
+import { VisualQuestionCanvas, visualScratchKey } from "./visual-editor/VisualQuestionCanvas";
 import { TYPES_BY_SKILL, nextQuestionNumber, tx, type Selection } from "./types";
 
 const LISTENING_TYPES = TYPES_BY_SKILL["listening"];
@@ -695,16 +695,26 @@ export function ListeningPartEditor({
                 />
               ) : null
             ) : (
-              <VisualQuestionCanvas
-                skill="listening"
-                initialText={visualText}
-                initialQuestions={visualQuestions}
-                baseNumber={baseNumber}
-                onChange={(text, questions) => {
-                  setVisualText(text);
-                  setVisualQuestions(questions);
-                }}
-              />
+              <>
+                <p className="text-[11px] text-fg-subtle">
+                  {tx(
+                    t,
+                    "listeningScratchHint",
+                    "Pasted text is a placement scratchpad in listening parts — only the questions are saved.",
+                  )}
+                </p>
+                <VisualQuestionCanvas
+                  skill="listening"
+                  initialText={visualText}
+                  initialQuestions={visualQuestions}
+                  baseNumber={baseNumber}
+                  scratchKey={visualScratchKey(group.id)}
+                  onChange={(text, questions) => {
+                    setVisualText(text);
+                    setVisualQuestions(questions);
+                  }}
+                />
+              </>
             )}
           </div>
         ) : part.questions.length === 0 ? (

@@ -59,7 +59,16 @@ export function QuestionSettingsDrawer(props: {
         if (!value) onClose();
       }}
     >
-      <DialogContent className="ml-auto h-full max-w-xl overflow-y-auto">
+      {/* Right-dock overrides: base DialogContent centers via left-1/2/top-1/2 +
+          translate; tailwind-merge (cn) keeps the LAST conflicting utility, so
+          left-auto/top-0/right-0/translate-0/h-dvh win. NOTE: `max-h-none`
+          does NOT merge away the base `max-h-[min(92dvh,720px)]` (named vs
+          arbitrary are separate twMerge groups — both survive, cascade wins),
+          so the cap is overridden with the same-kind arbitrary
+          `max-h-[100dvh]` (verified: only it survives). max-w-full wins over
+          base max-w-lg while sm:max-w-xl restores the desktop cap (360px safe
+          via full-bleed sheet; base w-calc overridden by w-full). */}
+      <DialogContent className="ml-auto h-full max-w-full overflow-y-auto sm:max-w-xl left-auto right-0 top-0 max-h-[100dvh] h-dvh w-full translate-x-0 translate-y-0 rounded-l-2xl rounded-r-none max-sm:max-h-[100dvh]">
         <DialogHeader>
           <DialogTitle>Question settings</DialogTitle>
         </DialogHeader>

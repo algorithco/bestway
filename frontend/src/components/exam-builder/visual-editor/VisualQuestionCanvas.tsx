@@ -27,6 +27,21 @@ type VisualStorage = {
   };
 };
 
+/** localStorage key for a listening group's visual scratchpad prose. Pure. */
+export function visualScratchKey(groupId: string): string {
+  return `examBuilder.visualScratch.${groupId}`;
+}
+
+function readScratch(key: string | null | undefined): string {
+  if (!key || typeof window === "undefined") return "";
+  try {
+    return window.localStorage.getItem(key) ?? "";
+  } catch {
+    // Private-mode storage may throw — scratchpad is best-effort.
+    return "";
+  }
+}
+
 function sanitizePastedHTML(html: string): string {
   const withBreaks = html
     .replace(/<\s*br\s*\/?>/gi, "\n")
@@ -52,6 +67,8 @@ export function VisualQuestionCanvas(props: {
   initialQuestions: BuilderQuestion[];
   baseNumber: number;
   onChange: (text: string, questions: BuilderQuestion[]) => void;
+  /** When set (listening only), prose persists here debounced; seeds content when initialText is empty. */
+  scratchKey?: string | null;
 }) {
   const [map, setMap] = React.useState<Record<string, BuilderQuestion>>(() =>
     Object.fromEntries(props.initialQuestions.map((q) => [q.clientId, q])),
@@ -75,6 +92,47 @@ export function VisualQuestionCanvas(props: {
   openIdRef.current = openId;
   const onChangeRef = React.useRef(props.onChange);
   onChangeRef.current = props.onChange;
+  const scratchKeyRef = React.useRef<string | null>(props.scratchKey ?? null);
+  // Effect assignment (never render-time): keeps the debounced writer's key
+  // live without a render-time ref write. Mount-stable in practice — every
+  // host remounts per group via key={group.id} in ExamBuilder.
+  React.useEffect(() => {
+    scratchKeyRef.current = props.scratchKey ?? null;
+  });
+  const scratchTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Graveyard (Task 11): GC-stashed entries retained for the session so an
+  // undo that resurrects a node restores its full question instead of a chip
+  // showing incomplete. Never persisted; never read across groups.
+  const graveyardRef = React.useRef<Record<string, BuilderQuestion>>({});
+  // Scratch writer: debounced best-effort prose persistence (listening only).
+  // Stable across renders; reads the live key from a ref (onUpdate closes over
+  // the first render). Window-guarded + try/catch: private mode must not break
+  // typing. Null key (Group/Reading) → no-op.
+  const persistScratch = React.useCallback((text: string) => {
+    const key = scratchKeyRef.current;
+    if (!key || typeof window === "undefined") return;
+    if (scratchTimer.current) clearTimeout(scratchTimer.current);
+    scratchTimer.current = setTimeout(() => {
+      try {
+        window.localStorage.setItem(key, text);
+      } catch {
+        // Scratchpad is best-effort — quota/private-mode failures stay silent.
+      }
+    }, 500);
+  }, []);
+  React.useEffect(
+    () => () => {
+      if (scratchTimer.current) clearTimeout(scratchTimer.current);
+    },
+    [],
+  );
+  // Seed text once per mount: server prose wins; scratch only fills the void.
+  // Parent hosts remount per group, so no cross-group key is ever read.
+  const seededText = React.useMemo(
+    () => props.initialText || readScratch(props.scratchKey),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed by design
+    [],
+  );
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -94,10 +152,10 @@ export function VisualQuestionCanvas(props: {
       Dropcursor.configure({ color: "var(--brand, #2563eb)", width: 2 }),
       QuestionNode,
     ],
-    content: props.initialText
+    content: seededText
       ? {
           type: "doc",
-          content: props.initialText
+          content: seededText
             .split("\n")
             .map((line) => ({
               type: "paragraph",
@@ -134,11 +192,21 @@ export function VisualQuestionCanvas(props: {
             ids.push(n.attrs.clientId);
         }
       setOrder(ids);
+      // Undo-resurrect: a node back in the doc whose map entry was GC'd
+      // restores from the session graveyard before serializing.
+      for (const id of ids) {
+        const cached = !mapRef.current[id] ? graveyardRef.current[id] : undefined;
+        if (cached) {
+          mapRef.current = { ...mapRef.current, [id]: cached };
+          setMap((prev) => (prev[id] ? prev : { ...prev, [id]: cached }));
+        }
+      }
       const { passageText, questions } = serializeVisualDocument(
         doc,
         mapRef.current,
         baseNumberRef.current,
       );
+      persistScratch(passageText);
       onChangeRef.current(passageText, questions);
     },
   });
@@ -208,6 +276,15 @@ export function VisualQuestionCanvas(props: {
           const tr = editor.state.tr.delete(targetPos, targetPos + targetSize);
           editor.view.dispatch(tr);
         }
+        // Stash before dropping so an undo that brings the node back restores
+        // the full question (undo-resurrect reads the graveyard on update).
+        const existing = mapRef.current[id];
+        if (existing) graveyardRef.current[id] = existing;
+        if (existing) {
+          const rest = { ...mapRef.current };
+          delete rest[id];
+          mapRef.current = rest;
+        }
         setMap((prev) => {
           if (!(id in prev)) return prev;
           const next = { ...prev };
@@ -220,17 +297,25 @@ export function VisualQuestionCanvas(props: {
   });
 
   // GC effect: 500ms debounce removing map keys absent from order.
-  // Skips openId so the open question is never GC'd mid-edit.
+  // Skips openId so the open question is never GC'd mid-edit. Evicted entries
+  // move to the session graveyard (keyed by clientId, never persisted) so an
+  // undo that resurrects a node restores its full question.
   React.useEffect(() => {
     const t = setTimeout(() => {
+      const alive = new Set(orderRef.current);
+      const keep = openIdRef.current;
+      if (keep !== null) alive.add(keep);
+      const evicted = Object.keys(mapRef.current).filter((k) => !alive.has(k));
+      if (evicted.length === 0) return;
+      for (const k of evicted) {
+        const q = mapRef.current[k];
+        if (q) graveyardRef.current[k] = q;
+      }
       setMap((prev) => {
-        const alive = new Set(orderRef.current);
-        const keep = openIdRef.current;
-        if (keep !== null) alive.add(keep);
         let changed = false;
         const next = { ...prev };
-        for (const k of Object.keys(next)) {
-          if (!alive.has(k)) {
+        for (const k of evicted) {
+          if (k in next) {
             delete next[k];
             changed = true;
           }
