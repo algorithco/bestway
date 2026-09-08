@@ -78,7 +78,8 @@ relations `questions[]`, `attempts[]`.
 
 **`MockSection`** (`schema.prisma:610-624`): one row per skill per exam
 (unique `[examId,skill]`), `title?`, `sortOrder`, `durationMinutes?`
-(IELTS ≈ L30/R60/W60), `instructions?`.
+(reading/writing ≈ R60/W60; listening stores it only as legacy reference —
+timing is audio-derived, see §4.4), `instructions?`.
 
 **`MockQuestionGroup`** (`schema.prisma:628-647`): a block sharing material —
 e.g. *Questions 1–5: Complete the notes*. `title?`, `instructions?`,
@@ -306,7 +307,11 @@ matching, matching_headings`) need ≥2 options; auto-skill questions need
   strict `wordLimit`, exact-set match for `multi_select`
   (`mock-answer.ts`).
 * Raw `/40` → band via IELTS tables (Listening ≈ Academic Reading; General
-  Reading separate table), 0.5 rounding (`mock-scoring.ts`).
+  Reading separate table), 0.5 rounding (`mock-scoring.ts`). Zero raw with at
+  least one non-blank answer maps to the table's zero row (standard tables:
+  band 2); a section with no answers at all maps to band 0 (`attempted` flag
+  in `bandFromRaw`, counted in `mock-grading.service.ts`) — so "attempted,
+  scored 0" is distinguishable from "did not attempt".
 * `overallBand` = mean of 4 skills (full_test always divides by 4);
   Writing = `(Task1 + 2×Task2)/3`; multilevel has no bands —
   `cefrFromPercent` (C1≥90, B2≥75, B1≥60, A2≥45, A1≥30).
@@ -333,8 +338,10 @@ matching, matching_headings`) need ≥2 options; auto-skill questions need
 | Keys visibility | staff-only, always | students see keys after `completed` |
 | Extras | — | force-submit/extend/reopen, flows, purchases, replay limits, annotations |
 
-> `backend/api-contract.md` §A.7b is partly stale (authoring roles, newer
-> routes) — the code is the source of truth.
+> `backend/api-contract.md` §A.7b endi kod bilan sinxron (authoring rollari,
+> clone/readiness/preview, purchase confirm/reject, force-submit/extend/reopen,
+> band nol-qatori, audio-based duration) — farq topsangiz shu faylni yangilang,
+> kod manba hisoblanadi.
 
 ---
 
@@ -385,20 +392,52 @@ per-row + per-section select with **bulk delete**, local **reorder**
 delete/edit. Hooks → endpoints: `frontend/src/hooks/use-tests.ts`
 (`useCreateTest/UpdateTest/AddQuestion/UpdateQuestion/DeleteQuestion/UploadQuestionAudio`).
 
-### 5.5 Mock creation — two paths
+### 5.5 Mock authoring — `/exam-builder` (single primary flow)
 
-* **Wizard** (active): `MockExamsView` → `ExamBuilderWizard` — setup
-  (title/type/level/price) → per-skill part editors (listening: audio upload
-  with duration auto-detect + play limit; reading: required passage; writing:
-  fixed Task 1/2; speaking: fixed task) → `QuestionEditor` (type groups,
-  options, `|` answers, points, word limits) → review step with readiness +
-  **Publish** (`components/mock/exam-builder/`).
-* **Dialogs** (granular): `MockExamCreateDialog` (legacy), `MockSectionDialog`,
-  `MockGroupDialog` (+ media), `MockQuestionsDialog` with **Import mode**
-  (paste `1: B` style + answer key lines) and **Manual mode**.
-* Settings card: title/description/level/price, `isPublished/isDemo/
-  freeForApproved` toggles, clone, readiness panel, preview dialog, delete
-  (super_admin). Hooks: `frontend/src/hooks/use-mock.ts`.
+Staff authoring lives solely in the unified Exam Builder. There is no
+`ExamBuilderWizard` and no `MockExamCreateDialog` — those names do not exist
+in the codebase. The legacy granular dialogs (`MockSectionDialog`,
+`MockGroupDialog`, `MockQuestionsDialog` inside `mock-manage-view.tsx`) were
+removed; `/exam-builder/[id]` is the single path that can edit
+`MockSection`/`MockQuestionGroup`/`MockQuestion` data.
+
+* **Routes** (`frontend/src/app/[locale]/(app)/exam-builder/`): list →
+  `ExamBuilderList` (`page.tsx`); create shell → `ExamSetup`
+  (`new/page.tsx`: type cards, title ≥3, description/level/price/
+  `isFreeForApproved`, always DRAFT, then `router.push(/exam-builder/${id})`);
+  edit → `ExamBuilder` (`[id]/page.tsx`, `examId` prop). Staff visiting
+  `/mock/[id]` are redirected to `/exam-builder/[id]`; students/parents see
+  `MockExamDetailView` there instead.
+* **Shell** (`frontend/src/components/exam-builder/ExamBuilder.tsx`): Sidebar
+  outline nav, `EditorContextBar`, sticky toolbar (Back, Preview, Clone,
+  Review with blocker badge, Save Draft, Publish), dirty-guard + `beforeunload`
+  protection, live-edit warning banner while published.
+* **Sections** (skill-dispatched in `ExamBuilder.tsx`): `ListeningSectionPanel`
+  (Parts 1–4 glance, next free part derived), `ReadingSectionPanel`,
+  `WritingSectionPanel`, `SpeakingSectionPanel`, generic fallback
+  `SectionPanel` (unknown skills only). Listening Duration is disabled +
+  informational (timing is audio-derived, see §4.4); reading/writing durations
+  are required for Timed mode.
+* **Groups = blocks/parts/passages/tasks** (dispatched in `ExamBuilder.tsx`):
+  `ListeningPartEditor` (audio upload + `partNumber`/`audioPlayLimit`),
+  `ReadingPassageEditor` (passage), `WritingTaskEditor` (Task 1/2),
+  `SpeakingTaskEditor` (`speaking_task`), fallback `GroupEditor`.
+* **Questions** (shared live core in `frontend/src/components/mock/exam-builder/` —
+  NOT dead code): `QuestionEditor.tsx` (schema-driven per-type UI, type-loss
+  confirm, student preview) + `types.ts` (`isAutoType`, `QTYPE_LABEL`,
+  `newQuestion`, `validatePart`, `defaultSections`). Imported by
+  `GroupEditor`, `ListeningPartEditor`, `ReadingPassageEditor`,
+  `ReadingSectionPanel`, `ImportPanel`. Bulk import via `ImportPanel`
+  (dry-run `POST /mock/parse-questions`, collision/duplicate/canonical
+  validation, renumber aid).
+* **Settings/readiness/publish**: `OverviewPanel` (title/description/level/
+  price/`isFreeForApproved`/`isDemo`, unpublish, super_admin delete),
+  `ReviewPanel` (client `examClientChecks` + server `useMockReadiness`,
+  per-skill checklists, Fix deep-links, publish gate recheck).
+* Settings card parity with the old manage view: title/description/level/price,
+  `isPublished` (via Review publish/unpublish only — no direct toggle),
+  `isDemo`/`freeForApproved` toggles, clone (list + detail toolbar), readiness
+  panel, preview dialog, delete (super_admin). Hooks: `frontend/src/hooks/use-mock.ts`.
 
 ### 5.6 Demo tests
 

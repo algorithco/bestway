@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ClipboardList,
+  Copy,
   Eye,
   Loader2,
   Rocket,
@@ -26,7 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PreviewDialog } from "@/components/exam-builder/PreviewDialog";
-import { useMockExam } from "@/hooks/use-mock";
+import { useCloneMockExam, useMockExam } from "@/hooks/use-mock";
 import type { MockExamDetail } from "@/lib/types";
 import { examClientChecks, groupIssueCount } from "./checks";
 import { GroupEditor } from "./GroupEditor";
@@ -194,10 +195,24 @@ export function ExamBuilder({ examId }: { examId: string }) {
 
   const detail = examQ.data;
   const router = useRouter();
+  const clone = useCloneMockExam();
   const blockers = React.useMemo(
     () => examClientChecks(detail?.sections ?? []).filter((c) => c.level === "error").length,
     [detail],
   );
+
+  // Clone is the only manage-view action missing here (ported during the
+  // legacy-dialog removal so /exam-builder stays the single authoring path).
+  function handleClone() {
+    if (clone.isPending) return;
+    clone.mutate(examId, {
+      onSuccess: (res) => {
+        toast.success(tx(t, "duplicatedDraft", "Duplicated as a draft — audio and images are not copied."));
+        router.push(`/exam-builder/${(res as { id: string }).id}`);
+      },
+      onError: () => toast.error(tc("unknownError")),
+    });
+  }
 
   // Selection points at a deleted entity → fall back to overview (render-time, no effect).
   let effective: Selection = selection;
@@ -403,6 +418,16 @@ export function ExamBuilder({ examId }: { examId: string }) {
             <Button
               size="sm"
               variant="outline"
+              loading={clone.isPending}
+              onClick={handleClone}
+              aria-label={tx(t, "clone", "Clone")}
+            >
+              <Copy className="size-4" aria-hidden />
+              {tx(t, "clone", "Clone")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
               onClick={() => requestSelect({ kind: "review" })}
               aria-label={
                 blockers > 0
@@ -429,6 +454,18 @@ export function ExamBuilder({ examId }: { examId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Live-edit warning (ported from the removed legacy manage view):
+          published exams serve students immediately. */}
+      {detail.isPublished && (
+        <p className="mt-3 rounded-[8px] border border-warning-border bg-warning-bg px-3 py-2 text-xs text-warning">
+          {tx(
+            t,
+            "liveEditWarning",
+            "Published — edits affect live students immediately. Unpublish first for structural changes.",
+          )}
+        </p>
+      )}
 
       <div className="flex items-start gap-4 pt-4">
         <div className="hidden md:block">

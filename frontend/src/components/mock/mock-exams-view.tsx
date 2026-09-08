@@ -128,9 +128,11 @@ export function MockExamsView() {
       )}
 
       {/*
-        Creation moved to the unified Exam Builder (/exam-builder/new).
-        The wizard dialog stays in the codebase for reference but is no longer
-        opened from here — one primary authoring workflow.
+        Authoring lives solely in the unified Exam Builder (/exam-builder/new,
+        /exam-builder/[id]). The legacy Mock*Dialog authoring path was removed;
+        the shared question core in components/mock/exam-builder/
+        (QuestionEditor.tsx, types.ts) is still live — imported by
+        components/exam-builder/* — and is not dead code.
       */}
     </div>
   );

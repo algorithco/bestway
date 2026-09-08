@@ -267,7 +267,7 @@ NotificationType = "points" | "payment_reminder" | "test_result" | "attendance"
 | GET | `/tests/attempts/mine` | student | — | Paginated o'z urinishlari |
 | GET | `/tests/attempts/:attemptId` | tegishli rollar | — | Urinish + `questions` (javoblar bilan) |
 
-- **Yangi enum — `QuestionType`:** `"multiple_choice" | "short_answer" | "essay" | "speaking"`.
+- **Yangi enum — `QuestionType`:** `"multiple_choice" | "short_answer" | "essay" | "speaking_prompt"`.
 - `sectionQuestionCounts` — har bir bo'limdan tasodifiy nechta savol tanlanishini belgilaydi: `{"listening":10,"reading":10}`. Har bir urinishda savollar **tasodifiy tanlanadi va tasodifiy tartibda** beriladi (nusxa ko'chirishga qarshi).
 - `POST /tests/:id/start` javobi kengaytirilgan:
   ```json
@@ -290,24 +290,27 @@ Real IELTS/Multilevel mock imtihon tizimi. Mavjud `/tests` moduliga **tegmaydi**
 - `MockQuestionType`: `"multiple_choice" | "multi_select" | "true_false_notgiven" | "yes_no_notgiven" | "matching" | "matching_headings" | "sentence_completion" | "note_completion" | "summary_completion" | "table_completion" | "short_answer" | "map_labelling" | "essay_task1" | "essay_task2" | "speaking_task"`
 - `MockAttemptStatus`: `"in_progress" | "grading" | "completed"`
 
-**Authoring (admin/super_admin):**
+**Authoring (teacher/admin/super_admin — faqat `DELETE /mock/exams/:id` super_admin):**
 
 | Method | Path | Rol | Request | Response |
 |---|---|---|---|---|
-| POST | `/mock/exams` | admin | `{ type, title, description?, level?, isDemo? }` | Exam |
+| POST | `/mock/exams` | teacher, admin, super_admin | `{ type, title, description?, level?, price?, isDemo?, isFreeForApproved? }` | Exam |
 | GET | `/mock/exams?type=` | ochiq (OptionalAuth) | — | Ro'yxat (mehmon/ota-ona: demo; o'quvchi: published+demo; xodim: hammasi) |
 | GET | `/mock/exams/:id` | ochiq (OptionalAuth) | — | Exam + sections→groups→questions (xodim `correctAnswers` ni ham ko'radi) |
-| PATCH | `/mock/exams/:id` | admin | `{ title?, description?, level?, isPublished?, isDemo? }` | Exam |
+| PATCH | `/mock/exams/:id` | teacher, admin, super_admin | `{ title?, description?, level?, price?, isPublished?, isDemo?, isFreeForApproved? }` | Exam |
 | DELETE | `/mock/exams/:id` | super_admin | — | `{ deleted: true }` |
-| POST | `/mock/exams/:id/sections` | admin | `{ skill, title?, sortOrder?, durationMinutes?, instructions? }` | Section (skill bo'yicha bitta) |
-| PATCH/DELETE | `/mock/sections/:sectionId` | admin | — | Section / `{ deleted }` |
-| POST | `/mock/sections/:sectionId/groups` | admin | `{ sortOrder?, title?, instructions?, passageText? }` | Group |
-| PATCH/DELETE | `/mock/groups/:groupId` | admin | — | Group / `{ deleted }` |
-| POST | `/mock/groups/:groupId/media` | admin | `multipart`: `audio?`, `image?` | `{ hasAudio, audioUrl, imageUrl }` |
+| POST | `/mock/exams/:id/sections` | teacher, admin, super_admin | `{ skill, title?, sortOrder?, durationMinutes?, instructions? }` | Section (skill bo'yicha bitta) |
+| PATCH/DELETE | `/mock/sections/:sectionId` | teacher, admin, super_admin | — | Section / `{ deleted }` |
+| POST | `/mock/sections/:sectionId/groups` | teacher, admin, super_admin | `{ sortOrder?, title?, instructions?, passageText?, partNumber?, audioDurationSec?, audioPlayLimit? }` | Group |
+| PATCH/DELETE | `/mock/groups/:groupId` | teacher, admin, super_admin | — | Group / `{ deleted }` |
+| POST | `/mock/groups/:groupId/media` | teacher, admin, super_admin | `multipart`: `audio?`, `image?` | `{ hasAudio, audioUrl, imageUrl }` |
 | GET | `/mock/groups/:groupId/audio` | OptionalAuth (demo: mehmon) | — | Audio oqimi (`206`, Range) |
 | GET | `/mock/groups/:groupId/image` | OptionalAuth | — | Rasm (binary) |
-| POST | `/mock/groups/:groupId/questions` | admin | `{ questions: [{ number, sortOrder?, type, prompt, options?, correctAnswers?, points?, wordLimit? }] }` | `{ added, questions }` |
-| PATCH/DELETE | `/mock/questions/:questionId` | admin | Yuqoridagi maydonlar | Question / `{ deleted }` |
+| POST | `/mock/groups/:groupId/questions` | teacher, admin, super_admin | `{ questions: [{ number, sortOrder?, type, prompt, options?, correctAnswers?, points?, wordLimit? }] }` | `{ added, questions }` |
+| PATCH/DELETE | `/mock/questions/:questionId` | teacher, admin, super_admin | Yuqoridagi maydonlar | Question / `{ deleted }` |
+| POST | `/mock/exams/:id/clone` | teacher, admin, super_admin | — | Nusxa (draft; audio/rasm nusxalanmaydi) |
+| GET | `/mock/exams/:id/readiness` | teacher, admin, super_admin | — | Nashr-tayyorlik ro'yxati |
+| GET | `/mock/exams/:id/preview` | teacher, admin, super_admin | — | Talaba ko'rinishi (qisqartirilgan) |
 
 **O'quvchi oqimi:**
 
@@ -326,16 +329,20 @@ Real IELTS/Multilevel mock imtihon tizimi. Mavjud `/tests` moduliga **tegmaydi**
 |---|---|---|---|---|
 | GET | `/mock/attempts?status=&studentId=&examId=` | teacher, admin | — | Paginated (teacher: faqat o'z guruhi) |
 | GET | `/mock/attempts/:attemptId` | tegishli rollar | — | Urinish + `sections` (javoblar, ball, band); xodim: `correctAnswers`, `cheatEvents` |
-| POST | `/mock/attempts/:attemptId/grade` | teacher, admin | `{ questionId, score?, feedback?, rubricScores? }` | `{ saved, status }` |
+| POST | `/mock/attempts/:attemptId/grade` | teacher, admin, super_admin | `{ questionId, score?, feedback?, rubricScores? }` | `{ saved, status }` |
+| POST | `/mock/attempts/:attemptId/force-submit` | teacher, admin, super_admin | — | Yakunlangan urinish |
+| POST | `/mock/attempts/:attemptId/extend` | teacher, admin, super_admin | `{ minutes 1–180 }` | Yangi deadline |
+| POST | `/mock/attempts/:attemptId/reopen` | teacher, admin, super_admin | — | `grading` → `in_progress` |
+| DELETE | `/mock/attempts/:attemptId` | admin, super_admin | — | `{ deleted }` |
 | GET | `/mock/attempts/:attemptId/certificate` | tegishli rollar | — | PDF (band/CEFR bilan) |
 
 **Baholash qoidalari:**
 - **Listening/Reading** — avtomatik (`correctAnswers` bo'yicha). Moslik: registr/probel/tinish belgisiga sezgir emas, boshidagi `a/an/the` ixtiyoriy, raqam↔so'z ekvivalent (`"3"=="three"`). `multi_select` — tanlovlar to'plami aynan mos kelishi kerak.
 - **Writing/Speaking** — qo'lda (`grade`). IELTS uchun `score` = band (0–9, 0.5 qadam), savol `points`=9. `rubricScores` — writing `{ta,cc,lr,gra}` / speaking `{fluency,lexical,grammar,pronunciation}` (har biri 0–9, 0.5 qadam). `score` berilmasa va 4 ta mezon to'liq bo'lsa — score rubric o'rtachasidan avtomatik hisoblanadi. Barcha qo'lda savollar baholangach urinish `completed` bo'ladi.
-- **IELTS band**: har bo'lim xom bali 40 balllik ekvivalentga keltirilib jadval bo'yicha bandga aylanadi. Jadvallar standart (Listening: 39–40=9 … 11–12=4; Reading Academic: 39–40=9 … 10–12=4; Reading GT: 40=9 … 15–18=4; pastdagilar — quyi bandlar) va super_admin `PUT /settings/ielts-bands` orqali har bir test formasi uchun tahrirlashi mumkin (equating). Writing bo'lim bandi `(task1 + 2·task2)/3`. `overallBand` = 4 bo'lim o'rtachasi, rasmiy yaxlitlash bilan (.25 → keyingi .5 ga, .75 → keyingi butunga; masalan 6.625 → 6.5, 6.75 → 7.0). Writing/Speaking baholanmaguncha `overallBand: null` ("Pending") — qisman xom ball final sifatida ko'rsatilmaydi. `cefrLevel` banddan chiqariladi.
+- **IELTS band**: har bo'lim xom bali 40 balllik ekvivalentga keltirilib jadval bo'yicha bandga aylanadi. Jadvallar standart (Listening: 39–40=9 … 11–12=4; Reading Academic: 39–40=9 … 10–12=4; Reading GT: 40=9 … 15–18=4; pastdagilar — quyi bandlar, nol-qator band 2) va super_admin `PUT /settings/ielts-bands` orqali har bir test formasi uchun tahrirlashi mumkin (equating). **Nol xom ball**: kamida bitta bo'sh bo'lmagan javob bo'lsa jadvalning nol-qatori qo'llanadi (standartda band 2); umuman javob berilmagan bo'lim band 0 oladi — "urinib 0 oldi" va "urinmadi" farqlanadi (`bandFromRaw` dagi `attempted` bayrog'i). Writing bo'lim bandi `(task1 + 2·task2)/3`. `overallBand` = 4 bo'lim o'rtachasi, rasmiy yaxlitlash bilan (.25 → keyingi .5 ga, .75 → keyingi butunga; masalan 6.625 → 6.5, 6.75 → 7.0). Writing/Speaking baholanmaguncha `overallBand: null` ("Pending") — qisman xom ball final sifatida ko'rsatilmaydi. `cefrLevel` banddan chiqariladi.
 - **Multilevel**: band hisoblanmaydi; `cefrLevel` umumiy foizdan (`A1..C1`) aniqlanadi, `sectionBands`/`overallBand` = `null`.
 - `submit` da qo'lda savol qolgan bo'lsa `status: "grading"` va `overallBand: null` (avto bo'lim bandlari allaqachon `sectionBands` da). Sanitizatsiya: `start` va o'quvchi `GET /mock/exams/:id` da `correctAnswers` **yuborilmaydi**.
-- `durationMinutes` — bo'limlar vaqtlari yig'indisi (frontend har bo'lim uchun alohida taymer qo'yishi mumkin).
+- `durationMinutes` — reading/writing bo'limlari yig'indisi + listening uchun audio yig'indisi + 120s review (daqiqaga yaxlitlangan); speaking untimed (0). Listening bo'limining saqlangan `durationMinutes` qiymati taymerda ham, displayed totalda ham ishlatilmaydi (`computeSkillTiming`/`totalDuration`, `mock-shape.ts`).
 
 ### A.7b — v2 qo'shimchalar (pullik kirish, rejim, paste, speaking audio)
 
@@ -356,8 +363,9 @@ Real IELTS/Multilevel mock imtihon tizimi. Mavjud `/tests` moduliga **tegmaydi**
 | Method | Path | Rol | Request | Response |
 |---|---|---|---|---|
 | POST | `/mock/exams/:id/purchase` | student | — | `{ status: "pending_confirmation", amount }` |
-| GET | `/mock/purchases?status=` | admin | — | Paginated xaridlar (tasdiqlash paneli) |
-| POST | `/mock/exams/:id/confirm-purchase` | admin | `{ userId }` | `{ confirmed: true }` |
+| GET | `/mock/purchases?status=` | admin, super_admin | — | Paginated xaridlar (tasdiqlash paneli) |
+| POST | `/mock/exams/:id/confirm-purchase` | admin, super_admin | `{ userId }` | `{ confirmed: true }` |
+| POST | `/mock/exams/:id/reject-purchase` | admin, super_admin | `{ userId }` | `{ rejected: true }` |
 
 - `GET /mock/exams` va `GET /mock/exams/:id` javobida har imtihon uchun `price` va `access: "granted" | "pending" | "locked"` bo'ladi.
 - Kirish: staff/demo/`price=0` → ochiq; tasdiqlangan o'quvchi + `isFreeForApproved` → bepul; aks holda xarid kerak. Kirish yo'q holatda `start` → `402 MOCK_PAYMENT_REQUIRED` (yoki `MOCK_PURCHASE_PENDING`).
