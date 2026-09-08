@@ -6,9 +6,15 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import { QuestionNode } from "./question-node-extension";
 import { serializeVisualDocument } from "./serialize";
+import { QuestionTypeToolbar } from "./QuestionTypeToolbar";
 import type { BuilderQuestion } from "@/components/mock/exam-builder/types";
-import { validateOneQuestion } from "@/components/mock/exam-builder/types";
-import type { MockSkill } from "@/lib/types";
+import {
+  isAutoType,
+  newQuestion,
+  uid,
+  validateOneQuestion,
+} from "@/components/mock/exam-builder/types";
+import type { MockQuestionType, MockSkill } from "@/lib/types";
 
 type VisualStorage = {
   visual?: {
@@ -134,6 +140,41 @@ export function VisualQuestionCanvas(props: {
     },
   });
 
+  const insertQuestionType = React.useCallback(
+    (type: MockQuestionType) => {
+      if (!editor) return;
+      let selected = "";
+      try {
+        const { from, to } = editor.state.selection;
+        if (to > from) {
+          selected = editor.state.doc.textBetween(from, to, " ");
+        }
+      } catch {
+        selected = "";
+      }
+      const clientId = uid();
+      const number = baseNumberRef.current + orderRef.current.length + 1;
+      const q = newQuestion(number, type, isAutoType(type));
+      q.clientId = clientId;
+      if (selected.trim()) {
+        q.prompt = selected.slice(0, 5000);
+      }
+      mapRef.current = { ...mapRef.current, [clientId]: q };
+      setMap((prev) => ({ ...prev, [clientId]: q }));
+      editor
+        .chain()
+        .focus()
+        .deleteSelection()
+        .insertContent({
+          type: "questionNode",
+          attrs: { clientId, questionType: type },
+        })
+        .run();
+      setOpenId(clientId);
+    },
+    [editor],
+  );
+
   // Storage wiring for QuestionChip (Task 6 toolbar reuses same contract).
   React.useEffect(() => {
     if (!editor) return;
@@ -196,6 +237,7 @@ export function VisualQuestionCanvas(props: {
 
   return (
     <div className="rounded border border-border bg-surface">
+      <QuestionTypeToolbar skill={props.skill} onInsert={insertQuestionType} />
       <EditorContent editor={editor} />
     </div>
   );
