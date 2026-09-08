@@ -28,6 +28,7 @@ import type { MockExamDetail, MockQuestionType, MockSkill } from "@/lib/types";
 import { ImportPanel } from "./ImportPanel";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { StudentPreview } from "./StudentPreview";
+import { VisualQuestionCanvas } from "./visual-editor/VisualQuestionCanvas";
 import { SKILL_META, TYPES_BY_SKILL, nextQuestionNumber, tx, type Selection } from "./types";
 
 function toBuilder(group: MockExamDetail["sections"][number]["groups"][number]): BuilderPart {
@@ -120,6 +121,17 @@ export function GroupEditor({
   // Fresh server snapshot per group (parent keys by groupId).
   const [snapshot, setSnapshot] = React.useState<BuilderPart | null>(() => (group ? toBuilder(group) : null));
   const [part, setPart] = React.useState<BuilderPart | null>(() => snapshot);
+  // Visual paste mode (Task 8): second view over the same part state.
+  const [mode, setMode] = React.useState<"form" | "visual">(() =>
+    typeof window !== "undefined" && window.localStorage.getItem("examBuilder.questionMode") === "visual"
+      ? "visual"
+      : "form",
+  );
+  const [visualText, setVisualText] = React.useState(part?.passageText ?? "");
+  const [visualQuestions, setVisualQuestions] = React.useState<BuilderQuestion[]>(part?.questions ?? []);
+  const baseNumber = visualQuestions.length
+    ? Math.min(...visualQuestions.map((q) => q.number)) - 1
+    : nextQuestionNumber(detail.sections) - 1;
   React.useEffect(
     () => () => {
       if (localAudioUrl) URL.revokeObjectURL(localAudioUrl);
@@ -129,16 +141,27 @@ export function GroupEditor({
   );
 
   const dirty = React.useMemo(
-    () => JSON.stringify(part) !== JSON.stringify(snapshot) || imageFile != null,
-    [part, snapshot, imageFile],
+    () =>
+      JSON.stringify(part) !== JSON.stringify(snapshot) ||
+      imageFile != null ||
+      (mode === "visual" &&
+        snapshot != null &&
+        (visualText !== snapshot.passageText ||
+          JSON.stringify(visualQuestions) !== JSON.stringify(snapshot.questions))),
+    [part, snapshot, imageFile, mode, visualText, visualQuestions],
   );
   React.useEffect(() => onDirty(dirty), [dirty, onDirty]);
 
   const save = React.useCallback(async () => {
-    const p = part;
     const g = group;
+    if (!part || !g) return false;
+    // Visual mode: run the same save body against the visual copies.
+    const p = mode === "visual" ? { ...part, passageText: visualText, questions: visualQuestions } : part;
     if (!p || !g) return false;
     const errs = validatePart(skill, p);
+    if (p.passageText.length > 20000) {
+      errs.push(tx(t, "passageTooLong", "Passage text must be 20000 characters or fewer."));
+    }
     setErrors(errs);
     if (errs.length > 0) {
       toast.error(tx(t, "fixErrors", "Fix the errors above first."));
@@ -203,6 +226,10 @@ export function GroupEditor({
       const cleaned: BuilderPart = { ...p, audioPendingFile: null, audioFileName: p.audioPendingFile ? p.audioPendingFile.name : p.audioFileName };
       setSnapshot(JSON.parse(JSON.stringify(cleaned)));
       setPart(cleaned);
+      if (mode === "visual") {
+        setVisualText(cleaned.passageText);
+        setVisualQuestions(cleaned.questions);
+      }
       if (imageFile) setImageFile(null);
       if (localAudioUrl) {
         URL.revokeObjectURL(localAudioUrl);
@@ -221,7 +248,7 @@ export function GroupEditor({
     } finally {
       setSaving(false);
     }
-  }, [part, group, skill, imageFile, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
+  }, [part, group, skill, imageFile, mode, visualText, visualQuestions, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
 
   React.useEffect(() => {
     registerSave(() => save());
@@ -232,6 +259,23 @@ export function GroupEditor({
 
   function update(fn: (p: BuilderPart) => BuilderPart) {
     setPart((p) => (p ? fn(p) : p));
+  }
+
+  function selectMode(m: "form" | "visual") {
+    const current = part;
+    if (m === "visual" && current) {
+      setVisualText(current.passageText);
+      setVisualQuestions(current.questions);
+    }
+    if (m === "form" && mode === "visual") {
+      update((p) => ({ ...p, passageText: visualText, questions: visualQuestions }));
+    }
+    setMode(m);
+    try {
+      window.localStorage.setItem("examBuilder.questionMode", m);
+    } catch {
+      // Private-mode storage may throw — mode still switches for this session.
+    }
   }
 
   function addQuestion() {
@@ -464,9 +508,33 @@ export function GroupEditor({
       {/* Questions */}
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-sm font-bold text-fg">
-          {tx(t, "questionsTitle", "Questions")} ({part.questions.length})
+          {tx(t, "questionsTitle", "Questions")} ({mode === "visual" ? visualQuestions.length : part.questions.length})
         </h3>
-        <div className="ml-auto flex flex-wrap gap-2">
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <div
+            className="flex items-center gap-1 rounded-[8px] border border-border p-0.5"
+            role="tablist"
+            aria-label={tx(t, "questionMode", "Question mode")}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "form"}
+              onClick={() => selectMode("form")}
+              className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "form" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+            >
+              {tx(t, "formList", "Form list")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mode === "visual"}
+              onClick={() => selectMode("visual")}
+              className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "visual" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+            >
+              {tx(t, "visualPaste", "Visual paste")}
+            </button>
+          </div>
           <Button size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)}>
             {showPreview ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             {tx(t, "preview", "Preview")}
@@ -475,10 +543,12 @@ export function GroupEditor({
             <Upload className="size-4" />
             {tx(t, "import", "Import")}
           </Button>
-          <Button size="sm" variant="outline" onClick={addQuestion}>
-            <Plus className="size-4" />
-            {tx(t, "addQuestion", "Add question")}
-          </Button>
+          {mode === "form" && (
+            <Button size="sm" variant="outline" onClick={addQuestion}>
+              <Plus className="size-4" />
+              {tx(t, "addQuestion", "Add question")}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -515,7 +585,18 @@ export function GroupEditor({
         />
       )}
 
-      {part.questions.length === 0 ? (
+      {mode === "visual" ? (
+        <VisualQuestionCanvas
+          skill={skill}
+          initialText={visualText}
+          initialQuestions={visualQuestions}
+          baseNumber={baseNumber}
+          onChange={(text, questions) => {
+            setVisualText(text);
+            setVisualQuestions(questions);
+          }}
+        />
+      ) : part.questions.length === 0 ? (
         <Card>
           <CardContent className="space-y-2 p-5">
             <p className="text-sm font-semibold text-fg">
