@@ -574,8 +574,18 @@ export function ReadingPassageEditor({
                   onChange={(e) => update((p) => ({ ...p, passageText: e.target.value }))}
                   className="min-h-[22rem] font-serif text-[15px] leading-8"
                   placeholder={tx(t, "passageTextPlaceholder", "Paste the full reading passage here — paragraphs preserved.")}
+                  disabled={mode === "visual"}
                 />
               </Field>
+              {mode === "visual" && (
+                <p className="mt-1 text-xs text-fg-muted">
+                  {tx(
+                    t,
+                    "visualPassageNote",
+                    "Visual paste mode is on — edit the passage in the canvas on the right.",
+                  )}
+                </p>
+              )}
               <p className="mt-1 text-right text-[11px] text-fg-subtle tabular-nums">
                 {words} {tx(t, "words", "words")}
               </p>
@@ -742,7 +752,8 @@ export function ReadingPassageEditor({
                 visualDraft ? (
                   <StudentPreview group={visualDraft} skill="reading" imageSrc={visualImageSrc} />
                 ) : null
-              ) : (
+              ) : null}
+              <div className={visualPreview ? "hidden" : undefined}>
                 <VisualQuestionCanvas
                   skill="reading"
                   initialText={visualText}
@@ -753,7 +764,7 @@ export function ReadingPassageEditor({
                     setVisualQuestions(questions);
                   }}
                 />
-              )}
+              </div>
             </div>
           )}
 

@@ -694,7 +694,8 @@ export function ListeningPartEditor({
                   imageSrc={visualImageSrc}
                 />
               ) : null
-            ) : (
+            ) : null}
+            <div className={visualPreview ? "hidden" : undefined}>
               <>
                 <p className="text-[11px] text-fg-subtle">
                   {tx(
@@ -715,7 +716,7 @@ export function ListeningPartEditor({
                   }}
                 />
               </>
-            )}
+            </div>
           </div>
         ) : part.questions.length === 0 ? (
           <div className="mt-3 rounded-[8px] border border-dashed border-border-strong p-4">

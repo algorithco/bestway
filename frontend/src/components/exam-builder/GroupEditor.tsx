@@ -388,8 +388,18 @@ export function GroupEditor({
                 value={part.passageText}
                 onChange={(e) => update((p) => ({ ...p, passageText: e.target.value }))}
                 className="min-h-40 font-serif"
+                disabled={mode === "visual"}
               />
             </Field>
+          )}
+          {mode === "visual" && skill === "reading" && (
+            <p className="text-xs text-fg-muted">
+              {tx(
+                t,
+                "visualPassageNote",
+                "Visual paste mode is on — edit the passage in the canvas below.",
+              )}
+            </p>
           )}
           {(skill === "writing" || skill === "speaking") && (
             <Field
@@ -402,8 +412,18 @@ export function GroupEditor({
                 value={part.passageText}
                 onChange={(e) => update((p) => ({ ...p, passageText: e.target.value }))}
                 className="min-h-24"
+                disabled={mode === "visual"}
               />
             </Field>
+          )}
+          {mode === "visual" && (skill === "writing" || skill === "speaking") && (
+            <p className="text-xs text-fg-muted">
+              {tx(
+                t,
+                "visualPassageNote",
+                "Visual paste mode is on — edit the task material in the canvas below.",
+              )}
+            </p>
           )}
 
           {/* Audio belongs to the block */}
@@ -619,7 +639,8 @@ export function GroupEditor({
               audioSrc={visualAudioSrc}
               imageSrc={visualImageSrc}
             />
-          ) : (
+          ) : null}
+          <div className={visualPreview ? "hidden" : undefined}>
             <VisualQuestionCanvas
               skill={skill}
               initialText={visualText}
@@ -630,7 +651,7 @@ export function GroupEditor({
                 setVisualQuestions(questions);
               }}
             />
-          )}
+          </div>
         </div>
       ) : part.questions.length === 0 ? (
         <Card>

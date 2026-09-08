@@ -73,8 +73,10 @@ export function VisualQuestionCanvas(props: {
   const [map, setMap] = React.useState<Record<string, BuilderQuestion>>(() =>
     Object.fromEntries(props.initialQuestions.map((q) => [q.clientId, q])),
   );
-  const [order, setOrder] = React.useState<string[]>(
-    props.initialQuestions.map((q) => q.clientId),
+  const [order, setOrder] = React.useState<string[]>(() =>
+    [...props.initialQuestions]
+      .sort((a, b) => a.number - b.number)
+      .map((q) => q.clientId),
   );
   // Settings drawer host (Task 7): openId selects the question being edited.
   const [openId, setOpenId] = React.useState<string | null>(null);
@@ -133,6 +135,34 @@ export function VisualQuestionCanvas(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed by design
     [],
   );
+  // C1 seed: BuilderQuestion carries no position, so best-effort v1 appends
+  // the seeded questions as questionNodes in ascending `number` order, each
+  // in its own trailing paragraph after the text paragraphs. serialize() then
+  // walks doc order and renumbers baseNumber+idx+1, preserving numbers.
+  // Empty initialQuestions → text-only content (unchanged behavior).
+  const seededContent = React.useMemo((): JSONContent | undefined => {
+    const text = seededText;
+    const seeded = [...props.initialQuestions].sort((a, b) => a.number - b.number);
+    if (!text && seeded.length === 0) return undefined;
+    const paragraphs: JSONContent[] = text
+      ? text
+          .split("\n")
+          .map((line) => ({
+            type: "paragraph",
+            content: line ? [{ type: "text", text: line }] : [],
+          }))
+      : [];
+    for (const q of seeded) {
+      paragraphs.push({
+        type: "paragraph",
+        content: [
+          { type: "questionNode", attrs: { clientId: q.clientId, questionType: q.type } },
+        ],
+      });
+    }
+    return { type: "doc", content: paragraphs };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only seed by design
+  }, []);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -152,17 +182,7 @@ export function VisualQuestionCanvas(props: {
       Dropcursor.configure({ color: "var(--brand, #2563eb)", width: 2 }),
       QuestionNode,
     ],
-    content: seededText
-      ? {
-          type: "doc",
-          content: seededText
-            .split("\n")
-            .map((line) => ({
-              type: "paragraph",
-              content: line ? [{ type: "text", text: line }] : [],
-            })),
-        }
-      : undefined,
+    content: seededContent,
     editorProps: {
       attributes: {
         class: "min-h-64 p-4 text-sm leading-relaxed focus:outline-none",
@@ -332,10 +352,26 @@ export function VisualQuestionCanvas(props: {
   const excerpt = openId !== null ? (editor ? excerptFor(editor.getJSON(), openId) : "") : "";
   const allowedTypes = TYPES_BY_SKILL[props.skill];
 
-  const handleQuestionChange = React.useCallback((q: BuilderQuestion) => {
-    mapRef.current = { ...mapRef.current, [q.clientId]: q };
-    setMap((prev) => ({ ...prev, [q.clientId]: q }));
-  }, []);
+  const handleQuestionChange = React.useCallback(
+    (q: BuilderQuestion) => {
+      const newMap = { ...mapRef.current, [q.clientId]: q };
+      mapRef.current = newMap;
+      setMap((prev) => ({ ...prev, [q.clientId]: q }));
+      // Drawer edits touch no doc transaction, so onUpdate never fires — push
+      // the merged map through serialize + onChange here so host
+      // visualQuestions (save, preview draft, dirty, form write-back) sees it.
+      if (editor) {
+        const { passageText, questions } = serializeVisualDocument(
+          editor.getJSON(),
+          newMap,
+          baseNumberRef.current,
+        );
+        persistScratch(passageText);
+        onChangeRef.current(passageText, questions);
+      }
+    },
+    [editor, persistScratch],
+  );
 
   const handleDrawerClose = React.useCallback(() => {
     setOpenId(null);
