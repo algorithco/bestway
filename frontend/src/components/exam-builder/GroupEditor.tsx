@@ -110,6 +110,7 @@ export function GroupEditor({
   const [imageFile, setImageFile] = React.useState<File | null>(null);
   const [showImport, setShowImport] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(false);
+  const [visualPreview, setVisualPreview] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [errors, setErrors] = React.useState<string[]>([]);
   const [saving, setSaving] = React.useState(false);
@@ -270,6 +271,7 @@ export function GroupEditor({
     if (m === "form" && mode === "visual") {
       update((p) => ({ ...p, passageText: visualText, questions: visualQuestions }));
     }
+    setVisualPreview(false);
     setMode(m);
     try {
       window.localStorage.setItem("examBuilder.questionMode", m);
@@ -296,6 +298,21 @@ export function GroupEditor({
   const serverAudio = `/api/backend/mock/groups/${group.id}/audio`;
   const serverImage = `/api/backend/mock/groups/${group.id}/image`;
   const allowedTypes = TYPES_BY_SKILL[skill];
+  // Unsaved visual draft for student preview (Task 9): same question mapping as
+  // previewGroup, but passage/questions come from visual state. Constant id keeps
+  // PreviewBody key stable (answers reset only on toggle). Explicit srcs point at
+  // the real group / local blob URLs since the draft id has no server media.
+  const visualDraft = {
+    id: "visual-paste-draft",
+    title: part.title,
+    instructions: part.instructions,
+    passageText: visualText,
+    hasAudio: part.hasAudio || group.hasAudio,
+    imageUrl: localImageUrl ?? group.imageUrl,
+    questions: visualQuestions.map(toPreviewQuestion),
+  };
+  const visualAudioSrc = localAudioUrl ?? serverAudio;
+  const visualImageSrc = localImageUrl ?? (group.imageUrl ? serverImage : null);
 
   return (
     <div className="space-y-4">
@@ -586,16 +603,35 @@ export function GroupEditor({
       )}
 
       {mode === "visual" ? (
-        <VisualQuestionCanvas
-          skill={skill}
-          initialText={visualText}
-          initialQuestions={visualQuestions}
-          baseNumber={baseNumber}
-          onChange={(text, questions) => {
-            setVisualText(text);
-            setVisualQuestions(questions);
-          }}
-        />
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Button size="sm" variant="outline" onClick={() => setVisualPreview((v) => !v)}>
+              {visualPreview ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              {visualPreview
+                ? tx(t, "preview", "Preview")
+                : tx(t, "visualPreview", "Preview as student")}
+            </Button>
+          </div>
+          {visualPreview ? (
+            <StudentPreview
+              group={visualDraft}
+              skill={skill}
+              audioSrc={visualAudioSrc}
+              imageSrc={visualImageSrc}
+            />
+          ) : (
+            <VisualQuestionCanvas
+              skill={skill}
+              initialText={visualText}
+              initialQuestions={visualQuestions}
+              baseNumber={baseNumber}
+              onChange={(text, questions) => {
+                setVisualText(text);
+                setVisualQuestions(questions);
+              }}
+            />
+          )}
+        </div>
       ) : part.questions.length === 0 ? (
         <Card>
           <CardContent className="space-y-2 p-5">
@@ -668,6 +704,19 @@ export function GroupEditor({
   );
 }
 
+/** Shared question mapping for student preview (saved + visual draft). */
+function toPreviewQuestion(q: BuilderQuestion) {
+  return {
+    id: q.clientId,
+    number: q.number,
+    type: q.type,
+    prompt: q.prompt || "(empty question)",
+    options: q.options,
+    points: q.points,
+    wordLimit: q.wordLimit ?? null,
+  };
+}
+
 /** Server group shape for the read-only student preview (local edits applied). */
 function previewGroup(
   part: BuilderPart,
@@ -680,14 +729,6 @@ function previewGroup(
     passageText: part.passageText,
     hasAudio: part.hasAudio || server.hasAudio,
     imageUrl: server.imageUrl,
-    questions: part.questions.map((q) => ({
-      id: q.clientId,
-      number: q.number,
-      type: q.type,
-      prompt: q.prompt || "(empty question)",
-      options: q.options,
-      points: q.points,
-      wordLimit: q.wordLimit ?? null,
-    })),
+    questions: part.questions.map(toPreviewQuestion),
   };
 }

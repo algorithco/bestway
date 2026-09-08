@@ -57,7 +57,17 @@ function optionsFor(q: PreviewQuestion): string[] {
  * Interactive like a student (answers stay local, nothing is saved), with no
  * answer keys, no points editing, no ids, no validation output.
  */
-export function StudentPreview({ group, skill }: { group: PreviewGroup; skill: MockSkill }) {
+export function StudentPreview({
+  group,
+  skill,
+  audioSrc,
+  imageSrc,
+}: {
+  group: PreviewGroup;
+  skill: MockSkill;
+  audioSrc?: string | null;
+  imageSrc?: string | null;
+}) {
   const t = useTranslations("examBuilder");
   return (
     <div>
@@ -65,7 +75,7 @@ export function StudentPreview({ group, skill }: { group: PreviewGroup; skill: M
         {tx(t, "studentView", "Student view")}
       </p>
       {/* Fresh answer sheet per block (key); never persisted, never submitted. */}
-      <PreviewBody key={group.id} group={group} skill={skill} />
+      <PreviewBody key={group.id} group={group} skill={skill} audioSrc={audioSrc} imageSrc={imageSrc} />
       <div className="mt-2">
         <Badge variant="info">{tx(t, "previewNote", "Preview only — students see this after you publish.")}</Badge>
       </div>
@@ -73,7 +83,17 @@ export function StudentPreview({ group, skill }: { group: PreviewGroup; skill: M
   );
 }
 
-function PreviewBody({ group, skill }: { group: PreviewGroup; skill: MockSkill }) {
+function PreviewBody({
+  group,
+  skill,
+  audioSrc,
+  imageSrc,
+}: {
+  group: PreviewGroup;
+  skill: MockSkill;
+  audioSrc?: string | null;
+  imageSrc?: string | null;
+}) {
   const t = useTranslations("examBuilder");
   const [answers, setAnswers] = React.useState<Record<string, string>>({});
 
@@ -82,6 +102,9 @@ function PreviewBody({ group, skill }: { group: PreviewGroup; skill: MockSkill }
   }
 
   const hasPassage = !!(group.passageText && group.passageText.trim());
+  const resolvedAudioSrc = audioSrc ?? `/api/backend/mock/groups/${group.id}/audio`;
+  const resolvedImageSrc =
+    imageSrc ?? (group.imageUrl ? `/api/backend/mock/groups/${group.id}/image` : null);
 
   return (
     <Card className="mt-1.5 p-4 sm:p-5">
@@ -92,19 +115,14 @@ function PreviewBody({ group, skill }: { group: PreviewGroup; skill: MockSkill }
           </p>
         )}
         {group.hasAudio && (
-          <audio
-            controls
-            src={`/api/backend/mock/groups/${group.id}/audio`}
-            className="mt-3 w-full"
-            preload="none"
-          >
+          <audio controls src={resolvedAudioSrc} className="mt-3 w-full" preload="none">
             <track kind="captions" />
           </audio>
         )}
-        {group.imageUrl && (
+        {resolvedImageSrc && (
           // eslint-disable-next-line @next/next/no-img-element -- authenticated /api/backend mock image route; next/image optimizer bypass is intentional
           <img
-            src={`/api/backend/mock/groups/${group.id}/image`}
+            src={resolvedImageSrc}
             alt=""
             loading="lazy"
             decoding="async"

@@ -253,6 +253,7 @@ export function ReadingPassageEditor({
   const [imageFile, setImageFile] = React.useState<File | null>(null);
   const [showImport, setShowImport] = React.useState(false);
   const [showPreview, setShowPreview] = React.useState(false);
+  const [visualPreview, setVisualPreview] = React.useState(false);
   const [showTypeChooser, setShowTypeChooser] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [errors, setErrors] = React.useState<string[]>([]);
@@ -438,6 +439,7 @@ export function ReadingPassageEditor({
     if (m === "form" && mode === "visual") {
       update((p) => ({ ...p, passageText: visualText, questions: visualQuestions }));
     }
+    setVisualPreview(false);
     setMode(m);
     try {
       window.localStorage.setItem("examBuilder.questionMode", m);
@@ -474,6 +476,21 @@ export function ReadingPassageEditor({
   }
 
   const serverImage = `/api/backend/mock/groups/${group.id}/image`;
+  // Unsaved visual draft for student preview (Task 9): same question mapping as
+  // previewGroup, but passage/questions come from visual state. Constant id keeps
+  // PreviewBody key stable (answers reset only on toggle).
+  const visualDraft = part
+    ? {
+        id: "visual-paste-draft",
+        title: part.title,
+        instructions: part.instructions,
+        passageText: visualText,
+        hasAudio: false,
+        imageUrl: localImageUrl ?? group.imageUrl,
+        questions: visualQuestions.map(toPreviewQuestion),
+      }
+    : null;
+  const visualImageSrc = localImageUrl ?? (group.imageUrl ? serverImage : null);
 
   return (
     <div className="space-y-4">
@@ -708,16 +725,36 @@ export function ReadingPassageEditor({
           </div>
 
           {mode === "visual" && (
-            <VisualQuestionCanvas
-              skill="reading"
-              initialText={visualText}
-              initialQuestions={visualQuestions}
-              baseNumber={baseNumber}
-              onChange={(text, questions) => {
-                setVisualText(text);
-                setVisualQuestions(questions);
-              }}
-            />
+            <div className="space-y-3">
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" onClick={() => setVisualPreview((v) => !v)}>
+                  {visualPreview ? (
+                    <EyeOff className="size-4" aria-hidden />
+                  ) : (
+                    <Eye className="size-4" aria-hidden />
+                  )}
+                  {visualPreview
+                    ? tx(t, "preview", "Preview")
+                    : tx(t, "visualPreview", "Preview as student")}
+                </Button>
+              </div>
+              {visualPreview ? (
+                visualDraft ? (
+                  <StudentPreview group={visualDraft} skill="reading" imageSrc={visualImageSrc} />
+                ) : null
+              ) : (
+                <VisualQuestionCanvas
+                  skill="reading"
+                  initialText={visualText}
+                  initialQuestions={visualQuestions}
+                  baseNumber={baseNumber}
+                  onChange={(text, questions) => {
+                    setVisualText(text);
+                    setVisualQuestions(questions);
+                  }}
+                />
+              )}
+            </div>
           )}
 
           {mode === "form" && showTypeChooser && (
@@ -1000,6 +1037,19 @@ export function ReadingPassageEditor({
   );
 }
 
+/** Shared question mapping for student preview (saved + visual draft). */
+function toPreviewQuestion(q: BuilderQuestion) {
+  return {
+    id: q.clientId,
+    number: q.number,
+    type: q.type,
+    prompt: q.prompt || "(empty question)",
+    options: q.options,
+    points: q.points,
+    wordLimit: q.wordLimit ?? null,
+  };
+}
+
 /** Server group shape for the read-only student preview (local edits applied). */
 function previewGroup(
   part: BuilderPart,
@@ -1012,14 +1062,6 @@ function previewGroup(
     passageText: part.passageText,
     hasAudio: false,
     imageUrl: server.imageUrl,
-    questions: part.questions.map((q) => ({
-      id: q.clientId,
-      number: q.number,
-      type: q.type,
-      prompt: q.prompt || "(empty question)",
-      options: q.options,
-      points: q.points,
-      wordLimit: q.wordLimit ?? null,
-    })),
+    questions: part.questions.map(toPreviewQuestion),
   };
 }
