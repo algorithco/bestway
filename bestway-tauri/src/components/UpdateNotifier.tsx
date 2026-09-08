@@ -9,35 +9,107 @@ type Props = {
   onClose: () => void;
 };
 
+type Status = "idle" | "checking" | "downloading" | "installing" | "opening" | "error";
+
 /**
  * Version-update toast, top-right — same structure as the reference
  * Announcement card (leading icon, dismiss, title, description, full-width
  * secondary CTA), restyled to the app's dark + emerald identity.
+ *
+ * Update flow: tries the signed Tauri updater (`check()` →
+ * `downloadAndInstall()` → relaunch) first so binary authenticity is
+ * verified via `plugins.updater.pubkey`. Falls back to manual
+ * `openInBrowser(downloadUrl)` (still gated by `isSafeHttpUrl`) when the
+ * updater is unavailable (browser dev, offline, no update found).
  *
  * Dismissal plays a soft blur + scale-down exit via motion, persists the
  * dismissed version (same version never nags twice), then unmounts.
  */
 export default function UpdateNotifier({ update, onClose }: Props) {
   const [dismissed, setDismissed] = useState(false);
-  const [opening, setOpening] = useState(false);
+  const [status, setStatus] = useState<Status>("idle");
+  const [progress, setProgress] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const close = () => {
     dismissVersion(update.latest);
     setDismissed(true);
   };
 
-  const handleAction = async () => {
-    if (!update.downloadUrl || opening) return;
+  const busy = status === "checking" || status === "downloading" || status === "installing" || status === "opening";
+
+  const openManually = async () => {
+    if (!update.downloadUrl) return;
     if (!isSafeHttpUrl(update.downloadUrl)) return;
-    setOpening(true);
+    setStatus("opening");
     try {
       await openInBrowser(update.downloadUrl);
     } catch {
       /* opener already fell back to a tab; nothing more to do */
     } finally {
-      setOpening(false);
+      setStatus("idle");
     }
   };
+
+  const handleAction = async () => {
+    if (busy) return;
+    setError(null);
+    setProgress(null);
+    // Prefer the signed in-place updater; keep manual open as fallback.
+    try {
+      setStatus("checking");
+      const updater = await import("@tauri-apps/plugin-updater");
+      const found = await updater.check();
+      if (found) {
+        setStatus("downloading");
+        await found.downloadAndInstall((e) => {
+          if (e.event === "Started") setProgress(0);
+          else if (e.event === "Progress") {
+            try {
+              const chunk = (e.data as { chunkLength?: number }).chunkLength ?? 0;
+              setProgress((p) => Math.min(99, (p ?? 0) + Math.max(1, Math.round(chunk / 1024))));
+            } catch {
+              /* ignore */
+            }
+          } else if (e.event === "Finished") setProgress(100);
+        });
+        setStatus("installing");
+        const proc = await import("@tauri-apps/plugin-process");
+        await proc.relaunch();
+        return;
+      }
+    } catch {
+      // Not in Tauri runtime, updater disabled, or check failed —
+      // fall through to the manual download path below.
+    }
+    // Fallback: manual download in the system browser (defense-in-depth:
+    // isSafeHttpUrl re-validated here even though version.ts already nulled
+    // unsafe URLs at fetch time).
+    if (!update.downloadUrl) {
+      setError("No download available for this update.");
+      setStatus("error");
+      return;
+    }
+    if (!isSafeHttpUrl(update.downloadUrl)) {
+      setError("Blocked unsafe download URL.");
+      setStatus("error");
+      return;
+    }
+    await openManually();
+  };
+
+  const label =
+    status === "checking"
+      ? "Checking…"
+      : status === "downloading"
+        ? progress != null
+          ? `Downloading… ${progress}%`
+          : "Downloading…"
+        : status === "installing"
+          ? "Installing…"
+          : status === "opening"
+            ? "Opening…"
+            : "Update now";
 
   return (
     <div
@@ -113,15 +185,31 @@ export default function UpdateNotifier({ update, onClose }: Props) {
               </div>
             </div>
 
-            {update.downloadUrl && (
+            {(update.downloadUrl || status !== "idle") && (
               <button
                 type="button"
                 onClick={() => void handleAction()}
-                disabled={opening}
+                disabled={busy}
                 className="btn-ghost w-full rounded-lg px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-60"
               >
-                {opening ? "Opening…" : "Update now"}
+                {label}
               </button>
+            )}
+            {status === "downloading" && progress != null && (
+              <div
+                className="h-1 w-full overflow-hidden rounded-full bg-white/10"
+                role="progressbar"
+                aria-valuenow={progress}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
+                <div className="h-full bg-emerald-400 transition-all" style={{ width: `${progress}%` }} />
+              </div>
+            )}
+            {error && (
+              <p role="alert" className="w-full text-xs leading-snug text-red-300">
+                {error}
+              </p>
             )}
           </motion.div>
         )}
