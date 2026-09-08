@@ -607,6 +607,7 @@
     "noSections": "Hali bo'lim yo'q",
     "block": "Blok",
     "authoringHint": "To'liq tahrirlash (bo'lim / savol / media) shu yerda — pastda boshqaruv tugmalari",
+    "durationHintListening": "Listening vaqti avtomatik — yuklangan audio uzunligi + 2 daqiqa review asosida hisoblanadi. Bu maydon taymer uchun ishlatilmaydi.",
     "submit": "Yakunlash",
     "submitConfirm": "Imtihonni yakunlaysizmi? Keyin javoblarni o'zgartirib bo'lmaydi.",
     "timeLeft": "Qolgan vaqt",

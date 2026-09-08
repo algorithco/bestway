@@ -73,7 +73,7 @@ export function SectionPanel({
         sectionId: section.id,
         input: {
           title: title.trim() || undefined,
-          durationMinutes: dur,
+          durationMinutes: section.skill === "listening" ? undefined : dur,
           instructions: instructions.trim() || undefined,
         },
       });
@@ -96,6 +96,10 @@ export function SectionPanel({
   const meta = SKILL_META[section.skill];
   const skillName = section.skill.charAt(0).toUpperCase() + section.skill.slice(1);
   const questionCount = section.groups.reduce((a, g) => a + g.questions.length, 0);
+  // Generic fallback panel (only reached for unknown skills) — still guard
+  // listening: its timing is audio-derived, never durationMinutes (backend
+  // computeSkillTiming; keep in sync).
+  const isListening = section.skill === "listening";
 
   function handleAddGroup() {
     createGroup.mutate(
@@ -130,7 +134,7 @@ export function SectionPanel({
           <p className="text-xs text-fg-muted">
             {section.groups.length} {meta.units.toLowerCase()} · {questionCount}{" "}
             {tx(t, "questions", "questions")}
-            {section.durationMinutes != null && ` · ${section.durationMinutes} min`}
+            {!isListening && section.durationMinutes != null && ` · ${section.durationMinutes} min`}
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -145,7 +149,15 @@ export function SectionPanel({
             </Field>
             <Field
               label={tx(t, "duration", "Duration (minutes)")}
-              hint={tx(t, "durationHint", "Required for Timed mode. Empty = untimed.")}
+              hint={
+                isListening
+                  ? tx(
+                      t,
+                      "durationHintListening",
+                      "Not used for timing in Timed exam mode — Listening duration is calculated automatically from the audio length plus a 2-minute review period. This field is informational only.",
+                    )
+                  : tx(t, "durationHint", "Required for Timed mode. Empty = untimed.")
+              }
               htmlFor="sec-dur"
             >
               <Input
@@ -156,6 +168,7 @@ export function SectionPanel({
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 placeholder="—"
+                disabled={isListening}
               />
             </Field>
           </div>

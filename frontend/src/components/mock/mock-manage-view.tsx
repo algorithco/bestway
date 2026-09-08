@@ -35,6 +35,7 @@ import {
 } from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
 import type { MockExamDetail, MockGroup, MockSkill } from "@/lib/types";
+import { displayTotalMinutes } from "@/lib/mock-timing";
 import { cn } from "@/lib/utils";
 import { MockQuestionsDialog } from "@/components/mock/mock-questions-dialog";
 import { MockSectionDialog } from "@/components/mock/mock-section-dialog";
@@ -291,11 +292,22 @@ function SectionCard({
       <div className="flex items-center justify-between gap-2">
         <p className="font-semibold text-fg">
           {title ?? t(`skills.${skill}`)}
-          {durationMinutes ? (
-            <span className="ml-2 text-xs font-normal text-fg-muted">
-              {durationMinutes} {t("minutes")}
-            </span>
-          ) : null}
+          {/* Listening minutes are audio-derived (never the stored field);
+              other skills show the stored value when present. */}
+          {skill === "listening"
+            ? (() => {
+                const m = displayTotalMinutes([{ skill, groups }]);
+                return m != null ? (
+                  <span className="ml-2 text-xs font-normal text-fg-muted">
+                    {m} {t("minutes")}
+                  </span>
+                ) : null;
+              })()
+            : durationMinutes ? (
+              <span className="ml-2 text-xs font-normal text-fg-muted">
+                {durationMinutes} {t("minutes")}
+              </span>
+            ) : null}
         </p>
         <span className="flex items-center gap-2">
           <span className="text-xs text-fg-muted">

@@ -607,6 +607,7 @@
     "noSections": "No sections yet",
     "block": "Block",
     "authoringHint": "Full editing (sections / questions / media) — management controls below",
+    "durationHintListening": "Listening timing is automatic — derived from uploaded audio length plus a 2-minute review buffer. This field is not used for the timer.",
     "submit": "Finish",
     "submitConfirm": "Finish the exam? You won't be able to change answers afterwards.",
     "timeLeft": "Time left",

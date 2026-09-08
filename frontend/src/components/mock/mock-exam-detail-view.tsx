@@ -29,6 +29,7 @@ import {
   useStartMock,
 } from "@/hooks/use-mock";
 import type { MockAttemptMode, MockSkill } from "@/lib/types";
+import { displayTotalMinutes } from "@/lib/mock-timing";
 import { formatMoney } from "@/lib/utils";
 
 const SKILL_ICON: Record<MockSkill, typeof Headphones> = {
@@ -119,10 +120,10 @@ export function MockExamDetailView({ examId }: { examId: string }) {
             <FileQuestion className="size-4" />
             {exam.questionCount} {t("questions")}
           </span>
-          {exam.sections.reduce((s, sec) => s + (sec.durationMinutes ?? 0), 0) > 0 && (
+          {displayTotalMinutes(exam.sections) != null && (
             <span className="flex items-center gap-1.5">
               <Clock className="size-4" />
-              {exam.sections.reduce((s, sec) => s + (sec.durationMinutes ?? 0), 0)} {t("minutes")}
+              {displayTotalMinutes(exam.sections)} {t("minutes")}
             </span>
           )}
         </div>
@@ -144,7 +145,9 @@ export function MockExamDetailView({ examId }: { examId: string }) {
                   <p className="text-sm font-medium text-fg">{t(`skills.${sec.skill}`)}</p>
                   <p className="text-xs text-fg-muted">
                     {qCount} {t("questions")}
-                    {sec.durationMinutes ? ` · ${sec.durationMinutes} ${t("minutes")}` : ""}
+                    {sec.skill !== "listening" && sec.durationMinutes
+                      ? ` · ${sec.durationMinutes} ${t("minutes")}`
+                      : ""}
                   </p>
                 </div>
               </div>

@@ -210,7 +210,7 @@ export function OverviewPanel({
                   <span className="font-medium capitalize text-fg">{s.skill}</span>
                   <span className="ml-auto text-xs text-fg-muted">
                     {s.groups.length} {tx(t, "blocks", "blocks")} · {n}q
-                    {s.durationMinutes != null && ` · ${s.durationMinutes} min`}
+                    {s.skill !== "listening" && s.durationMinutes != null && ` · ${s.durationMinutes} min`}
                   </span>
                 </button>
               );

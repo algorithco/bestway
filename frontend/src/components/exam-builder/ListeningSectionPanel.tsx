@@ -80,7 +80,8 @@ export function ListeningSectionPanel({
         sectionId: section.id,
         input: {
           title: title.trim() || undefined,
-          durationMinutes: dur,
+          // Listening timing is audio-derived — never persist durationMinutes.
+          durationMinutes: undefined,
           instructions: instructions.trim() || undefined,
         },
       });
@@ -270,6 +271,7 @@ export function ListeningSectionPanel({
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 placeholder="—"
+                disabled
               />
             </Field>
           </div>

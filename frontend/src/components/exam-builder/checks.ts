@@ -76,7 +76,9 @@ export function examClientChecks(sections: MockSection[]): Check[] {
       });
       continue;
     }
-    if (s.durationMinutes == null) {
+    // Timed listening needs no duration (audio-derived) and speaking is
+    // untimed — only reading/writing warn when unset.
+    if ((s.skill === "reading" || s.skill === "writing") && s.durationMinutes == null) {
       checks.push({
         level: "warning",
         label: `${cap(s.skill)} has no duration`,

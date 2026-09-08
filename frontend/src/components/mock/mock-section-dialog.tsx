@@ -69,13 +69,17 @@ function MockSectionFields({
   const [duration, setDuration] = React.useState("");
   const [instructions, setInstructions] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
+  // Listening timing is never driven by durationMinutes (see
+  // backend computeSkillTiming: audio sum + 120s review) — the field below
+  // is informational/disabled for listening so authors aren't misled.
+  const isListening = skill === "listening";
 
   function submit() {
     setError(null);
     create.mutate(
       {
         skill,
-        durationMinutes: duration ? Number(duration) : undefined,
+        durationMinutes: isListening ? undefined : duration ? Number(duration) : undefined,
         instructions: instructions.trim() || undefined,
       },
       {
@@ -110,14 +114,19 @@ function MockSectionFields({
             </SelectContent>
           </Select>
         </Field>
-        <Field label={t("duration")} htmlFor="sdur">
+        <Field
+          label={t("duration")}
+          htmlFor="sdur"
+          hint={isListening ? t("durationHintListening") : undefined}
+        >
           <Input
             id="sdur"
             type="number"
             min={1}
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
-            placeholder="30"
+            placeholder={isListening ? "—" : "30"}
+            disabled={isListening}
           />
         </Field>
         <Field label={t("instructions")} htmlFor="sinstr">
