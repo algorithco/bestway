@@ -23,7 +23,7 @@ import { MockAccessService } from './mock-access.service';
 import { buildCorrectAnswers, parseQuestions } from './mock-parse';
 import { audioContentType } from './mock-storage';
 import { AUTO_SKILLS } from './mock-scoring';
-import { ExamRow, shapeExam, shapeExamMeta } from './mock-shape';
+import { ExamRow, shapeExam, shapeExamMeta, totalDuration } from './mock-shape';
 
 /** Variantlar (options) majburiy bo'lgan savol turlari */
 const OPTION_TYPES = new Set<MockQuestionType>([
@@ -172,7 +172,9 @@ export class MockAuthoringService {
           select: {
             skill: true,
             durationMinutes: true,
-            groups: { select: { _count: { select: { questions: true } } } },
+            groups: {
+              select: { audioDurationSec: true, _count: { select: { questions: true } } },
+            },
           },
         },
       },
@@ -192,7 +194,7 @@ export class MockAuthoringService {
         (sum, s) => sum + s.groups.reduce((gs, g) => gs + g._count.questions, 0),
         0,
       );
-      const duration = e.sections.reduce((sum, s) => sum + (s.durationMinutes ?? 0), 0);
+      const duration = totalDuration(e);
       return {
         id: e.id,
         type: e.type,
@@ -203,7 +205,7 @@ export class MockAuthoringService {
         isPublished: e.isPublished,
         skills: e.sections.map((s) => s.skill),
         questionCount,
-        durationMinutes: duration > 0 ? duration : null,
+        durationMinutes: duration,
         price: e.price,
         access: accessMap.get(e.id) ?? 'locked',
       };

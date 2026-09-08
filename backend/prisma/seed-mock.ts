@@ -43,7 +43,8 @@ async function main() {
             skill: 'listening',
             title: 'Listening',
             sortOrder: 0,
-            durationMinutes: 30,
+            // durationMinutes intentionally unset: listening timing is
+            // audio-derived (computeSkillTiming), the field would be ignored.
             instructions: 'Audio bir marta ijro etiladi. Har bo\'sh joyga javob yozing.',
             groups: {
               create: [

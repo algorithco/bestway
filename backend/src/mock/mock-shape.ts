@@ -136,12 +136,42 @@ export function shapeExam(exam: ExamRow, includeAnswers: boolean, base: string) 
   };
 }
 
+/** `totalDuration` uchun minimal kirish shakli — display hisobi audio va
+ * skill'ga bog'liq, shuning uchun to'liq `ExamRow` shart emas. */
+export interface DurationSectionInput {
+  skill: MockSkill;
+  durationMinutes?: number | null;
+  groups?: Array<{ audioDurationSec?: number | null }>;
+}
+
 /** Bo'lim bo'yicha jami vaqt (daqiqa) — imtihon davomiyligi taxminiy hisobi.
  * FAQAT ko'rinish uchun (exam list kartalari, "X min"). Timed deadline
  * hisobi uchun ishlatilmaydi — deadline `computeSkillTiming` orqali
- * skill-specific hisoblanadi (listening = audio, speaking = yo'q). */
-export function totalDuration(exam: ExamRow): number | null {
-  const sum = exam.sections.reduce((s, sec) => s + (sec.durationMinutes ?? 0), 0);
+ * skill-specific hisoblanadi (listening = audio, speaking = yo'q).
+ *
+ * `computeSkillTiming()` BILAN SINXRON SAQLANSIN: listening bo'limining
+ * saqlangan `durationMinutes` qiymati taymerda HECH QACHON ishlatilmaydi,
+ * shuning uchun u bu yig'indiga HAM kiritilmaydi — o'rniga audio yig'indisi
+ * + `LISTENING_REVIEW_SEC` (daqiqaga yaxlitlangan) olinadi. Speaking
+ * untimed bo'lgani uchun 0 hissa qo'shadi. Reading/writing da
+ * `durationMinutes` bo'lmasa `computeSkillTiming` dagi kabi 60min default
+ * qo'llanadi. Bu funksiyani o'zgartirsangiz `computeSkillTiming` ni ham
+ * tekshiring (va aksincha). */
+export function totalDuration(exam: { sections: DurationSectionInput[] }): number | null {
+  let sum = 0;
+  for (const sec of exam.sections) {
+    if (sec.skill === 'listening') {
+      const audioSec = (sec.groups ?? []).reduce((s, g) => s + (g.audioDurationSec ?? 0), 0);
+      sum += Math.ceil(
+        ((audioSec > 0 ? audioSec : FALLBACK_LISTENING_SEC) + LISTENING_REVIEW_SEC) / 60,
+      );
+    } else if (sec.skill === 'speaking') {
+      continue;
+    } else {
+      sum +=
+        sec.durationMinutes ?? (sec.skill === 'reading' ? DEFAULT_READING_MIN : DEFAULT_WRITING_MIN);
+    }
+  }
   return sum > 0 ? sum : null;
 }
 
