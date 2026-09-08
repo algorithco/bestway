@@ -4,6 +4,14 @@ import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 
 // https://vite.dev/config/
+// NOTE (CSP TA-12): Tailwind v4 prod output is fully static — @tailwindcss/vite
+// + Oxide/LightningCSS pre-compile all utilities into dist/assets/*.css with no
+// client-side style injection. Only `vite dev` HMR injects runtime <style> tags
+// (never shipped; frontendDist is ../dist). `style-src 'unsafe-inline'` is still
+// required in the shipped app for React `style={{}}` attributes (19 sites),
+// motion/react frame writes, body scroll-lock, and OGL canvas sizing — NOT for
+// Tailwind. The sole static <style> block (index.html boot splash) is additionally
+// pinned via a sha256 hash in tauri.conf.json CSP.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   clearScreen: false,
@@ -21,7 +29,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      "@": path.resolve(import.meta.dirname, "./src"),
     },
   },
 });
