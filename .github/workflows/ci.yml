@@ -51,6 +51,10 @@ jobs:
         run: npx prisma generate
       - name: Prisma migrate deploy
         run: npx prisma migrate deploy
+      - name: Seed demo data
+        # test:smoke logs in as demo users (super_admin/admin/teacher/...)
+        # which only exist after the demo seed — seed defaults match CI env.
+        run: npm run seed
       - name: Build
         run: npm run build
       - name: Smoke test (built app)

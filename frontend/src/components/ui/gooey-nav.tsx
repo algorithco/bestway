@@ -19,6 +19,11 @@ export interface GooeyNavProps {
   initialActiveIndex?: number;
 }
 
+// Particle randomness lives at module scope: these helpers never touch
+// render state, so impure Math.random calls stay out of the render phase.
+const noise = (n = 1) => n / 2 - Math.random() * n;
+const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
 const GooeyNav: React.FC<GooeyNavProps> = ({
   items,
   animationTime = 600,
@@ -35,24 +40,26 @@ const GooeyNav: React.FC<GooeyNavProps> = ({
   const textRef = useRef<HTMLSpanElement>(null);
   const [activeIndex, setActiveIndex] = useState<number>(initialActiveIndex);
 
-  // Sync when parent changes initialActiveIndex (e.g., hash-based navigation)
-  useEffect(() => {
+  // Sync when parent changes initialActiveIndex (e.g., hash-based navigation).
+  // Render-phase adjustment (not an effect) so no cascading render.
+  const [prevInitialIndex, setPrevInitialIndex] = useState(initialActiveIndex);
+  if (prevInitialIndex !== initialActiveIndex) {
+    setPrevInitialIndex(initialActiveIndex);
     setActiveIndex(initialActiveIndex);
-  }, [initialActiveIndex]);
+  }
 
-  const noise = (n = 1) => n / 2 - Math.random() * n;
   const getXY = (distance: number, pointIndex: number, totalPoints: number): [number, number] => {
     const angle = ((360 + noise(8)) / totalPoints) * pointIndex * (Math.PI / 180);
     return [distance * Math.cos(angle), distance * Math.sin(angle)];
   };
   const createParticle = (i: number, t: number, d: [number, number], r: number) => {
-    let rotate = noise(r / 10);
+    const rotate = noise(r / 10);
     return {
       start: getXY(d[0], particleCount - i, particleCount),
       end: getXY(d[1] + noise(7), particleCount - i, particleCount),
       time: t,
       scale: 1 + noise(0.2),
-      color: colors[Math.floor(Math.random() * colors.length)],
+      color: pickRandom(colors),
       rotate: rotate > 0 ? (rotate + r / 20) * 10 : (rotate - r / 20) * 10,
     };
   };

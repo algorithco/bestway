@@ -28,13 +28,15 @@ export function SiteHeader() {
   const { data: me, isLoading: meLoading } = useMe();
   const isLoggedIn = !!me?.user;
   const [open, setOpen] = React.useState(false);
-  const [scrolled, setScrolled] = React.useState(false);
+  // Initial scroll position is read lazily (SSR-safe) instead of syncing in an effect.
+  const [scrolled, setScrolled] = React.useState(
+    () => typeof window !== "undefined" && window.scrollY > 8,
+  );
   const [activeIdx, setActiveIdx] = React.useState(0);
 
   React.useEffect(() => {
     let ticking = false;
     let lastVal = window.scrollY > 8;
-    setScrolled(lastVal);
     const onScroll = () => {
       if (ticking) return;
       ticking = true;

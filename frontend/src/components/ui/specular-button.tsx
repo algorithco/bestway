@@ -157,7 +157,8 @@ export function SpecularButton({
 
     let cancelled = false;
     let renderer: InstanceType<typeof import("ogl").Renderer> | null = null;
-    let gl: WebGL2RenderingContext | null = null;
+    // OGL's own context type (renderer.gl) — keeps Triangle/Program/Mesh typed.
+    let gl: InstanceType<typeof import("ogl").Renderer>["gl"] | null = null;
     let program: InstanceType<typeof import("ogl").Program> | null = null;
     let mesh: InstanceType<typeof import("ogl").Mesh> | null = null;
     let ro: ResizeObserver | null = null;
@@ -190,17 +191,17 @@ export function SpecularButton({
 
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: false, dpr });
-      gl = renderer.gl as unknown as WebGL2RenderingContext;
+      gl = renderer.gl;
       gl.clearColor(0, 0, 0, 0);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
 
-      const geometry = new Triangle(gl as unknown as any);
+      const geometry = new Triangle(gl);
       if ((geometry as unknown as { attributes: Record<string, unknown> }).attributes?.uv) {
         delete (geometry as unknown as { attributes: Record<string, unknown> }).attributes.uv;
       }
 
-      program = new Program(gl as unknown as any, {
+      program = new Program(gl, {
         vertex: VERT,
         fragment: FRAG,
         uniforms: {
@@ -219,8 +220,8 @@ export function SpecularButton({
         },
       });
 
-      mesh = new Mesh(gl as unknown as any, { geometry, program });
-      fx.appendChild((renderer.gl as unknown as { canvas: HTMLCanvasElement }).canvas);
+      mesh = new Mesh(gl, { geometry, program });
+      fx.appendChild(renderer.gl.canvas);
 
       const resize = () => {
         if (!renderer || !program || !btn) return;

@@ -97,12 +97,16 @@ export function MockRunner({ attempt }: { attempt: MockAttemptDetail }) {
   const [cheatCount, setCheatCount] = React.useState(0);
 
   // Full-test: faol bo'lim server'dan (currentSkill) — orqaga qaytish yo'q.
+  // Render-phase adjustment (not an effect) so no cascading render.
   const skillOrder: MockSkill[] = React.useMemo(() => ["listening", "reading", "writing", "speaking"], []);
-  React.useEffect(() => {
-    if (!isFullTest || !attempt.currentSkill) return;
-    const idx = skillOrder.indexOf(attempt.currentSkill);
-    if (idx >= 0) setActiveSection(idx);
-  }, [isFullTest, attempt.currentSkill, skillOrder]);
+  const [prevSkill, setPrevSkill] = React.useState(attempt.currentSkill);
+  if (prevSkill !== attempt.currentSkill) {
+    setPrevSkill(attempt.currentSkill);
+    if (isFullTest && attempt.currentSkill) {
+      const idx = skillOrder.indexOf(attempt.currentSkill);
+      if (idx >= 0) setActiveSection(idx);
+    }
+  }
 
   const answersRef = React.useRef(answers);
   React.useEffect(() => {
