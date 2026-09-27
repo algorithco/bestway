@@ -3,7 +3,6 @@
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { NotificationsBell } from "./notifications-bell";
 import { UserMenu } from "./user-menu";
@@ -29,7 +28,6 @@ export function AppTopbar({ role }: { role: Role }) {
       <div className="flex items-center gap-1.5">
         <div className="hidden items-center gap-1.5 sm:flex">
           <LanguageSwitcher />
-          <ThemeToggle />
         </div>
         <NotificationsBell />
         <UserMenu />

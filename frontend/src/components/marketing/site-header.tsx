@@ -8,7 +8,6 @@ import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import GooeyNav from "@/components/ui/gooey-nav";
 import { SpecularButton } from "@/components/ui/specular-button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/feedback";
@@ -124,7 +123,6 @@ export function SiteHeader() {
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center gap-1.5 sm:flex">
             <LanguageSwitcher />
-            <ThemeToggle />
           </div>
           {meLoading ? (
             <Skeleton className="hidden size-9 rounded-full sm:inline-flex" />
@@ -207,7 +205,6 @@ export function SiteHeader() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <LanguageSwitcher />
-                <ThemeToggle />
               </div>
               <div className="flex items-center gap-2">
                 {meLoading ? (

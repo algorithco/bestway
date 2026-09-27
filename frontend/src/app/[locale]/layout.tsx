@@ -62,11 +62,8 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    // suppressHydrationWarning — next-themes <html> ga class qo'shadi (server bilmaydi)
-    // React 19: inline <script> client renderda warning beradi, shuning uchun
-    // FOUC oldini olish uchun tashqi script emas, balki CSS media query + client hydration yeter.
-    // ThemeProvider mount bo'lganda to'g'ri themani o'rnatadi (kichik FOUC qabul qilinadi).
-    <html lang={locale} data-scroll-behavior="smooth" className={`${inter.variable} h-full`} suppressHydrationWarning>
+    // Dark-only — white/light theme deleted. `<html>` is always `dark`.
+    <html lang={locale} data-scroll-behavior="smooth" className={`${inter.variable} dark h-full`} suppressHydrationWarning>
       <head />
       <body className="flex min-h-full flex-col antialiased">
         <NextIntlClientProvider messages={messages}>

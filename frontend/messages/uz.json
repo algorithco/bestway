@@ -111,8 +111,7 @@
     "alt": "Alt matn",
     "altPlaceholder": "Rasm tavsifi",
     "sortOrder": "Tartib",
-    "isActive": "Faol (saytda ko'rinadi)",
-    "preview": "Ko'rib chiqish"
+    "isActive": "Faol (saytda ko'rinadi)"
   },
   "profile": {
     "title": "Profil",
@@ -301,10 +300,6 @@
     "total": "Jami",
     "sum": "so'm",
     "notSelected": "Tanlanmagan",
-    "theme": "Mavzu",
-    "light": "Yorug'",
-    "dark": "Qorong'i",
-    "system": "Tizim",
     "language": "Til",
     "logout": "Chiqish",
     "profile": "Profil",

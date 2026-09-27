@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
-import AccordionGallery from "@/components/ui/accordion-gallery";
 import { GalleryFormDialog } from "@/components/gallery/gallery-form-dialog";
 import { useDeleteGallery, useGalleryAdmin } from "@/hooks/use-gallery";
 import type { GalleryAdminItem } from "@/lib/types";
@@ -35,14 +34,6 @@ export function GalleryView() {
     });
   }
 
-  // Preview items for AccordionGallery (only active, sorted)
-  const previewItems = React.useMemo(() => {
-    if (items.length === 0) return undefined;
-    const active = items.filter((i) => i.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
-    if (active.length === 0) return [];
-    return active.map((i) => ({ image: i.image, label: i.label, link: i.link, alt: i.alt }));
-  }, [items]);
-
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader
@@ -54,13 +45,6 @@ export function GalleryView() {
           </Button>
         }
       />
-      {/* Preview */}
-      {previewItems !== undefined && previewItems.length > 0 && (
-        <Card className="p-4">
-          <p className="mb-3 text-sm font-medium text-fg-muted">{t("preview")}</p>
-          <AccordionGallery items={previewItems} height={380} defaultIndex={1} />
-        </Card>
-      )}
 
       {isError ? (
         <ErrorState
