@@ -59,7 +59,7 @@ cd frontend && npm install && npm run dev   # http://localhost:3000, API_URL=htt
 Browser --fetch /api/backend/*--> Next.js (3005) --Bearer--> NestJS (3001) --Prisma--> PostgreSQL (5433)
                                     | httpOnly bw_at/bw_rt          | helmet + throttler + ValidationPipe
                                     | proxy + refresh               | /v1 + Swagger /docs + /admin static
-                                    | next-intl (uz/ru/en)          | Telegram bot (polling/webhook)
+                                    | next-intl (uz/en)             | Telegram bot (polling/webhook)
 ```
 
 **Global pipeline:** `ThrottlerGuard → JwtAuthGuard → RolesGuard → TransformInterceptor({success,data,meta}) → AllExceptionsFilter({success:false,error:{code}})` — `backend/src/app.module.ts:1`, `backend/src/main.ts:1`

@@ -11,7 +11,7 @@ Secure desktop app for education-center students to take exams. Admin locks ever
 - Tests + Mock exams (IELTS / multilevel, speaking audio)
 - Live remote control: admin Lock / Unlock / Force-submit, roster with online + cheat count
 - Strong app-level lockdown: fullscreen kiosk, always-on-top, no taskbar, shortcut + clipboard block, focus-loss auto-report (`flag-cheat`), 15s heartbeat, timer auto-submit
-- **Battery % bottom-right**: `BatteryIndicator` in the status bar shows the laptop/PC battery (`get_battery` → `navigator.getBattery()` → `—%`), red <20%, amber <40%, plug icon when charging, click to refresh, `uz/ru/en`
+- **Battery % bottom-right**: `BatteryIndicator` in the status bar shows the laptop/PC battery (`get_battery` → `navigator.getBattery()` → `—%`), red <20%, amber <40%, plug icon when charging, click to refresh, `uz/en`
 - Online-only v1 (auto banner + queued submit on disconnect)
 
 ## Tech
