@@ -61,7 +61,7 @@ const ROUTE_ROLES: [string, Role[]][] = [
   ["/children", ["parent"]],
 ];
 
-/** "/ru/dashboard" -> { locale: "ru", path: "/dashboard" } */
+/** "/en/dashboard" -> { locale: "en", path: "/dashboard" } */
 function splitLocale(pathname: string): { locale: Locale; path: string } {
   const segment = pathname.split("/")[1];
   if (locales.includes(segment as Locale)) {

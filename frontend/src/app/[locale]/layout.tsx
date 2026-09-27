@@ -8,9 +8,9 @@ import { CENTER } from "@/lib/config";
 import { routing } from "@/i18n/routing";
 import "../globals.css";
 
-// Inter — lotin (uz/en) va kirill (ru) uchun. globals.css uni --font-inter orqali oladi.
+// Inter — lotin yozuvidagi uz/en uchun. globals.css uni --font-inter orqali oladi.
 const inter = Inter({
-  subsets: ["latin", "cyrillic"],
+  subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
   display: "swap",
@@ -19,7 +19,7 @@ const inter = Inter({
   adjustFontFallback: true,
 });
 
-// Uch tilni build vaqtida oldindan render qilamiz (statik sahifalar uchun)
+// Qo'llab-quvvatlanadigan tillarni build vaqtida oldindan render qilamiz.
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }

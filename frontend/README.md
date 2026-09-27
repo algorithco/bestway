@@ -4,7 +4,7 @@ Web platform for an English‑language education center (IELTS / Multilevel / Ge
 This repository is the **frontend only**. It talks to an existing **NestJS + PostgreSQL** backend
 over HTTP and never modifies it.
 
-The app is **trilingual** (Uzbek / Russian / English), **role‑based** (5 roles),
+The app is **bilingual** (Uzbek / English), **role‑based** (5 roles),
 **dark‑mode aware**, and fully responsive (desktop sidebar + mobile bottom navigation).
 
 > **Two‑repo project.** This is the frontend. The API it talks to lives in a separate repo:
@@ -59,7 +59,7 @@ Guests (not logged in) see a **marketing site** with a hero, courses, features, 
 | UI runtime     | **React 19**                                                       |
 | Language       | **TypeScript** (strict)                                             |
 | Styling        | **Tailwind CSS v4** (CSS‑first `@theme`, design tokens)             |
-| i18n           | **next-intl v4** (`uz` / `ru` / `en`)                              |
+| i18n           | **next-intl v4** (`uz` / `en`)                                     |
 | Server state   | **TanStack Query v5** (React Query)                                 |
 | Forms          | **react-hook-form** + **zod v4**                                    |
 | Primitives     | **Radix UI** (dialog, dropdown, select, tabs, …)                   |
@@ -184,12 +184,12 @@ the JWT can live in a **secure, httpOnly cookie** (unreadable by JavaScript, so 
 
 ## Internationalization (i18n)
 
-- Locales: **`uz`** (default), **`ru`**, **`en`**. Configured in `src/i18n/routing.ts`.
+- Locales: **`uz`** (default) and **`en`**. Configured in `src/i18n/routing.ts`.
 - URL strategy is **`as-needed`**: the default locale has **no prefix** (`/dashboard`), others do
-  (`/ru/dashboard`, `/en/dashboard`).
+  (`/en/dashboard`).
 - Every app route lives under `src/app/[locale]/…`. There is intentionally **no** `src/app/layout.tsx` —
   `src/app/[locale]/layout.tsx` is the root layout (this is the standard next-intl pattern and works in Next 16).
-- Translations are plain JSON in **`messages/{uz,ru,en}.json`**, one namespace per feature
+- Translations are plain JSON in **`messages/{uz,en}.json`**, one namespace per feature
   (`common`, `nav`, `auth`, `attendance`, `payments`, `groups`, `tests`, `videos`, …).
 - Use the locale‑aware `Link` / `useRouter` from **`@/i18n/navigation`**, not `next/link` directly, so the
   active locale prefix is preserved.
@@ -257,7 +257,7 @@ Navigation is generated per role from **`src/lib/nav.ts`**; route access is enfo
 
 ```
 frontend/
-├─ messages/                     # i18n translations (uz.json, ru.json, en.json)
+├─ messages/                     # i18n translations (uz.json, en.json)
 ├─ src/
 │  ├─ app/
 │  │  ├─ [locale]/               # all pages live here (root layout with <html>/<body>)
