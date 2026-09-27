@@ -1,7 +1,6 @@
 import { setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 export default async function AuthLayout({
@@ -29,7 +28,6 @@ export default async function AuthLayout({
         </Link>
         <div className="flex items-center gap-1.5">
           <LanguageSwitcher />
-          <ThemeToggle />
         </div>
       </header>
 

@@ -51,6 +51,14 @@ jobs:
         run: npx prisma generate
       - name: Prisma migrate deploy
         run: npx prisma migrate deploy
+      - name: Seed demo data
+        # test:smoke logs in as demo users (super_admin/admin/teacher/...)
+        # which only exist after the demo seed — seed defaults match CI env.
+        run: npm run seed
+      - name: Seed CI demo test
+        # smoke TESTS section needs the demo IELTS test, which prod seed
+        # intentionally omits — CI-only recreation (idempotent).
+        run: node scripts/ci-seed-demo-test.mjs
       - name: Build
         run: npm run build
       - name: Smoke test (built app)

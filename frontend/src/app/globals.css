@@ -1,61 +1,61 @@
 @import "tailwindcss";
 
-/* next-themes `class` strategiyasi bilan ishlaydi (prefers-color-scheme emas) */
+/* Dark-only — white/light theme deleted. `:root` IS the dark theme. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * BESTWAY EC — dizayn tokenlari
+ * BESTWAY EC — dizayn tokenlari (faqat qorong'i mavzu)
  *
  * Tamoyil: fon neytral, rang faqat ma'no tashiganda ishlatiladi.
  * Brend yashili (to'q) holat yashilidan (yorqin) ataylab to'qroq —
  * shunda "Saqlash" tugmasi "to'landi" belgisi bilan chalkashmaydi.
  */
 :root {
-  --bg: #ffffff;
-  --bg-subtle: #f9fafb;
-  --surface: #ffffff;
-  --surface-hover: #f9fafb;
+  --bg: #0b0c0e;
+  --bg-subtle: #101215;
+  --surface: #131518;
+  --surface-hover: #1a1d21;
 
-  --fg: #111827;
-  --fg-muted: #6b7280;
-  --fg-subtle: #9ca3af;
+  --fg: #e8eaed;
+  --fg-muted: #9ba1a9;
+  --fg-subtle: #6b7280;
 
-  --border: #e5e7eb;
-  --border-strong: #d1d5db;
+  --border: #272b31;
+  --border-strong: #3a3f47;
 
-  /* Brend ranglari logotipdan olingan: to'q yashil "B", lime qanot, to'q sariq, sariq quyosh */
-  --brand: #128139;
-  --brand-hover: #0d6a2d;
-  --brand-fg: #ffffff;
-  --brand-subtle: #ddf3e2;
-  --brand-subtle-fg: #0c5024;
+  /* Qorong'ida to'q yashil o'qilmaydi — yorug'roq olinadi, matn esa qoraytiriladi */
+  --brand: #38c765;
+  --brand-hover: #2ba552;
+  --brand-fg: #04240f;
+  --brand-subtle: #123a1f;
+  --brand-subtle-fg: #8ef0ac;
 
-  --accent: #74bd3a; /* lime qanot */
-  --accent-fg: #14330a;
-  --accent-subtle: #eaf6d8;
+  --accent: #97d95c;
+  --accent-fg: #0f2b05;
+  --accent-subtle: #1d2f11;
 
-  --orange: #f2901c; /* pastki qanot */
-  --orange-fg: #ffffff;
-  --orange-subtle: #fdebd3;
+  --orange: #f79a35;
+  --orange-fg: #241100;
+  --orange-subtle: #3a2408;
 
-  --highlight: #ffc62e; /* quyosh yoyi */
+  --highlight: #ffd24d;
 
-  /* Holat ranglari — jadval kataklari, belgilar, badge'lar */
-  --success: #16a34a;
-  --success-bg: #dcfce7;
-  --success-border: #86efac;
+  --success: #4ade80;
+  --success-bg: #14532d;
+  --success-border: #166534;
 
-  --danger: #dc2626;
-  --danger-bg: #fee2e2;
-  --danger-border: #fca5a5;
+  --danger: #f87171;
+  --danger-bg: #601b1b;
+  --danger-border: #991b1b;
 
-  --warning: #b45309;
-  --warning-bg: #fef3c7;
-  --warning-border: #fcd34d;
+  --warning: #fbbf24;
+  --warning-bg: #5c2c07;
+  --warning-border: #92400e;
 
-  --info: #0369a1;
-  --info-bg: #e0f2fe;
-  --info-border: #7dd3fc;
+  --info: #38bdf8;
+  --info-bg: #0c4a6e;
+  --info-border: #075985;
+  color-scheme: dark;
 }
 
 .dark {

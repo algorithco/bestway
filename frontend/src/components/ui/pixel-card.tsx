@@ -133,6 +133,12 @@ function getEffectiveSpeed(value: number, reducedMotion: boolean) {
   }
 }
 
+// Impure clock isolated at module scope so the render phase stays pure.
+// Only ever called from requestAnimationFrame callbacks (client-side).
+function now() {
+  return performance.now();
+}
+
 const VARIANTS: Record<
   PixelCardVariant,
   { activeColor: string | null; gap: number; speed: number; colors: string; noFocus: boolean }
@@ -181,7 +187,9 @@ export default function PixelCard({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pixelsRef = useRef<Pixel[]>([]);
   const animationRef = useRef<number>(0);
-  const timePreviousRef = useRef(performance.now());
+  // performance.now() is impure — never call it during render.
+  // Initialized once on mount (animation only ever runs post-mount via rAF).
+  const timePreviousRef = useRef<number>(0);
   // matchMedia is browser-only — guard for SSR
   const reducedMotion =
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -227,7 +235,7 @@ export default function PixelCard({
 
   const doAnimate = (fnName: "appear" | "disappear") => {
     animationRef.current = requestAnimationFrame(() => doAnimate(fnName));
-    const timeNow = performance.now();
+    const timeNow = now();
     const timePassed = timeNow - timePreviousRef.current;
     const timeInterval = 1000 / 60;
 
@@ -269,6 +277,7 @@ export default function PixelCard({
   };
 
   useEffect(() => {
+    timePreviousRef.current = performance.now();
     initPixels();
     const observer = new ResizeObserver(() => {
       initPixels();

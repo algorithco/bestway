@@ -8,7 +8,6 @@ import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 import GooeyNav from "@/components/ui/gooey-nav";
 import { SpecularButton } from "@/components/ui/specular-button";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Avatar } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/feedback";
@@ -29,13 +28,15 @@ export function SiteHeader() {
   const { data: me, isLoading: meLoading } = useMe();
   const isLoggedIn = !!me?.user;
   const [open, setOpen] = React.useState(false);
-  const [scrolled, setScrolled] = React.useState(false);
+  // Initial scroll position is read lazily (SSR-safe) instead of syncing in an effect.
+  const [scrolled, setScrolled] = React.useState(
+    () => typeof window !== "undefined" && window.scrollY > 8,
+  );
   const [activeIdx, setActiveIdx] = React.useState(0);
 
   React.useEffect(() => {
     let ticking = false;
     let lastVal = window.scrollY > 8;
-    setScrolled(lastVal);
     const onScroll = () => {
       if (ticking) return;
       ticking = true;
@@ -124,7 +125,6 @@ export function SiteHeader() {
         <div className="flex shrink-0 items-center gap-1.5">
           <div className="hidden items-center gap-1.5 sm:flex">
             <LanguageSwitcher />
-            <ThemeToggle />
           </div>
           {meLoading ? (
             <Skeleton className="hidden size-9 rounded-full sm:inline-flex" />
@@ -207,7 +207,6 @@ export function SiteHeader() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <LanguageSwitcher />
-                <ThemeToggle />
               </div>
               <div className="flex items-center gap-2">
                 {meLoading ? (

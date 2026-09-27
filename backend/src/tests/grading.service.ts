@@ -261,9 +261,10 @@ export class GradingService {
     const isStaff =
       viewer.role === 'teacher' || viewer.role === 'admin' || viewer.role === 'super_admin';
     const isOwner = viewer.id === attempt.studentId;
-    // Students may review correct answers only AFTER submitting (prevents
-    // cheating mid-exam). Writing/Speaking stay manual-only (no correctAnswer).
-    const showCorrect = isStaff || (isOwner && attempt.status !== 'in_progress');
+    // Students may review correct answers only AFTER grading completes
+    // (never mid-exam or while manual grading is pending — prevents leaks).
+    // Writing/Speaking stay manual-only (no correctAnswer).
+    const showCorrect = isStaff || (isOwner && attempt.status === 'completed');
     const answerByQ = new Map(attempt.answers.map((a) => [a.questionId, a]));
     const qMap = new Map(attempt.test.questions.map((qq) => [qq.id, qq]));
     const order = attempt.questionOrder as string[];

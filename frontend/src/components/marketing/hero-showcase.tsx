@@ -77,7 +77,7 @@ export function HeroShowcase() {
       {/* soft restrained glow behind the card */}
       <div
         aria-hidden
-        className="absolute inset-8 -z-10 rounded-[28px] bg-brand/15 blur-3xl dark:bg-brand/20"
+        className="absolute inset-8 -z-10 rounded-[28px] bg-brand/20 blur-3xl"
       />
 
       <TiltCard

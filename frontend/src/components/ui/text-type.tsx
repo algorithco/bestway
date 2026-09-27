@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, createElement, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { gsap } from "gsap";
 
 import "./text-type.css";
@@ -172,30 +172,26 @@ const TextType = ({
   const shouldHideCursor =
     hideCursorWhileTyping && (currentCharIndex < textArray[currentTextIndex].length || isDeleting);
 
-  return createElement(
-    Component as string,
-    {
-      ref: containerRef,
-      className: `text-type ${className}`,
-      ...props,
-    },
-    createElement(
-      "span",
-      {
-        className: "text-type__content",
-        style: { color: getCurrentTextColor() } as React.CSSProperties,
-      },
-      displayedText,
-    ),
-    showCursor &&
-      createElement(
-        "span",
-        {
-          ref: cursorRef,
-          className: `text-type__cursor ${cursorClassName} ${shouldHideCursor ? "text-type__cursor--hidden" : ""}`,
-        },
-        cursorCharacter,
-      ),
+  // JSX (not manual createElement) so ref attachment is statically visible
+  // to the React Compiler — identical output.
+  const Tag = Component as React.ElementType;
+  return (
+    <Tag ref={containerRef} className={`text-type ${className}`} {...props}>
+      <span
+        className="text-type__content"
+        style={{ color: getCurrentTextColor() } as React.CSSProperties}
+      >
+        {displayedText}
+      </span>
+      {showCursor && (
+        <span
+          ref={cursorRef}
+          className={`text-type__cursor ${cursorClassName} ${shouldHideCursor ? "text-type__cursor--hidden" : ""}`}
+        >
+          {cursorCharacter}
+        </span>
+      )}
+    </Tag>
   );
 };
 

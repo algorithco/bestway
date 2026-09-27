@@ -132,12 +132,11 @@ export function TestRunner({ attempt }: { attempt: AttemptDetail }) {
     [attempt.questions, activeSection],
   );
 
-  // If activeSection became empty after filter (should not), fallback
-  React.useEffect(() => {
-    if (activeQuestions.length === 0 && presentSections.length) {
-      setActiveSection(presentSections[0]);
-    }
-  }, [activeQuestions.length, presentSections]);
+  // If activeSection became empty after filter (should not), fallback.
+  // Render-phase adjustment (not an effect) so no cascading render.
+  if (activeQuestions.length === 0 && presentSections.length > 0 && activeSection !== presentSections[0]) {
+    setActiveSection(presentSections[0]);
+  }
 
   function scrollTo(qid: string) {
     setActiveQid(qid);

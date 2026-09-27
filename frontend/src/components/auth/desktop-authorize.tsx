@@ -59,11 +59,14 @@ export function DesktopAuthorize() {
   const paramsValid =
     device.length >= 8 && state.length >= 16 && /^[A-Za-z0-9_-]{43}$/.test(codeChallenge);
 
-  React.useEffect(() => {
-    if (!paramsValid || redirect !== DESKTOP_CALLBACK) {
-      setPhase({ name: "invalid" });
-    }
-  }, [paramsValid, redirect]);
+  // Invalid params -> "invalid" phase. Derived during render (not in an effect)
+  // so no cascading render: the adjustment commits before paint.
+  const paramsInvalid = !paramsValid || redirect !== DESKTOP_CALLBACK;
+  const [prevParamsInvalid, setPrevParamsInvalid] = React.useState(paramsInvalid);
+  if (prevParamsInvalid !== paramsInvalid) {
+    setPrevParamsInvalid(paramsInvalid);
+    if (paramsInvalid) setPhase({ name: "invalid" });
+  }
 
   const loginNext = React.useMemo(() => {
     const search = params.toString();

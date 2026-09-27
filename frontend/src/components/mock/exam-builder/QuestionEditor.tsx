@@ -487,11 +487,16 @@ function WordLimitControl({
   );
   const [customError, setCustomError] = React.useState<string | undefined>(undefined);
 
-  React.useEffect(() => {
-    const eff = value == null ? "none" : value === 1 ? "one" : value === 2 ? "two" : value === 3 ? "three" : "custom";
-    setMode(eff);
-    if (eff === "custom" && value != null) setCustomText(String(value));
-  }, [value]);
+  // Sync local mode when the parent value changes (render-phase adjustment,
+  // not an effect — commits before paint, no cascading render).
+  const effMode =
+    value == null ? "none" : value === 1 ? "one" : value === 2 ? "two" : value === 3 ? "three" : "custom";
+  const [prevValue, setPrevValue] = React.useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setMode(effMode);
+    if (effMode === "custom" && value != null) setCustomText(String(value));
+  }
 
   function pick(next: string) {
     setMode(next);
