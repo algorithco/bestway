@@ -91,13 +91,7 @@ Browser --fetch /api/backend/*--> Next.js (3005) --Bearer--> NestJS (3001) --Pri
 
 ## 🖥️ Desktop exam client
 
-`bestway-tauri/` is a Tauri 2 kiosk exam client for supervised test-taking: AES-GCM secure storage, signed auto-updater, per-platform lockdown and CSP/capability review.
-
-```bash
-cd bestway-tauri && npm ci && npm run build   # desktop bundle
-```
-
-Tagged releases (`git tag bestway-app-vX.Y.Z`) build installers via `.github/workflows/release-desktop.yml`. Security audit: `bestway-tauri/SECURITY_AUDIT.md`.
+The Tauri 2 kiosk exam client now lives in [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri): AES-GCM secure storage, signed auto-updater, per-platform lockdown and CSP/capability review. Desktop releases and installers ship from that repo.
 
 ---
 
@@ -113,7 +107,7 @@ Screenshots live in `docs/screenshots/` — drop PNGs there and reference them h
 |---|---|
 | Backend | **NestJS 10** · Prisma 5 · PostgreSQL 17 · JWT + bcryptjs · helmet · pdfkit |
 | Frontend | **Next.js 16** (App Router, Turbopack, RSC) · React 19 · Tailwind v4 · next-intl · TanStack Query · Radix UI · Recharts |
-| Desktop | **Tauri 2** · React 19 · signed updater · secure storage (AES-GCM) |
+| Desktop | **Tauri 2** (in [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri)) · React 19 · signed updater · secure storage (AES-GCM) |
 | DevOps | Docker multi-stage (`node:22-slim`/`24-alpine`), `education-net`, healthchecks |
 
 ---
@@ -146,9 +140,6 @@ See `frontend/src/lib/nav.ts:1` + `frontend/src/proxy.ts:1` + `backend/src/commo
 │   ├── src/components/{ui,app,marketing,data-grid,attendance,...}
 │   ├── src/lib/{config,types,nav,api-client} + i18n
 │   └── Dockerfile (24-alpine, 3005:3000)
-├── bestway-tauri/         # Tauri 2 desktop kiosk exam client
-│   ├── src-tauri/{tauri.conf.json, capabilities, lockdown.rs}
-│   └── SECURITY_AUDIT.md
 └── docs/                  # specs, reviews, screenshots
 ```
 
@@ -187,7 +178,7 @@ All `success` → `{success:true,data,meta?}`, errors → `{success:false,error:
 - Every PR targeting `main` (and every push to `main`) runs `.github/workflows/ci.yml`:
   - `backend`: Postgres 16 service → `npm ci` → `prisma generate` → `prisma migrate deploy` → `nest build` → start built app, wait for `/v1/health`, run `npm run test:smoke`.
   - `frontend`: `npm ci` → `npm run lint` → `npm run build`. Lint or build failure fails the check.
-- `.github/workflows/release-desktop.yml` is only for tagged desktop releases (`git tag bestway-app-vX.Y.Z`); it does not run on PRs.
+- Desktop releases ship from [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri) (tagged `bestway-app-vX.Y.Z` there); this repo's CI does not build installers.
 - Run the same checks locally before pushing:
 
 ```bash

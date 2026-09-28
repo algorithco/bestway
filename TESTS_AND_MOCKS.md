@@ -472,10 +472,9 @@ Types: `frontend/src/lib/types.ts:412-531`; strings in
 
 ---
 
-## 7. Taking exams on the desktop app (`bestway-tauri`)
+## 7. Taking exams on the desktop app ([`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri))
 
-Student-only Tauri client talking directly to `/v1`
-(`bestway-tauri/src/lib/tests.ts`):
+The student-only Tauri client now lives in [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri) and talks directly to `/v1`. The backend API contract below is still served by this repo — keep it in sync with the code here.
 
 | Function | Endpoint |
 |---|---|

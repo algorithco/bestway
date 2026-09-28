@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: Security vulnerability
-    url: https://github.com/algorithco/bestway/security/advisories/new
+    url: https://github.com/bestwayec/bestway/security/advisories/new
     about: Do not open public issues for security. Report privately (see SECURITY.md).
+  - name: Desktop app issue (bw-tauri)
+    url: https://github.com/bestwayec/bw-tauri/security/advisories/new
+    about: Desktop client lives in bestwayec/bw-tauri — report desktop security issues there.
   - name: Email the maintainers
     url: mailto:otashdev1@gmail.com
     about: General questions or Code of Conduct reports.
