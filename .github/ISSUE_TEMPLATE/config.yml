@@ -6,6 +6,9 @@ contact_links:
   - name: Desktop security issue
     url: https://github.com/bestwayec/bw-tauri/security/advisories/new
     about: Desktop client lives in bestwayec/bw-tauri — report desktop security issues there.
+  - name: Desktop app bugs and features
+    url: https://github.com/bestwayec/bw-tauri/issues/new/choose
+    about: Desktop client lives in bestwayec/bw-tauri — file desktop bugs and feature requests there.
   - name: Email the maintainers
     url: mailto:otashdev1@gmail.com
     about: General questions or Code of Conduct reports.
