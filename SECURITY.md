@@ -5,10 +5,9 @@
 | Version | Supported          |
 | ------- | ------------------ |
 | 1.0.x   | :white_check_mark: |
-| 0.2.x (bestway-tauri) | :white_check_mark: |
 | < 1.0   | :x:                |
 
-Backend `1.0.0` (`backend/package.json`), frontend `0.1.0` (`frontend/package.json`) va `bestway-tauri` `0.2.2` (`bestway-tauri/package.json` + `src-tauri/tauri.conf.json` + `src-tauri/Cargo.toml` — uchalasi sinxron) hozirda qo'llab-quvvatlanadi. Faqat `main` tarmog'i yangilanadi.
+Backend `1.0.0` (`backend/package.json`) and frontend `0.1.0` (`frontend/package.json`) are currently supported. Only the `main` branch is updated. The desktop client moved to [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri) — see [its SECURITY.md](https://github.com/bestwayec/bw-tauri/blob/main/SECURITY.md) for desktop versions.
 
 ## Reporting a Vulnerability
 
@@ -22,13 +21,13 @@ Agar xavfsizlik kamchiligi topsangiz, iltimos to'g'ridan-to'g'ri GitHub Security
 
 - `backend` — NestJS API, Prisma, JWT, file upload, Telegram bot
 - `frontend` — Next.js proxy, auth cookies, RBAC
-- `bestway-tauri` — Tauri 2 kiosk exam client: AES-GCM `secure-storage` (`enc:v2`), signed auto-updater (`plugins.updater.pubkey`), per-platform `lockdown.rs` matrix, CSP/capability review. Audit: `bestway-tauri/SECURITY_AUDIT.md`, `bestway-tauri/SECURITY_FIXES_FINAL.md`
 - `docker-compose.yml` / `Dockerfile` — infratuzilma
 
-## Updater signing key custody
+Desktop (`bestwayec/bw-tauri`) is out of scope here — report desktop issues via [its SECURITY.md](https://github.com/bestwayec/bw-tauri/blob/main/SECURITY.md).
 
-- Tauri updater public key lives in `bestway-tauri/src-tauri/tauri.conf.json` (`plugins.updater.pubkey`, minisign format).
-- The private key MUST be stored only as the `TAURI_SIGNING_PRIVATE_KEY` (+ optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`) GitHub Actions secret — never committed. Generate: `cd bestway-tauri && npm run tauri signer generate -w ~/.tauri/bestway.key`, then `gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/bestway.key`. Rotate by regenerating + updating `pubkey` + shipping one manual update.
+## Updater signing key custody (moved)
+
+The Tauri updater signing key now lives with [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri) — see [its SECURITY.md](https://github.com/bestwayec/bw-tauri/blob/main/SECURITY.md) for key custody. The private key is never committed to any repo.
 
 ## Secrets
 

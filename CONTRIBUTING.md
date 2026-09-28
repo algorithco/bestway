@@ -1,6 +1,6 @@
 # Contributing to BESTWAY
 
-Thanks for your interest in BESTWAY — Education Center System (NestJS API + Next.js frontend + Tauri desktop client)!
+Thanks for your interest in BESTWAY — Education Center System (NestJS API + Next.js frontend)!
 
 ## Code of Conduct
 
@@ -76,11 +76,7 @@ npm run lint
 npm run build
 ```
 
-Desktop (Tauri, only if you touched `bestway-tauri/`):
-
-```bash
-cd bestway-tauri && npm ci && npm run build
-```
+Desktop contributions happen in [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri) — the Tauri kiosk exam client lives there, not in this repo.
 
 ## Commit style
 
@@ -98,7 +94,7 @@ Keep PRs small and focused. One feature/fix per PR.
 * Target `main`.
 * Fill in the PR template: summary, what/why, how tested, screenshots for UI.
 * Checklist: lint + build pass, Prisma migration included if schema changed, no secrets/`.env` committed.
-* CI (`.github/workflows/ci.yml`) must be green. Tagged desktop releases (`bestway-app-vX.Y.Z`) run `release-desktop.yml` separately.
+* CI (`.github/workflows/ci.yml`) must be green. Tagged desktop releases (`bestway-app-vX.Y.Z`) ship from [`bestwayec/bw-tauri`](https://github.com/bestwayec/bw-tauri).
 
 ## Reporting bugs / requesting features
 

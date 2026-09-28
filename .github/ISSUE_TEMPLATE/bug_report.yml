@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible bug in backend, frontend, or desktop client.
+description: Report a reproducible bug in backend or frontend.
 title: "fix: "
 labels: ["bug"]
 body:
@@ -14,7 +14,6 @@ body:
       options:
         - backend (NestJS API)
         - frontend (Next.js)
-        - desktop (Tauri)
         - infra (docker/ci)
     validations:
       required: true
@@ -22,7 +21,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: e.g. backend 1.0.0, frontend 0.1.0, app 0.2.2
+      description: e.g. backend 1.0.0, frontend 0.1.0
       placeholder: backend 1.0.0 / frontend 0.1.0
     validations:
       required: true
