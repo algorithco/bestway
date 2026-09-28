@@ -1,5 +1,9 @@
 # BESTWAY — Education Center System
 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![CI](https://github.com/algorithco/bestway/actions/workflows/ci.yml/badge.svg)](https://github.com/algorithco/bestway/actions/workflows/ci.yml)
+[![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Contributor_Covenant-4baaaa.svg)](CODE_OF_CONDUCT.md)
+
 > **BESTWAY EC** — English & International Exams (IELTS / Multilevel / General)  
 > Shofirkon, Bukhara · Since 2007 · Founder **Aziz Akhtamov**
 
@@ -169,6 +173,15 @@ npm run test:smoke; kill %1
 # frontend
 cd frontend && npm ci && npm run lint && npm run build
 ```
+
+---
+
+## 🤝 Community
+
+* [Contributing](CONTRIBUTING.md) — setup, checks, commit style, PR rules
+* [Code of Conduct](CODE_OF_CONDUCT.md) — report to `otashdev1@gmail.com`
+* [Security](SECURITY.md) — private reporting via Advisory or email
+* [License](LICENSE) — GPL-3.0
 
 ---
 

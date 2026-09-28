@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "O'quv markaz platformasi — backend (NestJS + Prisma + PostgreSQL)",
   "private": true,
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
   "engines": {
     "node": ">=20"
   },

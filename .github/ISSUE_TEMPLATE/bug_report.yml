@@ -1,0 +1,52 @@
+name: Bug report
+description: Report a reproducible bug in backend, frontend, or desktop client.
+title: "fix: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Fill in versions + repro steps. For security issues see SECURITY.md — do not file public issues.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - backend (NestJS API)
+        - frontend (Next.js)
+        - desktop (Tauri)
+        - infra (docker/ci)
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: e.g. backend 1.0.0, frontend 0.1.0, app 0.2.2
+      placeholder: backend 1.0.0 / frontend 0.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps, API calls, test user/role if relevant.
+      placeholder: |
+        1. Login as teacher ...
+        2. Go to /tests ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+      placeholder: Expected ..., got ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste `docker compose logs backend` excerpt, curl output, or screenshots for UI.
+      render: shell
