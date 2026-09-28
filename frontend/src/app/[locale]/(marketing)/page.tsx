@@ -113,7 +113,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="anim-float absolute -bottom-16 left-1/3 hidden size-64 rounded-full bg-highlight/20 blur-3xl sm:block" />
         </div>
 
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-2 lg:gap-8 lg:py-24">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-8 lg:py-24">
           <div className="order-1 text-center lg:order-1 lg:text-left">
             <Reveal>
               <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/80 px-3 py-1 text-xs font-medium text-fg-muted backdrop-blur">
