@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import LOGO from "./bestway-logo-data.json";
 
 /**
  * Best Way — animated 3D logo (vector shapes extruded with three.js).
- * Converted to TS from the original BestWayLogo3D.jsx; behavior unchanged.
+ * Plain three.js with a manual render loop (no react-three-fiber: its types
+ * merge into the global JSX namespace and break ElementType-based components
+ * elsewhere in the app). Behavior matches the original BestWayLogo3D.jsx.
  */
 
 interface LogoShape {
@@ -135,170 +136,7 @@ function makeDotTexture() {
   return new THREE.CanvasTexture(c);
 }
 
-function Scene({
-  interactive,
-  glow,
-  particles,
-}: {
-  interactive: boolean;
-  glow: boolean;
-  particles: boolean;
-}) {
-  const parts = useMemo(() => buildParts(), []);
-  const glowTex = useMemo(() => makeGlowTexture(), []);
-  const dotTex = useMemo(() => makeDotTexture(), []);
-  const N = 220;
-  const { size } = useThree();
-  // visible view bounds (same width-fit formula as the camera below): spawn + wrap
-  // the particle field as fractions of it so dots never touch the canvas edge
-  const view = useMemo(() => {
-    const aspect = size.width / size.height;
-    const z = Math.max(8, 2.65 / (0.3153 * aspect * 0.99));
-    const halfH = 0.3153 * z;
-    return { halfH, halfW: halfH * aspect };
-  }, [size.width, size.height]);
-  /* eslint-disable react-hooks/purity -- random particle field, generated once per mount */
-  const { positions, speeds } = useMemo(() => {
-    const positions = new Float32Array(N * 3);
-    const speeds = new Float32Array(N);
-    for (let i = 0; i < N; i++) {
-      positions.set(
-        [
-          (Math.random() - 0.5) * 2 * view.halfW * 0.8,
-          (Math.random() - 0.5) * 2 * view.halfH * 0.55,
-          (Math.random() - 0.5) * 5 - 2,
-        ],
-        i * 3,
-      );
-      speeds[i] = 0.1 + Math.random() * 0.35;
-    }
-    return { positions, speeds };
-  }, [view]);
-  /* eslint-enable react-hooks/purity */
-
-  const root = useRef<THREE.Group>(null!);
-  const rim = useRef<THREE.PointLight>(null!);
-  const glowRef = useRef<THREE.Mesh>(null!);
-  const pointsRef = useRef<THREE.Points>(null!);
-  const pieces = useRef<Record<string, THREE.Group>>({});
-  const tilt = useRef({ x: 0, y: 0 });
-
-  useFrame((state) => {
-    const t = state.clock.elapsedTime;
-    const it = (a: number, d: number) => ease(clamp((t - a) / d, 0, 1));
-
-    // frame the LOGO, not empty space: fit its measured half-width (2.65 units)
-    // at 99% of the viewport width, on any aspect ratio (height never binds:
-    // the logo is 5.30 wide but only 1.80 tall)
-    const aspect = size.width / size.height;
-    state.camera.position.z = Math.max(8, 2.65 / (0.3153 * aspect * 0.99));
-
-    const px = interactive ? state.pointer.x : 0;
-    const py = interactive ? -state.pointer.y : 0;
-    tilt.current.x += (px - tilt.current.x) * 0.05;
-    tilt.current.y += (py - tilt.current.y) * 0.05;
-    root.current.rotation.y = tilt.current.x * 0.38 + Math.sin(t * 0.5) * 0.2;
-    root.current.rotation.x = tilt.current.y * 0.18;
-    root.current.position.y = Math.sin(t * 1.1) * 0.07;
-    rim.current.position.set(Math.cos(t * 0.8) * 5, Math.sin(t * 0.6) * 3, 4);
-    // fit the glow fade (complete at 2.52 plane units) inside 80% of the view
-    // half-height, so it can never reach the canvas edge on any aspect ratio
-    if (glowRef.current) {
-      const viewHalfH = 0.3153 * state.camera.position.z;
-      glowRef.current.scale.setScalar(((viewHalfH * 0.8) / 2.52) * (1 + Math.sin(t * 1.3) * 0.06));
-    }
-
-    const p = pieces.current;
-    if (p.cube) {
-      const s = it(0.1, 1.5);
-      p.cube.scale.setScalar(0.01 + s * 0.99);
-      p.cube.rotation.y = (1 - s) * Math.PI * 2 + Math.sin(t * 0.9) * 0.04;
-    }
-    if (p.arc) {
-      const s = it(0.7, 1.4);
-      p.arc.scale.setScalar(0.6 + 0.4 * s);
-      p.arc.rotation.z = (1 - s) * -1.2;
-      p.arc.visible = s > 0.01;
-    }
-    ["L", "R"].forEach((sd) =>
-      [1, 2, 3].forEach((k) => {
-        const w = p[sd + k];
-        if (!w) return;
-        const dir = sd === "L" ? 1 : -1;
-        const s = it(1 + k * 0.18, 1.6);
-        const ph = t * 1.6 - k * 0.5;
-        const home = w.userData.home as number;
-        w.rotation.z = dir * (Math.sin(ph) * (0.04 + 0.015 * k) + (1 - s) * (k === 1 ? 0.3 : -0.3));
-        w.rotation.y = dir * (1 - s) * 1.4;
-        w.position.x = home - dir * (1 - s) * 3;
-        w.scale.setScalar(0.4 + 0.6 * s);
-        w.visible = s > 0.005;
-      }),
-    );
-
-    if (pointsRef.current) {
-      const a = pointsRef.current.geometry.attributes.position as THREE.BufferAttribute;
-      for (let i = 0; i < N; i++) {
-        let y = a.getY(i) + speeds[i] * 0.006;
-        if (y > view.halfH * 0.55) y = -view.halfH * 0.55;
-        a.setY(i, y);
-      }
-      a.needsUpdate = true;
-      pointsRef.current.rotation.y = t * 0.02;
-    }
-  });
-
-  return (
-    <>
-      <ambientLight intensity={2.05} />
-      <directionalLight intensity={1.7} position={[2, 3, 8]} />
-      <pointLight ref={rim} color="#c8ff9a" intensity={2.2} distance={30} decay={0} />
-
-      <group ref={root}>
-        {parts.map((part) => (
-          <group
-            key={part.id}
-            position={[part.px, part.py, 0]}
-            userData={{ home: part.px }}
-            ref={(g) => {
-              if (g) pieces.current[part.id] = g;
-            }}
-          >
-            <group scale={S}>
-              {part.meshes.map((m, i) => (
-                <mesh key={i} geometry={m.geo} material={m.mat} position-z={m.z} />
-              ))}
-            </group>
-          </group>
-        ))}
-      </group>
-
-      {glow && (
-        <mesh ref={glowRef} position={[0, 0, -1.5]}>
-          <planeGeometry args={[8.4, 8.4]} />
-          <meshBasicMaterial map={glowTex} transparent depthWrite={false} blending={THREE.AdditiveBlending} />
-        </mesh>
-      )}
-
-      {particles && (
-        <points ref={pointsRef}>
-          <bufferGeometry>
-            <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-          </bufferGeometry>
-          <pointsMaterial
-            size={0.07}
-            map={dotTex}
-            transparent
-            opacity={0.55}
-            depthWrite={false}
-            color="#b8f08a"
-            blending={THREE.AdditiveBlending}
-          />
-        </points>
-      )}
-    </>
-  );
-}
+const PARTICLE_COUNT = 220;
 
 export default function BestWayLogo3D({
   interactive = true,
@@ -313,21 +151,228 @@ export default function BestWayLogo3D({
   className?: string;
   style?: React.CSSProperties;
 }) {
+  const mountRef = useRef<HTMLDivElement>(null);
+  const optsRef = useRef({ interactive, glow, particles });
+
+  useEffect(() => {
+    optsRef.current = { interactive, glow, particles };
+    const mount = mountRef.current;
+    if (!mount) return;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2.5));
+    renderer.setClearColor(0x000000, 0);
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
+    renderer.domElement.style.display = "block";
+    mount.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(35, 1, 0.5, 60);
+    camera.position.set(0, 0, 9);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 2.05));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.7);
+    dir.position.set(2, 3, 8);
+    scene.add(dir);
+    const rim = new THREE.PointLight(0xc8ff9a, 2.2, 30, 0);
+    rim.position.set(0, 0, 4);
+    scene.add(rim);
+
+    const root = new THREE.Group();
+    scene.add(root);
+    const pieces: Record<string, THREE.Group> = {};
+    for (const part of buildParts()) {
+      const g = new THREE.Group();
+      g.position.set(part.px, part.py, 0);
+      g.userData.home = part.px;
+      const inner = new THREE.Group();
+      inner.scale.setScalar(S);
+      for (const m of part.meshes) {
+        const mesh = new THREE.Mesh(m.geo, m.mat);
+        mesh.position.z = m.z;
+        inner.add(mesh);
+      }
+      g.add(inner);
+      root.add(g);
+      pieces[part.id] = g;
+    }
+
+    const disposables: { dispose: () => void }[] = [];
+    let glowMesh: THREE.Mesh | null = null;
+    if (optsRef.current.glow) {
+      const glowTex = makeGlowTexture();
+      disposables.push(glowTex);
+      glowMesh = new THREE.Mesh(
+        new THREE.PlaneGeometry(8.4, 8.4),
+        new THREE.MeshBasicMaterial({
+          map: glowTex,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      );
+      glowMesh.position.set(0, 0, -1.5);
+      scene.add(glowMesh);
+      disposables.push(glowMesh.geometry, glowMesh.material as THREE.Material);
+    }
+
+    let points: THREE.Points | null = null;
+    let speeds = new Float32Array(0);
+    // visible view bounds (same width-fit formula as the camera): spawn + wrap
+    // the particle field as fractions of it so dots never touch the canvas edge
+    const viewOf = (w: number, h: number) => {
+      const aspect = w / h;
+      const z = Math.max(8, 2.65 / (0.3153 * aspect * 0.99));
+      const halfH = 0.3153 * z;
+      return { halfH, halfW: halfH * aspect };
+    };
+    if (optsRef.current.particles) {
+      const rect = mount.getBoundingClientRect();
+      const view = viewOf(Math.max(1, rect.width), Math.max(1, rect.height));
+      const positions = new Float32Array(PARTICLE_COUNT * 3);
+      speeds = new Float32Array(PARTICLE_COUNT);
+      for (let i = 0; i < PARTICLE_COUNT; i++) {
+        positions.set(
+          [
+            (Math.random() - 0.5) * 2 * view.halfW * 0.8,
+            (Math.random() - 0.5) * 2 * view.halfH * 0.55,
+            (Math.random() - 0.5) * 5 - 2,
+          ],
+          i * 3,
+        );
+        speeds[i] = 0.1 + Math.random() * 0.35;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+      const dotTex = makeDotTexture();
+      disposables.push(dotTex);
+      const mat = new THREE.PointsMaterial({
+        size: 0.07,
+        map: dotTex,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false,
+        color: "#b8f08a",
+        blending: THREE.AdditiveBlending,
+      });
+      points = new THREE.Points(geo, mat);
+      scene.add(points);
+      disposables.push(geo, mat);
+    }
+
+    const pointer = { x: 0, y: 0 };
+    const tilt = { x: 0, y: 0 };
+    const onPointerMove = (e: PointerEvent) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
+    };
+    renderer.domElement.addEventListener("pointermove", onPointerMove);
+
+    const resize = () => {
+      const w = Math.max(1, mount.clientWidth);
+      const h = Math.max(1, mount.clientHeight);
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    };
+    resize();
+    const ro = new ResizeObserver(resize);
+    ro.observe(mount);
+
+    const clock = new THREE.Clock();
+    let raf = 0;
+    const frame = () => {
+      raf = requestAnimationFrame(frame);
+      const t = clock.getElapsedTime();
+      const it = (a: number, d: number) => ease(clamp((t - a) / d, 0, 1));
+
+      // frame the LOGO: fit its measured half-width (2.65 units) at 99% of the
+      // viewport width (height never binds: 5.30 wide but only 1.80 tall)
+      const w = Math.max(1, mount.clientWidth);
+      const h = Math.max(1, mount.clientHeight);
+      const aspect = w / h;
+      camera.position.z = Math.max(8, 2.65 / (0.3153 * aspect * 0.99));
+      const viewHalfH = 0.3153 * camera.position.z;
+
+      const px = optsRef.current.interactive ? pointer.x : 0;
+      const py = optsRef.current.interactive ? pointer.y : 0;
+      tilt.x += (px - tilt.x) * 0.05;
+      tilt.y += (py - tilt.y) * 0.05;
+      root.rotation.y = tilt.x * 0.38 + Math.sin(t * 0.5) * 0.2;
+      root.rotation.x = tilt.y * 0.18;
+      root.position.y = Math.sin(t * 1.1) * 0.07;
+      rim.position.set(Math.cos(t * 0.8) * 5, Math.sin(t * 0.6) * 3, 4);
+      // fit the glow fade (complete at 2.52 plane units) inside 80% of the view
+      // half-height, so it can never reach the canvas edge on any aspect ratio
+      if (glowMesh) glowMesh.scale.setScalar(((viewHalfH * 0.8) / 2.52) * (1 + Math.sin(t * 1.3) * 0.06));
+
+      const p = pieces;
+      if (p.cube) {
+        const s = it(0.1, 1.5);
+        p.cube.scale.setScalar(0.01 + s * 0.99);
+        p.cube.rotation.y = (1 - s) * Math.PI * 2 + Math.sin(t * 0.9) * 0.04;
+      }
+      if (p.arc) {
+        const s = it(0.7, 1.4);
+        p.arc.scale.setScalar(0.6 + 0.4 * s);
+        p.arc.rotation.z = (1 - s) * -1.2;
+        p.arc.visible = s > 0.01;
+      }
+      for (const sd of ["L", "R"]) {
+        for (let k = 1; k <= 3; k++) {
+          const wing = p[sd + k];
+          if (!wing) continue;
+          const wingDir = sd === "L" ? 1 : -1;
+          const s = it(1 + k * 0.18, 1.6);
+          const ph = t * 1.6 - k * 0.5;
+          const home = wing.userData.home as number;
+          wing.rotation.z = wingDir * (Math.sin(ph) * (0.04 + 0.015 * k) + (1 - s) * (k === 1 ? 0.3 : -0.3));
+          wing.rotation.y = wingDir * (1 - s) * 1.4;
+          wing.position.x = home - wingDir * (1 - s) * 3;
+          wing.scale.setScalar(0.4 + 0.6 * s);
+          wing.visible = s > 0.005;
+        }
+      }
+
+      if (points) {
+        const a = points.geometry.attributes.position as THREE.BufferAttribute;
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          let y = a.getY(i) + speeds[i] * 0.006;
+          if (y > viewHalfH * 0.55) y = -viewHalfH * 0.55;
+          a.setY(i, y);
+        }
+        a.needsUpdate = true;
+        points.rotation.y = t * 0.02;
+      }
+
+      renderer.render(scene, camera);
+    };
+    frame();
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+      renderer.domElement.removeEventListener("pointermove", onPointerMove);
+      scene.traverse((obj) => {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.geometry) mesh.geometry.dispose();
+        const material = mesh.material as THREE.Material | THREE.Material[] | undefined;
+        if (Array.isArray(material)) material.forEach((m) => m.dispose());
+        else if (material) material.dispose();
+      });
+      for (const d of disposables) d.dispose();
+      renderer.dispose();
+      mount.removeChild(renderer.domElement);
+    };
+  }, [interactive, glow, particles]);
+
   return (
     <div
+      ref={mountRef}
       className={className}
-      style={{ width: "100%", height: "100%", background: "transparent", ...style }}
-    >
-      <Canvas
-        flat // no tone mapping: keeps the exact logo colours
-        dpr={[1, 2.5]}
-        gl={{ antialias: true, alpha: true }}
-        camera={{ fov: 35, near: 0.5, far: 60, position: [0, 0, 9] }}
-        onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
-        style={{ overflow: "visible", background: "transparent" }}
-      >
-        <Scene interactive={interactive} glow={glow} particles={particles} />
-      </Canvas>
-    </div>
+      style={{ width: "100%", height: "100%", background: "transparent", overflow: "visible", ...style }}
+    />
   );
 }
