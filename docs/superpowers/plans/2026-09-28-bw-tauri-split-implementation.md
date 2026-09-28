@@ -65,7 +65,7 @@ Expected: `https://github.com/bestwayec/bw-tauri` created.
 - [ ] **Step 2: Enable private vulnerability reporting**
 
 ```bash
-gh api --method PATCH repos/bestwayec/bw-tauri -f security_and_analysis='{"secret_scanning":{"status":"enabled"}}' --jq "{ok: true}"
+gh api --method PATCH repos/bestwayec/bw-tauri -F "security_and_analysis[secret_scanning][status]=enabled" --jq "{ok: true}"
 ```
 
 Then enable private reporting in Settings → Security → Advisories (no API switch; do it in the web UI) — required because the new `SECURITY.md` promises it.
@@ -78,7 +78,7 @@ Then enable private reporting in Settings → Security → Advisories (no API sw
 
 ```bash
 gh repo clone bestwayec/bw-tauri C:\Users\hamro\AppData\Local\Temp\opencode\bw-tauri
-Copy-Item -LiteralPath "D:\repos\bestway\bestway-tauri\*" -Destination "C:\Users\hamro\AppData\Local\Temp\opencode\bw-tauri" -Recurse -Force -Exclude "node_modules","dist","*.log"
+Copy-Item -Path "D:\repos\bestway\bestway-tauri\*" -Destination "C:\Users\hamro\AppData\Local\Temp\opencode\bw-tauri" -Recurse -Force -Exclude "node_modules","dist","target","*.log" (leaf-name `target` covers `src-tauri/target/`; use `-Path`, not `-LiteralPath`, with a `\*` wildcard)
 ```
 
 - [ ] **Step 2: Verify exclusions landed**

@@ -62,7 +62,7 @@ desktop release (freeze rule, §4.2).
   `../backend` commands and quote the old endpoint — fix on export.
   `BESTWAY-production-deploy-EN.md` and `bestway-*-prompt.md` are **untracked local-only
   files, out of scope** (monorepo cleanup touches tracked files only).
-- **Do NOT migrate:** `node_modules/`, `dist/`, `dev*.log` / `*.log` build junk currently
+- **Do NOT migrate:** `node_modules/`, `src-tauri/target/`, `dist/`, `dev*.log` / `*.log` build junk currently
   sitting in the folder.
 
 ## 4. Execution
