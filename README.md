@@ -1,15 +1,17 @@
 # BESTWAY — Education Center System
 
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-[![CI](https://github.com/algorithco/bestway/actions/workflows/ci.yml/badge.svg)](https://github.com/algorithco/bestway/actions/workflows/ci.yml)
+[![CI](https://github.com/bestwayec/bestway/actions/workflows/ci.yml/badge.svg)](https://github.com/bestwayec/bestway/actions/workflows/ci.yml)
 [![Code of Conduct](https://img.shields.io/badge/Code_of_Conduct-Contributor_Covenant-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-> **BESTWAY EC** — English & International Exams (IELTS / Multilevel / General)  
+> **BESTWAY EC** — English & International Exams (IELTS / Multilevel / General)
 > Shofirkon, Bukhara · Since 2007 · Founder **Aziz Akhtamov**
 
 One platform for the whole center — students, teachers, parents and admins — with transparent attendance, points, payments and exam results.
 
-**Live:** Frontend `http://localhost:3005` · API `http://localhost:3001/v1` · Swagger `http://localhost:3001/docs` · Admin `http://localhost:3001/admin`
+**Quick links:** [Quick Start](#️-quick-start-docker--recommended) · [Features](#-features) · [Desktop exam client](#️-desktop-exam-client) · [API](#-api-contract) · [Contributing](CONTRIBUTING.md)
+
+**Live (local):** Frontend `http://localhost:3005` · API `http://localhost:3001/v1` · Swagger `http://localhost:3001/docs` · Admin `http://localhost:3001/admin`
 
 ---
 
@@ -19,8 +21,8 @@ Microservices at root: `postgres` + `backend` + `frontend` via `education-net`.
 
 ```bash
 # 1. clone
-git clone https://github.com/algorithco/bestway.git
-cd "education center system"
+git clone https://github.com/bestwayec/bestway.git
+cd bestway
 
 # 2. backend env
 cp backend/.env.example backend/.env
@@ -51,7 +53,7 @@ Stop: `docker compose down -v`
 ```bash
 # backend
 cd backend && npm install && npx prisma migrate deploy && npm run seed:init && npm run start:dev
-# frontend
+# frontend (new terminal)
 cd frontend && npm install && npm run dev   # http://localhost:3000, API_URL=http://localhost:3001/v1
 ```
 
@@ -61,9 +63,9 @@ cd frontend && npm install && npm run dev   # http://localhost:3000, API_URL=htt
 
 ```
 Browser --fetch /api/backend/*--> Next.js (3005) --Bearer--> NestJS (3001) --Prisma--> PostgreSQL (5433)
-                                    | httpOnly bw_at/bw_rt          | helmet + throttler + ValidationPipe
-                                    | proxy + refresh               | /v1 + Swagger /docs + /admin static
-                                    | next-intl (uz/en)             | Telegram bot (polling/webhook)
+                                     | httpOnly bw_at/bw_rt          | helmet + throttler + ValidationPipe
+                                     | proxy + refresh               | /v1 + Swagger /docs + /admin static
+                                     | next-intl (uz/en)             | Telegram bot (polling/webhook)
 ```
 
 **Global pipeline:** `ThrottlerGuard → JwtAuthGuard → RolesGuard → TransformInterceptor({success,data,meta}) → AllExceptionsFilter({success:false,error:{code}})` — `backend/src/app.module.ts:1`, `backend/src/main.ts:1`
@@ -87,12 +89,31 @@ Browser --fetch /api/backend/*--> Next.js (3005) --Bearer--> NestJS (3001) --Pri
 
 ---
 
+## 🖥️ Desktop exam client
+
+`bestway-tauri/` is a Tauri 2 kiosk exam client for supervised test-taking: AES-GCM secure storage, signed auto-updater, per-platform lockdown and CSP/capability review.
+
+```bash
+cd bestway-tauri && npm ci && npm run build   # desktop bundle
+```
+
+Tagged releases (`git tag bestway-app-vX.Y.Z`) build installers via `.github/workflows/release-desktop.yml`. Security audit: `bestway-tauri/SECURITY_AUDIT.md`.
+
+---
+
+## 🖼️ Screenshots
+
+Screenshots live in `docs/screenshots/` — drop PNGs there and reference them here (dashboard, attendance grid, mock exam). No placeholders are linked until images exist, so the page never shows broken images.
+
+---
+
 ## 🧰 Tech Stack
 
 | Layer | Choice |
 |---|---|
 | Backend | **NestJS 10** · Prisma 5 · PostgreSQL 17 · JWT + bcryptjs · helmet · pdfkit |
 | Frontend | **Next.js 16** (App Router, Turbopack, RSC) · React 19 · Tailwind v4 · next-intl · TanStack Query · Radix UI · Recharts |
+| Desktop | **Tauri 2** · React 19 · signed updater · secure storage (AES-GCM) |
 | DevOps | Docker multi-stage (`node:22-slim`/`24-alpine`), `education-net`, healthchecks |
 
 ---
@@ -120,18 +141,22 @@ See `frontend/src/lib/nav.ts:1` + `frontend/src/proxy.ts:1` + `backend/src/commo
 │   ├── prisma/schema.prisma (699 lines, 26 models)
 │   ├── src/{auth,users,groups,attendance,payments,points,game,tests,mock,videos,articles,telegram,stats}
 │   └── Dockerfile (22-slim, prisma migrate deploy)
-└── frontend/              # Next.js
-    ├── src/app/[locale]/(marketing|auth|app)  # 37 pages
-    ├── src/components/{ui,app,marketing,data-grid,attendance,...}
-    ├── src/lib/{config,types,nav,api-client} + i18n
-    └── Dockerfile (24-alpine, 3005:3000)
+├── frontend/              # Next.js
+│   ├── src/app/[locale]/(marketing|auth|app)  # 37 pages
+│   ├── src/components/{ui,app,marketing,data-grid,attendance,...}
+│   ├── src/lib/{config,types,nav,api-client} + i18n
+│   └── Dockerfile (24-alpine, 3005:3000)
+├── bestway-tauri/         # Tauri 2 desktop kiosk exam client
+│   ├── src-tauri/{tauri.conf.json, capabilities, lockdown.rs}
+│   └── SECURITY_AUDIT.md
+└── docs/                  # specs, reviews, screenshots
 ```
 
 ---
 
 ## 🔧 Env & Scripts
 
-**Backend `backend/.env.example:1`:** `DATABASE_URL`, `PORT=3001`, `JWT_SECRET>=32`, `STREAM_TOKEN_SECRET`, `CORS_ORIGIN`, `TELEGRAM_BOT_TOKEN`/`@bestway_xabarbot`, `CENTER_NAME`, `SEED_SUPER_ADMIN_*`  
+**Backend `backend/.env.example:1`:** `DATABASE_URL`, `PORT=3001`, `JWT_SECRET>=32`, `STREAM_TOKEN_SECRET`, `CORS_ORIGIN`, `TELEGRAM_BOT_TOKEN`/`@bestway_xabarbot`, `CENTER_NAME`, `SEED_SUPER_ADMIN_*`
 **Frontend:** no `.env` needed — `API_URL=http://backend:3001/v1` (server-only, via Docker network; host `http://localhost:3001/v1`)
 
 ```bash
@@ -147,13 +172,13 @@ npm run dev | build | start | lint   # + npx tsc --noEmit
 
 All `success` → `{success:true,data,meta?}`, errors → `{success:false,error:{code,message}}`. Base `/v1` — see `backend/api-contract.md:1` + `http://localhost:3001/docs`.
 
-Seed demo accounts (after `npm run seed`):
+### Demo accounts (after `npm run seed`)
 
-```
-teacher     +998900000003 / Teacher123!
-student     +998900000010 / Student123!
-parent      +998900000020 / Parent123!
-```
+| Role | Phone | Password |
+|---|---|---|
+| teacher | `+998900000003` | `Teacher123!` |
+| student | `+998900000010` | `Student123!` |
+| parent | `+998900000020` | `Parent123!` |
 
 ---
 

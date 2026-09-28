@@ -21,7 +21,7 @@ Requirements: Node 24, Docker + Docker Compose, Postgres (via compose).
 
 ```bash
 # 1. clone
-git clone https://github.com/algorithco/bestway.git
+git clone https://github.com/bestwayec/bestway.git
 cd bestway
 
 # 2. backend env
