@@ -427,3 +427,52 @@ export function useMockPreview(examId: string, enabled = false) {
     enabled: !!examId && enabled,
   });
 }
+
+/* ── AI JSON import (staff; session stays in the HttpOnly cookie) ────────── */
+
+export interface ValidateImportInput {
+  package: unknown;
+  mediaBindings?: Record<string, string>;
+}
+
+export function useValidateExamImport() {
+  return useMutation({
+    mutationFn: (v: ValidateImportInput) =>
+      api.post<import("@/lib/types").MockImportReport>("/mock/exam-imports/validate", {
+        package: v.package,
+        ...(v.mediaBindings ? { mediaBindings: v.mediaBindings } : {}),
+      }),
+  });
+}
+
+export function useStageImportMedia() {
+  return useMutation({
+    mutationFn: (form: FormData) =>
+      api.post<import("@/lib/types").MockStagedUpload>("/mock/exam-imports/media", form),
+  });
+}
+
+export function useCommitExamImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: ValidateImportInput & { validatedChecksum: string }) =>
+      api.post<import("@/lib/types").MockImportCommit>("/mock/exam-imports", {
+        package: v.package,
+        ...(v.mediaBindings ? { mediaBindings: v.mediaBindings } : {}),
+        validatedChecksum: v.validatedChecksum,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
+  });
+}
+
+export function useImportStatus(packageId: string, revision: number, enabled = false) {
+  return useQuery({
+    queryKey: ["mock-import-status", packageId, revision],
+    queryFn: () =>
+      api.get<import("@/lib/types").MockImportCommit>(
+        `/mock/exam-imports/by-package/${encodeURIComponent(packageId)}/revisions/${revision}`,
+      ),
+    enabled: !!packageId && !!revision && enabled,
+    retry: false,
+  });
+}

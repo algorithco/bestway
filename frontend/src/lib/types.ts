@@ -911,3 +911,41 @@ export interface MockQuestionInput {
   points?: number;
   wordLimit?: number;
 }
+
+/* ── AI JSON import (POST /mock/exam-imports/*) ─────────────────────────── */
+
+export interface MockImportIssue {
+  code: string;
+  path: string;
+  message: string;
+  blocks: Array<"import" | "publish">;
+  sourceKey?: string;
+}
+
+export interface MockImportReport {
+  checksum: string;
+  issues: MockImportIssue[];
+  counts: { sections: number; skills: number; groups: number; questions: number; media: number };
+  canImport: boolean;
+  canPublish: boolean;
+  sanitizerNotes: Array<{ path: string; changed: boolean }>;
+  truncated: boolean;
+  totalIssues: number;
+}
+
+export interface MockStagedUpload {
+  uploadId: string;
+  fileName: string;
+  mimeType: string | null;
+  sizeBytes: number;
+  kind: string;
+  expiresAt: string;
+}
+
+export interface MockImportCommit {
+  examId: string;
+  importId: string;
+  revision: number;
+  replay: boolean;
+  editorUrl: string;
+}
