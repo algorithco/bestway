@@ -267,6 +267,11 @@ export function ExamBuilderList() {
                   <Badge variant={e.isPublished ? "success" : "warning"}>
                     {e.isPublished ? tx(t, "published", "Published") : tx(t, "draft", "Draft")}
                   </Badge>
+                  {e.imported && (
+                    <Badge variant="info" title={`${e.imported.packageId} · r${e.imported.revision}`}>
+                      {tx(t, "aiImported", "AI imported")}
+                    </Badge>
+                  )}
                   {needsContent(e) && (
                     <Badge variant="warning">{tx(t, "needsContent", "Needs content")}</Badge>
                   )}
@@ -368,6 +373,11 @@ export function ExamBuilderList() {
                           ? tx(t, "published", "Published")
                           : tx(t, "draft", "Draft")}
                       </Badge>
+                      {e.imported && (
+                        <Badge variant="info" title={`${e.imported.packageId} · r${e.imported.revision}`}>
+                          {tx(t, "aiImported", "AI imported")}
+                        </Badge>
+                      )}
                       {needsContent(e) && (
                         <Badge variant="warning">
                           {tx(t, "needsContent", "Needs content")}

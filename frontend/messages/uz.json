@@ -1173,6 +1173,24 @@
     "importReplay": "Bu paket avval import qilingan — mavjud qoralama ochildi.",
     "openRecoveredDraft": "Tiklashgan qoralamani ochish",
     "sessionExpired": "Sessiya tugadi — davom etish uchun qayta kiring.",
-    "signIn": "Kirish"
+    "signIn": "Kirish",
+    "openInBuilder": "Builderda ochish",
+    "importSuccessTitle": "Qoralama yaratildi",
+    "importSuccessHint": "Hech narsa nashr qilinmadi. Tahrirlash, ko‘rish va nashr qilish uchun qoralamani Exam Builder’da oching.",
+    "importReplayTitle": "Allaqachon import qilingan",
+    "importReplayHint": "Bu paket avval import qilingan — tahrirlaringiz saqlangan. Davom etish uchun mavjud qoralamani oching.",
+    "aiImported": "AI import",
+    "provenanceTitle": "AI import tafsilotlari",
+    "provenanceHint": "Bu qoralama qayerdan kelgani va nimalar ko‘rib chiqilishi kerakligi.",
+    "provenancePackage": "Paket",
+    "provenanceRevision": "Reviziya",
+    "provenanceImportedAt": "Import qilingan",
+    "provenanceOpenIssues": "Ochiq issue’lar",
+    "provenanceNoIssues": "Ko‘rib chiqiladigan issue yo‘q — paket toza edi.",
+    "issueOpen": "Ochiq",
+    "issueResolved": "Yopilgan",
+    "openLocation": "Joyni ochish",
+    "markResolved": "Yopildi deb belgilash",
+    "issueResolvedToast": "Issue yopildi."
   }
 }

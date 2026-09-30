@@ -23,7 +23,7 @@ import {
   useValidateExamImport,
 } from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
-import type { MockImportReport } from "@/lib/types";
+import type { MockImportCommit, MockImportReport } from "@/lib/types";
 import { tx } from "./types";
 import {
   extractMediaDeclarations,
@@ -57,6 +57,7 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
   const [sessionExpired, setSessionExpired] = React.useState(false);
   const [commitError, setCommitError] = React.useState<string | null>(null);
   const [lookupOn, setLookupOn] = React.useState(false);
+  const [imported, setImported] = React.useState<MockImportCommit | null>(null);
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const validate = useValidateExamImport();
@@ -83,6 +84,7 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
     setSessionExpired(false);
     setCommitError(null);
     setLookupOn(false);
+    setImported(null);
   }
 
   function close() {
@@ -181,14 +183,13 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
       { package: parsedPkg, mediaBindings: bindings, validatedChecksum: report.checksum },
       {
         onSuccess: (r) => {
+          setImported(r);
           setPhase("imported");
           toast.success(
             r.replay
-              ? tx(t, "importReplay", "This package was already imported — opened the existing draft.")
+              ? tx(t, "importReplay", "This package was already imported — opening the existing draft.")
               : tx(t, "importDone", "Draft created — review it before publishing."),
           );
-          router.push(r.editorUrl);
-          close();
         },
         onError: (e) => {
           setPhase("report");
@@ -231,6 +232,42 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
               <Link href="/login" className="mt-2 inline-block underline underline-offset-2">
                 {tx(t, "signIn", "Sign in")}
               </Link>
+            </div>
+          ) : phase === "imported" && imported ? (
+            <div className="space-y-3" role="status">
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <Badge variant="success">
+                  {imported.replay
+                    ? tx(t, "importReplayTitle", "Already imported")
+                    : tx(t, "importSuccessTitle", "Draft created")}
+                </Badge>
+                <span className="text-xs text-fg-muted tabular-nums">
+                  {tx(t, "provenanceRevision", "Revision")} {imported.revision}
+                </span>
+              </div>
+              <p className="text-sm text-fg-muted">
+                {imported.replay
+                  ? tx(
+                      t,
+                      "importReplayHint",
+                      "This package was already imported — your edits were kept. Open the existing draft to continue.",
+                    )
+                  : tx(
+                      t,
+                      "importSuccessHint",
+                      "Nothing is published yet. Open the draft in Exam Builder to edit, preview and publish.",
+                    )}
+              </p>
+              <Button
+                size="sm"
+                onClick={() => {
+                  router.push(imported.editorUrl);
+                  close();
+                }}
+                className="min-h-10 justify-center"
+              >
+                {tx(t, "openInBuilder", "Open in Exam Builder")}
+              </Button>
             </div>
           ) : phase === "edit" ? (
             <div className="space-y-2">

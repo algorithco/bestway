@@ -668,6 +668,13 @@ export type MockAttemptStatus = "in_progress" | "grading" | "completed";
 export type MockAttemptMode = "practice" | "timed";
 export type MockAccess = "granted" | "pending" | "locked";
 
+/** Latest AI JSON import for an exam (null = created manually). */
+export interface MockExamImportRef {
+  packageId: string;
+  revision: number;
+  importedAt: string;
+}
+
 /** GET /mock/exams */
 export interface MockExamListItem {
   id: string;
@@ -682,6 +689,7 @@ export interface MockExamListItem {
   durationMinutes: number | null;
   price: number;
   access: MockAccess;
+  imported: MockExamImportRef | null;
 }
 
 /** Runner savoli — o'quvchiga to'g'ri javobsiz; xodimga `correctAnswers` qo'shiladi */
@@ -738,6 +746,8 @@ export interface MockExamStructure {
   isDemo: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Optimistic content version (stale-tab save guard). */
+  contentVersion: number;
   questionCount: number;
   sections: MockSection[];
 }
@@ -948,4 +958,31 @@ export interface MockImportCommit {
   revision: number;
   replay: boolean;
   editorUrl: string;
+}
+
+/** GET /mock/exam-imports/by-exam/:examId — staff-only provenance, no answer keys. */
+export interface MockImportProvenanceIssue {
+  id: string;
+  code: string;
+  path: string;
+  message: string;
+  sourceKey: string | null;
+  entityKind: string | null;
+  status: string;
+}
+
+export interface MockImportSourceMap {
+  kind: string;
+  sourceKey: string;
+  entityId: string;
+}
+
+export interface MockExamImportProvenance {
+  packageId: string;
+  revision: number;
+  profile: string;
+  importedAt: string;
+  openIssues: number;
+  issues: MockImportProvenanceIssue[];
+  sourceMaps: MockImportSourceMap[];
 }
