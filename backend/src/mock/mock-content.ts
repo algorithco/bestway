@@ -33,13 +33,17 @@ export function sanitizeMockContent(value: string | null | undefined): string | 
       },
     },
     exclusiveFilter: (frame) => frame.tag === 'span' && !frame.attribs['data-gap'],
-  }).trim();
+  })
+    // A gap is an atom, never a container. Source text inside a marker must
+    // not leak into the stored document or the student view.
+    .replace(/<span data-gap="(\d{1,3})">[\s\S]*?<\/span>/g, '<span data-gap="$1"></span>')
+    .trim();
   return clean || null;
 }
 
 export function gapNumbersFromHtml(contentHtml: string | null | undefined): number[] {
   if (!contentHtml) return [];
-  return [...contentHtml.matchAll(/<span\s+data-gap="(\d{1,3})"\s*><\/span>/g)].map((m) => Number(m[1]));
+  return [...contentHtml.matchAll(/<span\s+data-gap="(\d{1,3})"\s*>\s*<\/span>/g)].map((m) => Number(m[1]));
 }
 
 /** A gapped document and its question rows must be an exact one-to-one set. */
