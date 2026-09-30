@@ -84,7 +84,8 @@ export class MockAuthoringService {
         price: dto.price ?? 0,
         isFreeForApproved: dto.isFreeForApproved ?? true,
         createdById: actor.id,
-        ...(dto.starterStructure ? { sections: { create: starterSections(dto.type) } } : {}),
+        profile: dto.profile ?? 'practice',
+        ...(dto.starterStructure ? { sections: { create: starterSections(dto.type, dto.skills) } } : {}),
       },
     });
     await this.audit.log({
@@ -113,6 +114,7 @@ export class MockAuthoringService {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.level !== undefined ? { level: dto.level } : {}),
+        ...(dto.profile !== undefined ? { profile: dto.profile } : {}),
         ...(dto.isPublished !== undefined ? { isPublished: dto.isPublished } : {}),
         ...(dto.isDemo !== undefined ? { isDemo: dto.isDemo } : {}),
         ...(dto.price !== undefined ? { price: dto.price } : {}),
@@ -976,21 +978,38 @@ export class MockAuthoringService {
     if (!exam) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
     void actor;
 
+    // Profile-aware publish gate: practice validates only existing content,
+    // full_mock additionally enforces the strict IELTS blueprint.
+    const profile = (exam as { profile?: string }).profile ?? 'practice';
+    const isFullMock = profile === 'full_mock';
     const bySkill = new Map(exam.sections.map((s) => [s.skill, s]));
     const items: Array<{ key: string; ok: boolean; detail: string }> = [];
-    const countQs = (skill: string) =>
-      (bySkill.get(skill as never)?.groups as Array<{ questions: unknown[] }> | undefined)?.reduce(
-        (n, g) => n + g.questions.length,
-        0,
-      ) ?? 0;
 
-    for (const skill of ['listening', 'reading', 'writing'] as const) {
+    const groupCount = exam.sections.reduce((n, s) => n + s.groups.length, 0);
+    const questionTotal = exam.sections.reduce(
+      (n, s) => n + s.groups.reduce((m, g) => m + g.questions.length, 0),
+      0,
+    );
+    items.push({
+      key: 'has_content',
+      ok: exam.sections.length > 0 && groupCount > 0 && questionTotal > 0,
+      detail:
+        exam.sections.length > 0 && groupCount > 0 && questionTotal > 0
+          ? `${exam.sections.length} section(s), ${groupCount} group(s), ${questionTotal} question(s)`
+          : 'needs at least one section with a group and a question',
+    });
+
+    const requiredSkills = isFullMock ? (['listening', 'reading', 'writing'] as const) : [];
+    for (const skill of requiredSkills) {
       const section = bySkill.get(skill);
       items.push({
         key: `${skill}_section`,
         ok: !!section,
         detail: section ? 'exists' : 'missing section',
       });
+    }
+    for (const skill of ['listening', 'reading', 'writing', 'speaking'] as const) {
+      const section = bySkill.get(skill);
       if (!section) continue;
       if (skill === 'listening') {
         const groups = section.groups as Array<{
@@ -998,12 +1017,14 @@ export class MockAuthoringService {
           audioKey: string | null;
           questions: unknown[];
         }>;
-        const parts = new Set(groups.map((g) => g.partNumber).filter((p) => p != null));
-        items.push({
-          key: 'listening_parts',
-          ok: groups.length >= 4 && parts.size >= 4,
-          detail: `${groups.length} groups, parts: ${[...parts].sort().join(',') || '—'}`,
-        });
+        if (isFullMock) {
+          const parts = new Set(groups.map((g) => g.partNumber).filter((p) => p != null));
+          items.push({
+            key: 'listening_parts',
+            ok: groups.length >= 4 && parts.size >= 4,
+            detail: `${groups.length} groups, parts: ${[...parts].sort().join(',') || '—'}`,
+          });
+        }
         items.push({
           key: 'listening_audio',
           ok: groups.length > 0 && groups.every((g) => !!g.audioKey),
@@ -1020,15 +1041,32 @@ export class MockAuthoringService {
         });
       }
       if (skill === 'writing') {
-        const types = new Set(
-          (section.groups as Array<{ questions: Array<{ type: string }> }>).flatMap((g) =>
-            g.questions.map((q) => q.type),
-          ),
-        );
+        const questions = (section.groups as Array<{ questions: Array<{ type: string; prompt: string }> }>).flatMap((g) => g.questions);
+        if (isFullMock) {
+          const types = new Set(questions.map((q) => q.type));
+          items.push({
+            key: 'writing_tasks',
+            ok: types.has('essay_task1') && types.has('essay_task2'),
+            detail: `tasks: ${[...types].join(',') || '—'}`,
+          });
+        } else {
+          const essays = questions.filter(
+            (q) => (q.type === 'essay_task1' || q.type === 'essay_task2') && q.prompt.trim() !== '',
+          );
+          items.push({
+            key: 'writing_content',
+            ok: essays.length > 0,
+            detail: essays.length > 0 ? `${essays.length} essay task(s)` : 'needs at least one essay task with a prompt',
+          });
+        }
+      }
+      if (skill === 'speaking' && !isFullMock) {
+        const tasks = (section.groups as Array<{ questions: Array<{ type: string }> }>).flatMap((g) => g.questions)
+          .filter((q) => q.type === 'speaking_task');
         items.push({
-          key: 'writing_tasks',
-          ok: types.has('essay_task1') && types.has('essay_task2'),
-          detail: `tasks: ${[...types].join(',') || '—'}`,
+          key: 'speaking_content',
+          ok: tasks.length > 0,
+          detail: tasks.length > 0 ? `${tasks.length} speaking task(s)` : 'needs at least one speaking task',
         });
       }
     }
@@ -1061,8 +1099,8 @@ export class MockAuthoringService {
     });
     items.push({ key: 'duplicate_numbers', ok: duplicateCount === 0, detail: duplicateCount === 0 ? 'no duplicates' : `${duplicateCount} duplicate number(s)` });
 
-    const total = countQs('listening') + countQs('reading') + countQs('writing');
-    items.push({ key: 'total_questions', ok: total > 0, detail: `${total} L+R+W questions` });
+    const total = questionTotal;
+    items.push({ key: 'total_questions', ok: total > 0, detail: `${total} question(s)` });
 
     // AI import review issues: teacher resolve qilgunga qadar publish bloklanadi.
     const openImportIssues = await this.prisma.mockImportReviewIssue.count({

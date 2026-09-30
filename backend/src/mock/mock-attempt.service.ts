@@ -74,8 +74,17 @@ export class MockAttemptService {
     }
 
     // --- IELTS full-test flow (v2026.1; qarorlar: dynamic audio+2min, practice=lenient, exam=strict) ---
+    // Full-test flow faqat full_mock profildagi imtihonlarda — single-skill
+    // practice testlarga full-test timing/transition majburan qo'llanmaydi.
     const flowMode = dto.flow === 'full_test' ? 'full_test' : 'single_skill';
     if (flowMode === 'full_test') {
+      if ((exam as unknown as { profile?: string }).profile !== 'full_mock') {
+        throw new AppException(
+          'MOCK_FULL_TEST_UNAVAILABLE',
+          'Full Mock flow faqat full_mock imtihonlarda mavjud',
+          400,
+        );
+      }
       return this.startFullTest(student, examId, exam as unknown as ExamRow, shaped);
     }
 

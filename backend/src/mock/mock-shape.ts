@@ -130,6 +130,7 @@ export function shapeExam(exam: ExamRow, includeAnswers: boolean, base: string) 
   return {
     id: exam.id,
     type: exam.type,
+    profile: (exam as { profile?: string }).profile ?? 'practice',
     title: exam.title,
     description: exam.description,
     level: exam.level,

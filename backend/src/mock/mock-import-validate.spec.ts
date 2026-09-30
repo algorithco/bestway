@@ -16,6 +16,12 @@ describe('mock JSON import contract (RED)', () => {
     expect(report.counts.questions).toBe(6);
   });
 
+  it('treats single-reading practice as fully publishable (no phantom skills)', () => {
+    const report = validateImportPackage(sample(), { mediaBindings: {} });
+    expect(report.canPublish).toBe(true);
+    expect(report.counts.skills).toBe(1);
+  });
+
   it('rejects duplicate JSON object keys', () => {
     const raw = '{"schemaVersion":"1.0","schemaVersion":"1.0"}';
     expect(detectDuplicateKeys(raw).length).toBeGreaterThan(0);

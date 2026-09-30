@@ -35,6 +35,19 @@ export class CreateMockExamDto {
   @IsBoolean()
   starterStructure?: boolean;
 
+  /** practice = 1–4 skill (single-skill allowed); full_mock = strict IELTS blueprint. */
+  @IsOptional()
+  @IsIn(['practice', 'full_mock'])
+  profile?: string;
+
+  /** Starter sectionlar shu skilllar uchun yaratiladi (berilmasa barchasi). */
+  @IsOptional()
+  @IsArray()
+  @IsEnum(MockSkill, { each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(4)
+  skills?: MockSkill[];
+
   @IsEnum(MockExamType)
   type: MockExamType;
 
@@ -75,6 +88,10 @@ export class UpdateMockExamDto {
   @MinLength(3)
   @MaxLength(200)
   title?: string;
+
+  @IsOptional()
+  @IsIn(['practice', 'full_mock'])
+  profile?: string;
 
   @IsOptional()
   @IsString()
