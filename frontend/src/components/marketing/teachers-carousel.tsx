@@ -105,7 +105,7 @@ export function TeachersCarousel({ teachers }: { teachers: TeacherProfile[] }) {
         ))}
       </div>
 
-      <div className="mt-6 flex items-center justify-center gap-4">
+      <div className="mt-6 flex items-center justify-center gap-4 lg:hidden">
         <button
           type="button"
           onClick={() => scrollToIndex(active - 1)}
