@@ -35,8 +35,11 @@ export function AudioPlayer({
 }) {
   const t = useTranslations("tests");
   const url = src || DUMMY_AUDIO;
+  const rawAudioFallback = t("audioFallback") as string;
   const fallbackLabel =
-    t("audioFallback") !== "audioFallback" ? t("audioFallback") : "Audio preview — placeholder";
+    rawAudioFallback !== "audioFallback" && !rawAudioFallback.endsWith(".audioFallback")
+      ? rawAudioFallback
+      : "Audio preview — placeholder";
 
   return (
     <div className="rounded-[10px] border border-border bg-bg-subtle p-3 sm:p-4">
@@ -44,7 +47,13 @@ export function AudioPlayer({
         <span className="grid size-7 place-items-center rounded-full bg-brand-subtle text-brand-subtle-fg">
           <Headphones className="size-4" />
         </span>
-        <span>{title ?? (t("sections.listening") !== "sections.listening" ? t("sections.listening") : "Listening")}</span>
+        <span>
+          {title ??
+            (() => {
+              const v = t("sections.listening") as string;
+              return v !== "sections.listening" && !v.endsWith(".sections.listening") ? v : "Listening";
+            })()}
+        </span>
         <span className="ml-auto flex items-center gap-1 text-xs font-normal text-fg-muted">
           <Volume2 className="size-3.5" />
           {fallbackLabel}
@@ -54,9 +63,12 @@ export function AudioPlayer({
         <track kind="captions" />
       </audio>
       <p className="mt-1.5 text-[11px] leading-relaxed text-fg-subtle">
-        {t("audioHint") !== "audioHint"
-          ? t("audioHint")
-          : "If you can't hear the audio, check your volume. In the real exam the recording is played once."}
+        {(() => {
+          const v = t("audioHint") as string;
+          return v !== "audioHint" && !v.endsWith(".audioHint")
+            ? v
+            : "If you can't hear the audio, check your volume. In the real exam the recording is played once.";
+        })()}
       </p>
     </div>
   );
@@ -70,11 +82,14 @@ export function AudioscriptDetails({
   open?: boolean;
 }) {
   const t = useTranslations("tests");
-  const label = t("audioscript") !== "audioscript" ? t("audioscript") : "Audioscript";
+  const rawLabel = t("audioscript") as string;
+  const label =
+    rawLabel !== "audioscript" && !rawLabel.endsWith(".audioscript") ? rawLabel : "Audioscript";
+  const rawFallback = t("audioscriptFallback") as string;
   const fallback =
     script ??
-    (t("audioscriptFallback") !== "audioscriptFallback"
-      ? t("audioscriptFallback")
+    (rawFallback !== "audioscriptFallback" && !rawFallback.endsWith(".audioscriptFallback")
+      ? rawFallback
       : "Audioscript will appear here after submission in the real exam. This placeholder lets you preview the layout.");
 
   return (

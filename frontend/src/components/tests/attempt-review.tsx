@@ -29,8 +29,9 @@ const MANUAL = new Set<string>(["writing", "speaking"]);
 const SECTION_ORDER: TestSection[] = ["listening", "reading", "writing", "speaking"];
 
 function tFallback(t: ReturnType<typeof useTranslations>, key: string, fallback: string): string {
-  const v = t(key as never);
-  return v === key ? fallback : (v as string);
+  const v = t(key as never) as unknown;
+  if (typeof v !== "string" || v === key || v.endsWith(`.${key}`)) return fallback;
+  return v;
 }
 
 export function AttemptReview({ attempt }: { attempt: AttemptDetail }) {
@@ -127,9 +128,7 @@ export function AttemptReview({ attempt }: { attempt: AttemptDetail }) {
                   attempt.status === "completed" ? "success" : attempt.status === "grading" ? "warning" : "info"
                 }
               >
-                {t(`statusLabel.${attempt.status}` as never) !== `statusLabel.${attempt.status}`
-                  ? t(`statusLabel.${attempt.status}` as never)
-                  : attempt.status}
+                {tFallback(t, `statusLabel.${attempt.status}`, attempt.status)}
               </Badge>
               <div className="mt-3 flex items-baseline gap-3">
                 <span className="text-4xl font-bold tabular-nums text-fg">
@@ -192,7 +191,7 @@ export function AttemptReview({ attempt }: { attempt: AttemptDetail }) {
                 <div key={sec} className="flex items-center justify-between rounded-[10px] border border-border bg-bg-subtle px-3 py-2.5">
                   <div>
                     <p className="text-sm font-medium capitalize text-fg">
-                      {t(`sections.${sec}` as never) !== `sections.${sec}` ? t(`sections.${sec}` as never) : sec}
+                      {tFallback(t, `sections.${sec}`, sec)}
                     </p>
                     <p className="text-xs text-fg-subtle">
                       {data.graded}/{data.total} {tFallback(t, "graded", "graded")}
@@ -324,7 +323,7 @@ function QuestionReview({
           <span className="grid size-6 place-items-center rounded-full bg-brand-subtle text-xs font-bold text-brand-subtle-fg tabular-nums">
             {q.order}
           </span>
-          <Badge variant="neutral">{t(`sections.${q.section}` as never) !== `sections.${q.section}` ? t(`sections.${q.section}` as never) : q.section}</Badge>
+          <Badge variant="neutral">{tFallback(t, `sections.${q.section}`, q.section)}</Badge>
           <span className="text-xs text-fg-subtle">{q.maxScore} pts</span>
         </div>
         {showCorrectBadge}

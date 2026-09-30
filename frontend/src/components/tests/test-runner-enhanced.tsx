@@ -26,8 +26,9 @@ import { QuestionNav } from "./question-nav";
 const SECTION_ORDER: TestSection[] = ["listening", "reading", "writing", "speaking"];
 
 function tFallback(t: ReturnType<typeof useTranslations>, key: string, fallback: string): string {
-  const v = t(key as never);
-  return v === key ? fallback : (v as string);
+  const v = t(key as never) as unknown;
+  if (typeof v !== "string" || v === key || v.endsWith(`.${key}`)) return fallback;
+  return v;
 }
 
 export function TestRunnerEnhanced({ attempt }: { attempt: AttemptDetail }) {
@@ -248,7 +249,7 @@ export function TestRunner({ attempt }: { attempt: AttemptDetail }) {
                     : "border border-border bg-surface text-fg-muted hover:bg-surface-hover hover:text-fg",
                 )}
               >
-                {t(`sections.${sec}` as never) !== `sections.${sec}` ? t(`sections.${sec}` as never) : sec}
+                {tFallback(t, `sections.${sec}`, sec)}
                 <span
                   className={cn(
                     "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
@@ -322,10 +323,10 @@ export function TestRunner({ attempt }: { attempt: AttemptDetail }) {
                   {answered && !isActiveQ ? <Check className="size-4" /> : q.order}
                 </span>
                 <Badge variant="neutral" className="capitalize">
-                  {t(`sections.${q.section}` as never) !== `sections.${q.section}` ? t(`sections.${q.section}` as never) : q.section}
+                  {tFallback(t, `sections.${q.section}`, q.section)}
                 </Badge>
                 <Badge variant="neutral" className="text-[11px]">
-                  {t(`types.${q.type}` as never) !== `types.${q.type}` ? t(`types.${q.type}` as never) : q.type.replace("_", " ")}
+                  {tFallback(t, `types.${q.type}`, q.type.replace("_", " "))}
                 </Badge>
                 <span className="ml-auto text-xs text-fg-subtle tabular-nums">
                   {q.maxScore} {tFallback(t, "score", "points")}
