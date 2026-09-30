@@ -277,6 +277,7 @@ export function GroupEditor({
     title: part.title,
     instructions: part.instructions,
     passageText: visualText,
+    contentHtml: null,
     hasAudio: part.hasAudio || group.hasAudio,
     imageUrl: localImageUrl ?? group.imageUrl,
     questions: visualQuestions.map(toPreviewQuestion),
@@ -711,13 +712,14 @@ function toPreviewQuestion(q: BuilderQuestion) {
 /** Server group shape for the read-only student preview (local edits applied). */
 function previewGroup(
   part: BuilderPart,
-  server: { id: string; hasAudio: boolean; imageUrl: string | null },
+  server: { id: string; hasAudio: boolean; imageUrl: string | null; contentHtml?: string | null },
 ) {
   return {
     id: server.id,
     title: part.title,
     instructions: part.instructions,
     passageText: part.passageText,
+    contentHtml: server.contentHtml ?? null,
     hasAudio: part.hasAudio || server.hasAudio,
     imageUrl: server.imageUrl,
     questions: part.questions.map(toPreviewQuestion),
