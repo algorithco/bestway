@@ -13,6 +13,7 @@ import {
   IsArray,
   IsBoolean,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -190,6 +191,23 @@ export class CreateGroupDto {
   @MaxLength(20000)
   passageText?: string;
 
+  /** Sanitized rich document. Gap tokens use <span data-gap="N"></span>. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100000)
+  contentHtml?: string;
+
+  /** Staff-only transcript/review material. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100000)
+  audioScript?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['document', 'table', 'notes', 'summary', 'sentences'])
+  contentLayout?: string;
+
   /** Listening part raqami (1..4) — full-test L→R→W tartibi uchun */
   @IsOptional()
   @Type(() => Number)
@@ -236,6 +254,21 @@ export class UpdateGroupDto {
   @IsString()
   @MaxLength(20000)
   passageText?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100000)
+  contentHtml?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100000)
+  audioScript?: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['document', 'table', 'notes', 'summary', 'sentences'])
+  contentLayout?: string;
 
   /** Listening part raqami (1..4) */
   @IsOptional()

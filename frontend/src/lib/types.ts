@@ -704,6 +704,10 @@ export interface MockGroup {
   title: string | null;
   instructions: string | null;
   passageText: string | null;
+  contentHtml: string | null;
+  contentLayout: string | null;
+  /** Staff authoring responses only; omitted from student-shaped exams. */
+  audioScript?: string | null;
   hasAudio: boolean;
   audioUrl: string | null;
   imageUrl: string | null;
@@ -816,6 +820,8 @@ export interface MockAttemptGroup {
   title: string | null;
   instructions: string | null;
   passageText: string | null;
+  contentHtml?: string | null;
+  contentLayout?: string | null;
   hasAudio: boolean;
   questions: MockAttemptQuestion[];
 }
@@ -886,6 +892,9 @@ export interface MockGroupInput {
   title?: string;
   instructions?: string;
   passageText?: string;
+  contentHtml?: string;
+  audioScript?: string;
+  contentLayout?: "document" | "table" | "notes" | "summary" | "sentences";
   partNumber?: number;
   audioDurationSec?: number;
   audioPlayLimit?: number;
