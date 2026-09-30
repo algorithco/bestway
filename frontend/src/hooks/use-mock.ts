@@ -296,6 +296,26 @@ export function useUpdateMockGroup(examId: string) {
   });
 }
 
+/** One transaction and one cache refresh for all material and question edits. */
+export function useSaveMockGroupContent(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: {
+      groupId: string;
+      input: MockGroupInput;
+      questions: (MockQuestionInput & { id?: string })[];
+      deletedQuestionIds: string[];
+    }) => api.put<{ saved: number; questions: { id: string; number: number }[] }>(
+      `/mock/groups/${v.groupId}/content`,
+      { ...v.input, questions: v.questions, deletedQuestionIds: v.deletedQuestionIds },
+    ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-exam", examId] });
+      qc.invalidateQueries({ queryKey: ["mock-exams"] });
+    },
+  });
+}
+
 export function useDeleteMockGroup(examId: string) {
   const qc = useQueryClient();
   return useMutation({

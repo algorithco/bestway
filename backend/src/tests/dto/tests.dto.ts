@@ -189,6 +189,17 @@ export class UpdateQuestionDto {
   audioUrl?: string;
 }
 
+export class ImportQuestionsDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(100000)
+  text: string;
+
+  @IsOptional()
+  @IsEnum(TestSection)
+  defaultSection?: TestSection;
+}
+
 export class SubmitAnswerDto {
   @IsString()
   @IsNotEmpty()

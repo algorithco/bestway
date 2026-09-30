@@ -27,14 +27,14 @@ export function BrandMark({
     >
       <defs>
         <linearGradient id="bwlogo_tile" x1="6" y1="3" x2="42" y2="46" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#17a44b" />
-          <stop offset="0.55" stopColor="#3aa544" />
-          <stop offset="1" stopColor="#7cc23f" />
+          <stop stopColor="#89F336" />
+          <stop offset="0.58" stopColor="#FFED29" />
+          <stop offset="1" stopColor="#FF991C" />
         </linearGradient>
         <radialGradient id="bwlogo_sun" cx="0.5" cy="0.38" r="0.75">
-          <stop stopColor="#fff4cc" />
-          <stop offset="0.5" stopColor="#ffc62e" />
-          <stop offset="1" stopColor="#f59516" />
+          <stop stopColor="#fffbd1" />
+          <stop offset="0.5" stopColor="#FFED29" />
+          <stop offset="1" stopColor="#FF991C" />
         </radialGradient>
       </defs>
 
@@ -47,7 +47,7 @@ export function BrandMark({
 
       <g className="bw-mark-sun">
         <circle cx="24" cy="15" r="6.2" fill="url(#bwlogo_sun)" />
-        <g stroke="#ffd94f" strokeWidth="1.7" strokeLinecap="round">
+        <g stroke="#FFED29" strokeWidth="1.7" strokeLinecap="round">
           <line x1="24" y1="5.2" x2="24" y2="7.4" />
           <line x1="14.9" y1="7.9" x2="16.5" y2="9.6" />
           <line x1="33.1" y1="7.9" x2="31.5" y2="9.6" />

@@ -846,7 +846,7 @@ export function QuestionFieldSet(props: {
                         checked={checked}
                         onChange={() => onChange({ ...question, correctAnswers: o.trim() ? [o] : [] })}
                         aria-label={`Mark option ${String.fromCharCode(65 + i)} correct`}
-                        className="size-4 shrink-0 accent-[var(--color-brand,#38c765)]"
+                        className="size-4 shrink-0 accent-[var(--color-brand,#89F336)]"
                       />
                     }
                   />
@@ -914,7 +914,7 @@ export function QuestionFieldSet(props: {
                           onChange({ ...question, correctAnswers: next });
                         }}
                         aria-label={`Mark option ${String.fromCharCode(65 + i)} correct`}
-                        className="size-4 shrink-0 accent-[var(--color-brand,#38c765)]"
+                        className="size-4 shrink-0 accent-[var(--color-brand,#89F336)]"
                       />
                     }
                   />

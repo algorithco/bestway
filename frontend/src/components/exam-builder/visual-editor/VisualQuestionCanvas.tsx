@@ -185,7 +185,7 @@ export function VisualQuestionCanvas(props: {
         placeholder:
           "Paste question text here, then use the toolbar to add answer inputs where they belong.",
       }),
-      Dropcursor.configure({ color: "var(--brand, #2563eb)", width: 2 }),
+      Dropcursor.configure({ color: "var(--brand, #89F336)", width: 2 }),
       QuestionNode,
     ],
     content: seededContent,

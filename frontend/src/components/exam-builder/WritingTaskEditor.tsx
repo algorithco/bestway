@@ -9,12 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import {
-  useAddMockQuestions,
   useDeleteMockGroup,
-  useDeleteMockQuestion,
   useSetMockGroupMedia,
-  useUpdateMockGroup,
-  useUpdateMockQuestion,
+  useSaveMockGroupContent,
 } from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
 import type { MockExamDetail, MockQuestionType } from "@/lib/types";
@@ -97,10 +94,9 @@ export function WritingTaskEditor({
   const section = detail.sections.find((s) => s.id === sectionId);
   const group = section?.groups.find((g) => g.id === groupId);
 
-  const updateGroup = useUpdateMockGroup(examId);
-  const addQuestions = useAddMockQuestions(examId);
-  const updateQuestion = useUpdateMockQuestion(examId);
-  const deleteQuestion = useDeleteMockQuestion(examId);
+  const saveContent = useSaveMockGroupContent(examId);
+  // Track only IDs this editor has loaded or saved; never delete unseen additions.
+  const persistedQuestionIds = React.useRef(group?.questions.map((q) => q.id) ?? []);
   const setMedia = useSetMockGroupMedia(examId);
   const delGroup = useDeleteMockGroup(examId);
 
@@ -186,31 +182,19 @@ export function WritingTaskEditor({
     }
     setSaving(true);
     try {
-      await updateGroup.mutateAsync({
+      const saved = await saveContent.mutateAsync({
         groupId: group.id,
         input: {
           title: title.trim() || meta.label,
-          instructions: instructions.trim() || undefined,
-          passageText: passageText.trim() || undefined,
+          instructions: instructions.trim(),
+          passageText: passageText.trim(),
         },
+        questions: questions.map((q) => ({ id: q.savedId, number: q.number, type: meta.type as MockQuestionType, prompt: q.prompt, points: 9 })),
+        deletedQuestionIds: persistedQuestionIds.current.filter((id) => !questions.some((local) => local.savedId === id)),
       });
-      const liveIds = new Set(questions.map((q) => q.savedId).filter(Boolean));
-      const removed = (group.questions ?? []).map((q) => q.id).filter((id) => !liveIds.has(id));
-      for (const qid of removed) await deleteQuestion.mutateAsync(qid);
-      for (const q of questions) {
-        if (!q.savedId) continue;
-        await updateQuestion.mutateAsync({
-          questionId: q.savedId,
-          input: { number: q.number, type: meta.type, prompt: q.prompt, points: 9 },
-        });
-      }
-      const fresh = questions.filter((q) => !q.savedId);
-      if (fresh.length > 0) {
-        await addQuestions.mutateAsync({
-          groupId: group.id,
-          questions: fresh.map((q) => ({ number: q.number, type: meta.type, prompt: q.prompt, points: 9 })),
-        });
-      }
+      persistedQuestionIds.current = saved.questions.map((q) => q.id);
+      const savedQuestions = questions.map((q, index) => ({ ...q, savedId: saved.questions[index].id }));
+      setQuestions(savedQuestions);
       if (imageFile) {
         const form = new FormData();
         form.append("image", imageFile);
@@ -218,7 +202,7 @@ export function WritingTaskEditor({
       }
       toast.success(tc("saved"));
       setErrors([]);
-      setBaseline({ title, instructions, passageText, questions: JSON.parse(JSON.stringify(questions)), _q0type: meta.type });
+      setBaseline({ title, instructions, passageText, questions: JSON.parse(JSON.stringify(savedQuestions)), _q0type: meta.type });
       if (imageFile) setImageFile(null);
       if (localImageUrl) {
         URL.revokeObjectURL(localImageUrl);
@@ -233,7 +217,7 @@ export function WritingTaskEditor({
     } finally {
       setSaving(false);
     }
-  }, [group, section, questions, title, instructions, passageText, imageFile, meta, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
+  }, [group, section, questions, title, instructions, passageText, imageFile, meta, saveContent, setMedia, localImageUrl, t, tc]);
 
   React.useEffect(() => {
     registerSave(() => save());

@@ -6,15 +6,15 @@ import { cva, type VariantProps } from "class-variance-authority";
  * to'g'ridan-to'g'ri qo'llay oladi (Radix Slot / asChild ishlatmasdan).
  */
 export const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-2 rounded-[8px] font-medium whitespace-nowrap transition-[transform,background-color,box-shadow,color,border-color] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:shrink-0",
+  "inline-flex select-none items-center justify-center gap-2 rounded-[12px] font-semibold whitespace-nowrap transition-[transform,background-color,box-shadow,color,border-color] duration-150 ease-out active:scale-[0.97] disabled:pointer-events-none disabled:opacity-50 disabled:active:scale-100 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         /** Asosiy amal — sahifada bittadan ortiq bo'lmasin */
         primary:
-          "bg-brand text-brand-fg shadow-sm shadow-brand/20 hover:bg-brand-hover hover:shadow-md hover:shadow-brand/25",
+          "bg-brand text-brand-fg shadow-sm shadow-brand/25 hover:bg-brand-hover hover:shadow-lg hover:shadow-brand/25",
         /** Ikkilamchi — chegarali, fonsiz */
-        outline: "border border-border bg-surface text-fg hover:bg-surface-hover hover:border-border-strong",
+        outline: "border border-accent/35 bg-surface text-fg hover:border-accent/70 hover:bg-accent-subtle",
         /** Uchinchi darajali — faqat matn */
         ghost: "text-fg-muted hover:bg-surface-hover hover:text-fg",
         /** Buzuvchi amal (o'chirish) */

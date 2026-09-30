@@ -11,6 +11,8 @@ import type {
   StartResult,
   TestDetail,
   TestListItem,
+  TestImportPreview,
+  TestSection,
   TestType,
 } from "@/lib/types";
 
@@ -123,6 +125,28 @@ export function useAddQuestion(testId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateQuestionInput) => api.post(`/tests/${testId}/questions`, input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["test", testId] });
+      qc.invalidateQueries({ queryKey: ["tests"] });
+    },
+  });
+}
+
+export function usePreviewQuestionImport() {
+  return useMutation({
+    mutationFn: (input: { text: string; defaultSection?: TestSection }) =>
+      api.post<TestImportPreview>("/tests/questions/import/preview", input),
+  });
+}
+
+export function useImportQuestions(testId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { text: string; defaultSection?: TestSection }) =>
+      api.post<{ added: number; sectionCounts: Partial<Record<TestSection, number>> }>(
+        `/tests/${testId}/questions/import`,
+        input,
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["test", testId] });
       qc.invalidateQueries({ queryKey: ["tests"] });

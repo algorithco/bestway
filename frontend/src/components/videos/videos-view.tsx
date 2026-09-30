@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { PageHeader } from "@/components/app/page-header";
 import { VideoCreateDialog } from "@/components/videos/video-create-dialog";
+import { VideoPlayer } from "@/components/videos/video-player";
 import {
   useVideos,
   useStreamUrl,
@@ -219,14 +220,7 @@ export function VideosView() {
           </DialogHeader>
           {playing && (
             <div className="px-5 pb-5">
-              <video
-                src={playing.url}
-                controls
-                autoPlay
-                className="aspect-video w-full rounded-[10px] bg-black elevated"
-              >
-                <track kind="captions" />
-              </video>
+              <VideoPlayer src={playing.url} autoPlay title={playing.title} />
             </div>
           )}
         </DialogContent>

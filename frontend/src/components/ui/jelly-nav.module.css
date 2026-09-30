@@ -1,0 +1,143 @@
+.root {
+  --jn-chip: #242718;
+  --jn-active: #89f336;
+  --jn-text: var(--fg-muted);
+  --jn-active-text: #101704;
+  --jn-yellow: #ffed29;
+  --jn-orange: #ff991c;
+  --jn-gap: 5px;
+  --jn-radius: 14px;
+  --jn-height: 36px;
+  --jn-font: 13px;
+  --jn-padding-x: 14px;
+  --jn-safe-x: 16px;
+  --jn-safe-y: 6px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--jn-gap);
+  padding: var(--jn-safe-y) var(--jn-safe-x);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.root[data-disabled] {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.chip {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transform-origin: 50% 50%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip[data-on="true"] {
+  cursor: default;
+}
+
+.chip:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+
+.skin {
+  position: relative;
+  display: inline-flex;
+  height: var(--jn-height);
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 var(--jn-padding-x);
+  border: 1px solid color-mix(in srgb, var(--jn-yellow) 9%, var(--border));
+  border-radius: var(--jn-radius);
+  background: var(--jn-chip);
+  color: var(--jn-text);
+  font-size: var(--jn-font);
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+  transition:
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 200ms ease,
+    border-color 200ms ease,
+    box-shadow 200ms ease,
+    color 200ms ease;
+}
+
+.skin::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 15%, rgb(255 237 41 / 17%), rgb(255 153 28 / 12%), transparent 80%);
+  content: "";
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease;
+}
+
+.skin::after {
+  position: absolute;
+  right: 12%;
+  bottom: 0;
+  left: 12%;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--jn-active), var(--jn-yellow) 52%, var(--jn-orange));
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.6);
+  transition:
+    opacity 200ms ease,
+    transform 260ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .chip[data-on="false"]:not(:disabled):hover .skin::before {
+    opacity: 1;
+  }
+
+  .chip[data-on="false"]:not(:disabled):hover .skin {
+    border-color: color-mix(in srgb, var(--jn-yellow) 35%, var(--border));
+    color: var(--fg);
+  }
+}
+
+.chip:focus-visible .skin {
+  outline: 2px solid var(--jn-yellow);
+  outline-offset: 3px;
+}
+
+.chip:active .skin {
+  transform: scale(0.97);
+}
+
+.chip[data-on="true"] .skin {
+  border-color: color-mix(in srgb, var(--jn-yellow) 52%, var(--jn-active));
+  background: var(--jn-active);
+  color: var(--jn-active-text);
+  box-shadow:
+    0 8px 22px rgb(137 243 54 / 20%),
+    inset 0 1px 0 rgb(255 255 255 / 42%);
+}
+
+.chip[data-on="true"] .skin::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip:active .skin {
+    transform: none;
+  }
+}

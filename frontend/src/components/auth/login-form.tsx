@@ -118,11 +118,11 @@ export function LoginForm() {
         type="submit"
         size="lg"
         radius={12}
-        tint="#128139"
+        tint="#89F336"
         tintOpacity={1}
-        textColor="#ffffff"
-        lineColor="#ffffff"
-        baseColor="#0d6a2d"
+        textColor="#101704"
+        lineColor="#FFED29"
+        baseColor="#4E9F1E"
         intensity={1.15}
         shineSize={10}
         shineFade={40}

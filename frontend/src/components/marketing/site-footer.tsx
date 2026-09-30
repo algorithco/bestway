@@ -94,7 +94,7 @@ export function SiteFooter() {
 
       {/* Katta so'z belgisi — bir qatorda, zamonaviy saytlardagidek */}
       <div aria-hidden className="relative flex justify-center overflow-hidden select-none">
-        <p className="translate-y-[16%] bg-gradient-to-b from-brand/30 to-brand/0 bg-clip-text text-[18.5vw] leading-none font-black whitespace-nowrap tracking-tighter text-transparent">
+        <p className="translate-y-[16%] bg-gradient-to-r from-brand/30 via-accent/25 to-orange/30 bg-clip-text text-[18.5vw] leading-none font-black whitespace-nowrap tracking-tighter text-transparent">
           {CENTER.name}
         </p>
       </div>

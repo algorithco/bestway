@@ -157,7 +157,7 @@ export function OverviewPanel({
                 type="checkbox"
                 checked={isFreeForApproved}
                 onChange={(e) => setIsFreeForApproved(e.target.checked)}
-                className="accent-[var(--color-brand,#38c765)]"
+                className="accent-[var(--color-brand,#89F336)]"
               />
               {tx(t, "freeApproved", "Free for enrolled students")}
             </label>
@@ -166,7 +166,7 @@ export function OverviewPanel({
                 type="checkbox"
                 checked={isDemo}
                 onChange={(e) => setIsDemo(e.target.checked)}
-                className="accent-[var(--color-brand,#38c765)]"
+                className="accent-[var(--color-brand,#89F336)]"
               />
               {tx(t, "demoVisible", "Visible as a public demo")}
             </label>

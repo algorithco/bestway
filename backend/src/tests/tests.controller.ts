@@ -26,6 +26,7 @@ import {
   DemoSubmitDto,
   FlagCheatDto,
   GradeAnswerDto,
+  ImportQuestionsDto,
   QueryAttemptsDto,
   QueryTestsDto,
   SaveMarksDto,
@@ -61,6 +62,14 @@ export class TestsController {
   @Get('demo/list')
   listDemo(@Query() q: QueryTestsDto) {
     return this.tests.listDemo(q);
+  }
+
+  /** Bulk paste dry run — parses and validates without writing to the database. */
+  @ApiBearerAuth()
+  @Roles('admin', 'super_admin')
+  @Post('questions/import/preview')
+  previewQuestionImport(@Body() dto: ImportQuestionsDto) {
+    return this.tests.previewQuestionImport(dto);
   }
 
   /** Demo test tafsiloti — mehmonlar uchun (audio/passage bilan, correctAnswer siz) */
@@ -261,5 +270,18 @@ export class TestsController {
     @Body() dto: CreateQuestionDto,
   ) {
     return this.tests.addQuestion(user, id, dto);
+  }
+
+
+  /** Parse and atomically add a complete pasted question batch. */
+  @ApiBearerAuth()
+  @Roles('admin', 'super_admin')
+  @Post(':id/questions/import')
+  importQuestions(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: ImportQuestionsDto,
+  ) {
+    return this.tests.importQuestions(user, id, dto);
   }
 }

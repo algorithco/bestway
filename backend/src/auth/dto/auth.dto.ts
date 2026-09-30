@@ -63,6 +63,15 @@ export class LogoutDto {
   refreshToken?: string;
 }
 
+/** PATCH /auth/me — foydalanuvchi o'z ismini tahrirlaydi (barcha rollar) */
+export class UpdateMeDto {
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(2)
+  @MaxLength(100)
+  name: string;
+}
+
 export class DesktopAuthorizeDto {
   /** Desktop qurilma identifikatori (login sahifasidan keladi) */
   @IsString()

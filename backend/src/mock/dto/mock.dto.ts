@@ -30,6 +30,10 @@ import { PaginationQueryDto } from '../../common/pagination';
 /* ─────────────────────────── Exam ─────────────────────────── */
 
 export class CreateMockExamDto {
+  @IsOptional()
+  @IsBoolean()
+  starterStructure?: boolean;
+
   @IsEnum(MockExamType)
   type: MockExamType;
 
@@ -326,6 +330,27 @@ export class AddQuestionsDto {
   @ValidateNested({ each: true })
   @Type(() => QuestionInputDto)
   questions: QuestionInputDto[];
+}
+
+export class SaveGroupQuestionDto extends QuestionInputDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  id?: string;
+}
+
+/** Save the material and complete question list together, retaining question IDs. */
+export class SaveGroupContentDto extends UpdateGroupDto {
+  @IsArray()
+  @ArrayMaxSize(200)
+  @ValidateNested({ each: true })
+  @Type(() => SaveGroupQuestionDto)
+  questions: SaveGroupQuestionDto[];
+
+  @IsArray()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  deletedQuestionIds: string[];
 }
 
 export class UpdateQuestionDto {

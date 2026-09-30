@@ -185,6 +185,7 @@ NotificationType = "points" | "payment_reminder" | "test_result" | "attendance"
 | Method | Path | Rol | Request | Response |
 |---|---|---|---|---|
 | GET | `/auth/me` | login qilingan | — | `{ user: {id,name,phone,role,createdAt}, profile, unreadNotifications }` |
+| PATCH | `/auth/me` | login qilingan (barcha rollar) | `{ name }` (2–100 belgi, trim) | `GET /auth/me` bilan bir xil shakl |
 | POST | `/auth/logout` | login qilingan | `{ refreshToken }` | `{ loggedOut: true }` |
 
 - `/auth/me` dagi `profile` rolga qarab o'zgaradi:

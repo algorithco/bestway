@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CurrentUser, Public, Roles } from '../common/decorators';
@@ -12,6 +12,7 @@ import {
   LogoutDto,
   RefreshDto,
   RegisterDto,
+  UpdateMeDto,
 } from './dto/auth.dto';
 
 @ApiTags('auth')
@@ -63,6 +64,14 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser) {
     return this.auth.me(user);
+  }
+
+  /** O'z ismini tahrirlash — barcha rollar (login qilingan) */
+  @ApiBearerAuth()
+  @Patch('me')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateMeDto) {
+    return this.auth.updateMe(user, dto);
   }
 
   /** Chiqish — refresh tokenni bekor qilish */
