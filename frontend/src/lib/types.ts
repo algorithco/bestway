@@ -739,6 +739,8 @@ export interface MockSection {
 export interface MockExamStructure {
   id: string;
   type: MockExamType;
+  /** practice = 1–4 skill, full_mock = strict IELTS blueprint. */
+  profile: string;
   title: string;
   description: string | null;
   level: string | null;
@@ -870,6 +872,9 @@ export interface MockPurchaseItem {
 
 export interface CreateMockExamInput {
   starterStructure?: boolean;
+  profile?: "practice" | "full_mock";
+  /** Starter sections are created only for these skills (default: all four). */
+  skills?: MockSkill[];
   type: MockExamType;
   title: string;
   description?: string;

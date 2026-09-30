@@ -1126,7 +1126,8 @@
     "unsavedExitDesc": "Leave without saving? Your edits will be lost. Save first to keep them.",
     "unsavedDesc": "You have unsaved edits in this panel. Switching now will lose them. Save first, or discard to continue.",
     "noPassagesHint": "IELTS Reading has 3 passages. Each passage holds its text plus its question groups — create Passage 1 to begin, then paste its text.",
-    "liveEditNote": "This exam is live — saved edits apply immediately, no republish needed.",
+    "liveEditNote": "Bu imtihon jonli — saqlangan tahrirlar darhol kuchga kiradi, qayta nashr shart emas.",
+    "liveEditWarning": "Nashr qilingan — tahrirlar jonli o'quvchilarga darhol ta'sir qiladi. Tuzilmaviy o'zgarishlar uchun avval nashrdan oling.",
     "publishConsequence": "Publishing will make this exam available according to its configured access settings.",
     "publishDirtyNote": "You have unsaved changes — they won't be included. Save first, then publish.",
     "readinessCheckFailedHint": "The server check failed — nothing below is marked ready because of it. Your content list is still shown from saved data.",
@@ -1191,6 +1192,16 @@
     "issueResolved": "Yopilgan",
     "openLocation": "Joyni ochish",
     "markResolved": "Yopildi deb belgilash",
-    "issueResolvedToast": "Issue yopildi."
+    "issueResolvedToast": "Issue yopildi.",
+    "examMode": "Imtihon rejimi",
+    "modeSingle": "Bitta skill / Practice",
+    "modeSingleHint": "1–4 ta skill tanlang. Faqat tanlangan bo‘limlar yaratiladi va nashr qilinadi.",
+    "modeFull": "Full Mock",
+    "modeFullHint": "Qat‘iy IELTS blueprint: to‘liq part va sonlar bilan barcha to‘rt skill.",
+    "modePractice": "Practice",
+    "chooseSkills": "Skill’larni tanlang",
+    "needOneSkill": "Kamida bitta skill tanlang.",
+    "noContent": "Hali kontent yo‘q.",
+    "noContentHint": "Kamida bitta group va savolli bitta section qo‘shing."
   }
 }

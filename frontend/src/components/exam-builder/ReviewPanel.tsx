@@ -133,6 +133,9 @@ function readinessFixTarget(
     const s = detail.sections.find((x) => x.skill === skill);
     return s ? ({ kind: "section", sectionId: s.id } as Selection) : null;
   };
+  if (key === "has_content") return { kind: "overview" };
+  if (key === "writing_content") return sectionOf("writing") ?? { kind: "overview" };
+  if (key === "speaking_content") return sectionOf("speaking") ?? { kind: "overview" };
   if (key === "listening_audio") {
     for (const s of detail.sections) {
       if (s.skill !== "listening") continue;
@@ -180,7 +183,7 @@ function Row({
 }) {
   return (
     <div
-      className={`flex items-start gap-2.5 rounded-[8px] border px-3 py-2 ${
+      className={`flex flex-col gap-2 rounded-[8px] border px-3 py-2 min-[480px]:flex-row min-[480px]:items-start min-[480px]:gap-2.5 ${
         tone === "ok"
           ? "border-success/25 bg-success/5"
           : tone === "error"
@@ -188,14 +191,16 @@ function Row({
             : "border-warning/25 bg-warning/5"
       }`}
     >
-      <span className="mt-0.5 shrink-0">{icon}</span>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-fg">{title}</p>
-        {detail && <p className="text-xs text-fg-muted">{detail}</p>}
+      <div className="flex min-w-0 flex-1 items-start gap-2.5">
+        <span className="mt-0.5 shrink-0">{icon}</span>
+        <div className="min-w-0 flex-1">
+          <p className="break-words text-sm font-medium text-fg">{title}</p>
+          {detail && <p className="break-words text-xs text-fg-muted">{detail}</p>}
+        </div>
       </div>
       {fix && (
-        <Button size="sm" variant="outline" onClick={fix} aria-label={`Fix: ${title}`} className="shrink-0">
-          <Wrench className="size-3.5" aria-hidden />
+        <Button size="sm" variant="outline" onClick={fix} aria-label={`Fix: ${title}`} className="min-h-9 w-full shrink-0 justify-center min-[480px]:ml-auto min-[480px]:w-auto">
+          <Wrench className="size-3.5 shrink-0" aria-hidden />
           Fix
         </Button>
       )}
@@ -210,9 +215,9 @@ function FixButton({ onFix, label }: { onFix: () => void; label: string }) {
       variant="outline"
       onClick={onFix}
       aria-label={`Fix: ${label}`}
-      className="shrink-0"
+      className="min-h-9 w-full shrink-0 justify-center min-[480px]:ml-auto min-[480px]:w-auto"
     >
-      <Wrench className="size-3.5" aria-hidden />
+      <Wrench className="size-3.5 shrink-0" aria-hidden />
       Fix
     </Button>
   );
@@ -245,7 +250,10 @@ export function ReviewPanel({
   const readinessQ = useMockReadiness(examId);
   const qc = useQueryClient();
 
-  const client = React.useMemo(() => examClientChecks(detail.sections), [detail]);
+  const client = React.useMemo(
+    () => examClientChecks(detail.sections, detail.profile),
+    [detail],
+  );
   const errors = client.filter((c) => c.level === "error");
   const warnings = client.filter((c) => c.level === "warning");
   const serverItems = readinessQ.data?.items ?? [];
@@ -384,9 +392,10 @@ function PublishRelease({
       const items = fresh.data?.items ?? [];
       const serverBad = items.filter((i) => !i.ok).length;
       const examData = qc.getQueryData<MockExamDetail>(["mock-exam", examId]);
-      const clientBad = examClientChecks(examData?.sections ?? detail.sections).filter(
-        (c) => c.level === "error",
-      ).length;
+      const clientBad = examClientChecks(
+        examData?.sections ?? detail.sections,
+        examData?.profile ?? detail.profile,
+      ).filter((c) => c.level === "error").length;
       const total = serverBad + clientBad;
       if (total > 0) {
         setStaleBlockers(total);
@@ -673,6 +682,13 @@ function ReviewChecks({
   const manualPointsItem = serverItem("manual_points", serverItems);
   const totalItem = serverItem("total_questions", serverItems);
   const listeningPartsItem = serverItem("listening_parts", serverItems);
+  const hasContentItem = serverItem("has_content", serverItems);
+  const writingContentItem = serverItem("writing_content", serverItems);
+  const speakingContentItem = serverItem("speaking_content", serverItems);
+  // Full Mock only: required-but-absent sections (practice never emits these).
+  const missingSectionItems = serverItems.filter(
+    (i) => !i.ok && /^(listening|reading|writing|speaking)_section$/.test(i.key),
+  );
 
   const missingKeyCount = React.useMemo(() => {
     let n = 0;
@@ -871,6 +887,59 @@ function ReviewChecks({
           fix={() => onFix({ kind: "overview" })}
         />
       )}
+      {!serverLoading && !serverError && hasContentItem && !hasContentItem.ok && (
+        <Row
+          tone="error"
+          icon={<XCircle className="size-4 text-danger" />}
+          title={tx(t, "noContent", "No content yet.")}
+          detail={tx(
+            t,
+            "noContentHint",
+            "Add at least one section with a group and a question.",
+          )}
+          fix={() => onFix({ kind: "overview" })}
+        />
+      )}
+      {!serverLoading &&
+        !serverError &&
+        missingSectionItems.map((item) => {
+          const skill = item.key.split("_")[0];
+          const name = skill.charAt(0).toUpperCase() + skill.slice(1);
+          return (
+            <Row
+              key={item.key}
+              tone="error"
+              icon={<XCircle className="size-4 text-danger" />}
+              title={`${name} section is missing.`}
+              detail="Full Mock requires every section — add it from the overview."
+              fix={() => onFix({ kind: "overview" })}
+            />
+          );
+        })}
+      {!serverLoading && !serverError && writingContentItem && !writingContentItem.ok && (
+        <Row
+          tone="error"
+          icon={<XCircle className="size-4 text-danger" />}
+          title="Writing has no essay task yet."
+          detail={writingContentItem.detail || undefined}
+          fix={() => {
+            const target = readinessFixTarget("writing_content", detail);
+            if (target) onFix(target);
+          }}
+        />
+      )}
+      {!serverLoading && !serverError && speakingContentItem && !speakingContentItem.ok && (
+        <Row
+          tone="error"
+          icon={<XCircle className="size-4 text-danger" />}
+          title="Speaking has no tasks yet."
+          detail={speakingContentItem.detail || undefined}
+          fix={() => {
+            const target = readinessFixTarget("speaking_content", detail);
+            if (target) onFix(target);
+          }}
+        />
+      )}
 
       {/* Per-skill checklists. */}
       {detail.sections.length === 0 ? (
@@ -886,7 +955,7 @@ function ReviewChecks({
           </CardContent>
         </Card>
       ) : (
-        SKILLS.map((skill) => (
+        SKILLS.filter((skill) => detail.sections.some((s) => s.skill === skill)).map((skill) => (
           <SkillChecklist
             key={skill}
             skill={skill}
@@ -917,11 +986,15 @@ function SkillChecklist({
   serverReady: boolean;
   onFix: (s: Selection) => void;
 }) {
+  const profile = detail.profile ?? "practice";
   const section = detail.sections.find((s) => s.skill === skill);
   const name = SKILL_NAME[skill];
 
+  // Only configured sections get a checklist — unchosen skills are not errors.
+  if (!section) return null;
+
   const sectionItem = serverReady ? serverItem(`${skill}_section`, serverItems) : undefined;
-  const sectionMissing = !section || (sectionItem && !sectionItem.ok && skill !== "speaking");
+  const sectionMissing = sectionItem && !sectionItem.ok;
 
   const groups = section ? sortedGroups(section) : [];
   const groupChecks = (groupId: string) => client.filter((c) => c.target.kind === "group" && c.target.groupId === groupId);
@@ -938,9 +1011,7 @@ function SkillChecklist({
   const issueCount = groupErrorCount + sectionErrors.length + (sectionMissing ? 1 : 0);
 
   let summary = "";
-  if (!section) {
-    summary = skill === "speaking" ? "Not configured yet" : "Missing section";
-  } else if (skill === "listening") {
+  if (skill === "listening") {
     if (groups.length === 0) {
       summary = "No parts yet";
     } else {
@@ -984,23 +1055,16 @@ function SkillChecklist({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
-        {!section && skill !== "speaking" && (
+        {sectionMissing && (
           <Row
             tone="error"
             icon={<XCircle className="size-4 text-danger" />}
             title={`${name} section is missing.`}
+            detail="Full Mock requires every section."
             fix={() => onFix({ kind: "overview" })}
           />
         )}
-        {!section && skill === "speaking" && (
-          <div className="flex items-start gap-2.5 rounded-[8px] border border-border px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-fg-muted">Not configured yet — add speaking tasks from the sidebar.</p>
-            </div>
-            <FixButton onFix={() => onFix({ kind: "overview" })} label={`${name} — not configured`} />
-          </div>
-        )}
-        {section && groups.length === 0 && (
+        {groups.length === 0 && (
           <Row
             tone="error"
             icon={<XCircle className="size-4 text-danger" />}
@@ -1009,19 +1073,18 @@ function SkillChecklist({
             fix={() => onFix({ kind: "section", sectionId: section.id })}
           />
         )}
-        {section &&
-          groups.map((g) => (
-            <GroupCheckRow
-              key={g.id}
-              skill={skill}
-              groups={groups}
-              group={g}
-              checks={groupChecks(g.id)}
-              onFix={onFix}
-            />
-          ))}
+        {groups.map((g) => (
+          <GroupCheckRow
+            key={g.id}
+            skill={skill}
+            groups={groups}
+            group={g}
+            checks={groupChecks(g.id)}
+            onFix={onFix}
+          />
+        ))}
         {skill === "writing" &&
-          section &&
+          profile === "full_mock" &&
           groups.length > 0 &&
           (() => {
             const rows: React.ReactNode[] = [];
@@ -1111,21 +1174,23 @@ function GroupCheckRow({
 
   return (
     <div
-      className={`rounded-[8px] border px-3 py-2 ${
+      className={`min-w-0 rounded-[8px] border px-3 py-2 ${
         errs.length > 0 ? "border-danger-border bg-danger-bg" : "border-border"
       }`}
     >
-      <div className="flex items-start gap-2">
-        {errs.length > 0 ? (
-          <XCircle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
-        ) : warns.length > 0 ? (
-          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
-        ) : (
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-fg">{name}</p>
-          <p className="text-[11px] text-fg-muted">{facts}</p>
+      <div className="flex min-w-0 flex-col gap-2 min-[480px]:flex-row min-[480px]:items-start min-[480px]:gap-2">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          {errs.length > 0 ? (
+            <XCircle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
+          ) : warns.length > 0 ? (
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm font-semibold text-fg">{name}</p>
+            <p className="break-words text-[11px] text-fg-muted">{facts}</p>
+          </div>
         </div>
         <FixButton onFix={() => onFix({ kind: "group", groupId: group.id })} label={name} />
       </div>

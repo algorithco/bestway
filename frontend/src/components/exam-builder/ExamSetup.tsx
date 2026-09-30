@@ -11,8 +11,10 @@ import { Field, Input, Textarea } from "@/components/ui/input";
 import { PageHeader } from "@/components/app/page-header";
 import { useCreateMockExam } from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
-import type { MockExamType } from "@/lib/types";
+import type { MockExamType, MockSkill } from "@/lib/types";
 import { EXAM_TYPES, EXAM_TYPE_LABEL, tx } from "./types";
+
+const ALL_SKILLS: MockSkill[] = ["listening", "reading", "writing", "speaking"];
 
 const TYPE_ICON: Record<MockExamType, typeof BookOpenText> = {
   ielts_academic: GraduationCap,
@@ -44,6 +46,14 @@ export function ExamSetup() {
   const [isFreeForApproved, setIsFreeForApproved] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [starterStructure, setStarterStructure] = React.useState(true);
+  const [mode, setMode] = React.useState<"single" | "full">("single");
+  const [skills, setSkills] = React.useState<MockSkill[]>(["reading"]);
+
+  function toggleSkill(skill: MockSkill) {
+    setSkills((prev) =>
+      prev.includes(skill) ? prev.filter((s) => s !== skill) : [...prev, skill],
+    );
+  }
 
   function submit() {
     setError(null);
@@ -56,10 +66,18 @@ export function ExamSetup() {
       setError(tx(t, "priceInvalid", "Price must be 0 or more."));
       return;
     }
+    const full = mode === "full";
+    const chosen = full ? ALL_SKILLS : ALL_SKILLS.filter((s) => skills.includes(s));
+    if (chosen.length === 0) {
+      setError(tx(t, "needOneSkill", "Select at least one skill."));
+      return;
+    }
     create.mutate(
       {
         type,
         starterStructure,
+        profile: full ? "full_mock" : "practice",
+        skills: chosen,
         title: title.trim(),
         description: description.trim() || undefined,
         level: level.trim() || undefined,
@@ -77,7 +95,7 @@ export function ExamSetup() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl">
+    <div className="mx-auto w-full min-w-0 max-w-3xl px-1 sm:px-0">
       <PageHeader
         title={tx(t, "setupTitle", "Create Exam")}
         description={tx(
@@ -109,19 +127,94 @@ export function ExamSetup() {
                   role="radio"
                   aria-checked={active}
                   onClick={() => setType(ty)}
-                  className={`rounded-[10px] border p-3 text-left transition ${
+                  className={`min-h-[88px] min-w-0 rounded-[10px] border p-4 text-left transition sm:p-3 ${
                     active
                       ? "border-brand bg-brand-subtle"
                       : "border-border bg-surface hover:border-fg-subtle"
                   }`}
                 >
-                  <Icon className={`size-5 ${active ? "text-brand" : "text-fg-muted"}`} />
-                  <p className="mt-1.5 text-sm font-semibold text-fg">{EXAM_TYPE_LABEL[ty]}</p>
+                  <Icon className={`size-5 shrink-0 ${active ? "text-brand" : "text-fg-muted"}`} aria-hidden />
+                  <p className="mt-1.5 truncate text-sm font-semibold text-fg">{EXAM_TYPE_LABEL[ty]}</p>
                   <p className="mt-0.5 text-[11px] leading-snug text-fg-muted">{TYPE_HINT[ty]}</p>
                 </button>
               );
             })}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-4">
+        <CardHeader>
+          <CardTitle>{tx(t, "examMode", "Exam mode")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={tx(t, "examMode", "Exam mode")}>
+            <button
+              key="single"
+              type="button"
+              role="radio"
+              aria-checked={mode === "single"}
+              onClick={() => setMode("single")}
+              className={`min-h-[72px] min-w-0 rounded-[10px] border p-3 text-left transition ${
+                mode === "single"
+                  ? "border-brand bg-brand-subtle"
+                  : "border-border bg-surface hover:border-fg-subtle"
+              }`}
+            >
+              <p className="truncate text-sm font-semibold text-fg">
+                {tx(t, "modeSingle", "Single skill / Practice")}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-fg-muted">
+                {tx(t, "modeSingleHint", "Pick 1–4 skills. Only the chosen sections are created and published.")}
+              </p>
+            </button>
+            <button
+              key="full"
+              type="button"
+              role="radio"
+              aria-checked={mode === "full"}
+              onClick={() => setMode("full")}
+              className={`min-h-[72px] min-w-0 rounded-[10px] border p-3 text-left transition ${
+                mode === "full"
+                  ? "border-brand bg-brand-subtle"
+                  : "border-border bg-surface hover:border-fg-subtle"
+              }`}
+            >
+              <p className="truncate text-sm font-semibold text-fg">
+                {tx(t, "modeFull", "Full Mock")}
+              </p>
+              <p className="mt-0.5 text-[11px] leading-snug text-fg-muted">
+                {tx(t, "modeFullHint", "Strict IELTS blueprint: all four skills with full parts and counts.")}
+              </p>
+            </button>
+          </div>
+          {mode === "single" && (
+            <fieldset>
+              <legend className="text-sm font-medium text-fg">
+                {tx(t, "chooseSkills", "Choose skills")}
+              </legend>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {ALL_SKILLS.map((s) => {
+                  const active = skills.includes(s);
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      aria-pressed={active}
+                      onClick={() => toggleSkill(s)}
+                      className={`min-h-9 rounded-[8px] border px-3 text-sm font-medium capitalize transition ${
+                        active
+                          ? "border-brand bg-brand-subtle text-fg"
+                          : "border-border text-fg-muted hover:border-fg-subtle hover:text-fg"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
         </CardContent>
       </Card>
 
@@ -195,16 +288,16 @@ export function ExamSetup() {
         </CardContent>
       </Card>
 
-      <div className="mt-4 flex items-center justify-between gap-2">
-        <Link href="/exam-builder">
-          <Button variant="outline">
-            <ArrowLeft className="size-4" />
+      <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <Link href="/exam-builder" className="w-full sm:w-auto">
+          <Button variant="outline" className="min-h-10 w-full justify-center sm:w-auto">
+            <ArrowLeft className="size-4 shrink-0" aria-hidden />
             {tc("cancel")}
           </Button>
         </Link>
-        <Button onClick={submit} loading={create.isPending}>
-          {tx(t, "createContinue", "Create & Continue")}
-          <ArrowRight className="size-4" />
+        <Button onClick={submit} loading={create.isPending} className="min-h-10 w-full justify-center sm:w-auto">
+          <span className="truncate">{tx(t, "createContinue", "Create & Continue")}</span>
+          <ArrowRight className="size-4 shrink-0" aria-hidden />
         </Button>
       </div>
     </div>

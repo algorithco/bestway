@@ -223,7 +223,10 @@ export function ExamBuilder({ examId }: { examId: string }) {
     });
   }
   const blockers = React.useMemo(
-    () => examClientChecks(detail?.sections ?? []).filter((c) => c.level === "error").length,
+    () =>
+      examClientChecks(detail?.sections ?? [], detail?.profile ?? "practice").filter(
+        (c) => c.level === "error",
+      ).length,
     [detail],
   );
 

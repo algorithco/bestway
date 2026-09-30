@@ -1127,6 +1127,7 @@
     "unsavedDesc": "You have unsaved edits in this panel. Switching now will lose them. Save first, or discard to continue.",
     "noPassagesHint": "IELTS Reading has 3 passages. Each passage holds its text plus its question groups — create Passage 1 to begin, then paste its text.",
     "liveEditNote": "This exam is live — saved edits apply immediately, no republish needed.",
+    "liveEditWarning": "Published — edits affect live students immediately. Unpublish first for structural changes.",
     "publishConsequence": "Publishing will make this exam available according to its configured access settings.",
     "publishDirtyNote": "You have unsaved changes — they won't be included. Save first, then publish.",
     "readinessCheckFailedHint": "The server check failed — nothing below is marked ready because of it. Your content list is still shown from saved data.",
@@ -1191,6 +1192,16 @@
     "issueResolved": "Resolved",
     "openLocation": "Open location",
     "markResolved": "Mark resolved",
-    "issueResolvedToast": "Issue resolved."
+    "issueResolvedToast": "Issue resolved.",
+    "examMode": "Exam mode",
+    "modeSingle": "Single skill / Practice",
+    "modeSingleHint": "Pick 1–4 skills. Only the chosen sections are created and published.",
+    "modeFull": "Full Mock",
+    "modeFullHint": "Strict IELTS blueprint: all four skills with full parts and counts.",
+    "modePractice": "Practice",
+    "chooseSkills": "Choose skills",
+    "needOneSkill": "Select at least one skill.",
+    "noContent": "No content yet.",
+    "noContentHint": "Add at least one section with a group and a question."
   }
 }
