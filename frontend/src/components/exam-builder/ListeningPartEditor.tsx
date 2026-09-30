@@ -404,6 +404,7 @@ export function ListeningPartEditor({
         title: part.title,
         instructions: part.instructions,
         passageText: "",
+        contentHtml: null,
         // Only stored audio is playable in preview — matches previewGroup ruling.
         hasAudio: group.hasAudio,
         imageUrl: localImageUrl ?? group.imageUrl,
@@ -880,13 +881,14 @@ function toPreviewQuestion(q: BuilderQuestion) {
 /** Server group shape for the read-only student preview (local edits applied). */
 function previewGroup(
   part: BuilderPart,
-  server: { id: string; hasAudio: boolean; imageUrl: string | null },
+  server: { id: string; hasAudio: boolean; imageUrl: string | null; contentHtml?: string | null },
 ) {
   return {
     id: server.id,
     title: part.title,
     instructions: part.instructions,
     passageText: "",
+    contentHtml: server.contentHtml ?? null,
     // Only stored audio is playable in preview — a pending selection uploads on save.
     hasAudio: server.hasAudio,
     imageUrl: server.imageUrl,

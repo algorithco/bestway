@@ -189,9 +189,9 @@ export function VisualQuestionCanvas(props: {
       QuestionNode,
     ],
     content: seededContent,
-    editorProps: {
-      attributes: {
-        class: "min-h-64 p-4 text-sm leading-relaxed focus:outline-none",
+      editorProps: {
+        attributes: {
+          class: "min-h-48 p-3 text-sm leading-relaxed focus:outline-none sm:min-h-64 sm:p-4",
         "aria-label": "Visual question canvas",
       },
       transformPastedHTML(html) {
@@ -386,7 +386,7 @@ export function VisualQuestionCanvas(props: {
   }, []);
 
   return (
-    <div className="rounded border border-border bg-surface">
+    <div className="min-w-0 max-w-full overflow-x-hidden rounded border border-border bg-surface">
       <QuestionTypeToolbar skill={props.skill} onInsert={insertQuestionType} />
       <EditorContent editor={editor} />
       {openId !== null ? (

@@ -53,8 +53,11 @@ export function groupIssueCount(group: MockGroup, skill: MockSkill): number {
   return n;
 }
 
-/** Exam-wide client checks. Server readiness (authoritative for structure) is merged in ReviewPanel. */
-export function examClientChecks(sections: MockSection[]): Check[] {
+/**
+ * Exam-wide client checks. Server readiness (authoritative for structure) is merged in ReviewPanel.
+ * Full Mock task rules (writing task 1+2) apply only to full_mock; practice checks existing content only.
+ */
+export function examClientChecks(sections: MockSection[], profile = "practice"): Check[] {
   const checks: Check[] = [];
   if (sections.length === 0) {
     checks.push({
@@ -133,7 +136,7 @@ export function examClientChecks(sections: MockSection[]): Check[] {
     }
   }
   const writing = sections.find((s) => s.skill === "writing");
-  if (writing && writing.groups.length > 0) {
+  if (writing && writing.groups.length > 0 && profile === "full_mock") {
     const types = new Set(writing.groups.flatMap((g) => g.questions.map((q) => q.type)));
     if (!types.has("essay_task1"))
       checks.push({

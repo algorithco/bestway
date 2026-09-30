@@ -10,6 +10,7 @@ import { Input, Textarea } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type { MockSkill } from "@/lib/types";
 import { tx } from "./types";
+import { GappedContent, hasGappedDocument } from "@/components/mock/gapped-content";
 
 export interface PreviewQuestion {
   id: string;
@@ -26,6 +27,7 @@ export interface PreviewGroup {
   title: string | null;
   instructions: string | null;
   passageText: string | null;
+  contentHtml?: string | null;
   hasAudio: boolean;
   imageUrl: string | null;
   questions: PreviewQuestion[];
@@ -102,12 +104,13 @@ function PreviewBody({
   }
 
   const hasPassage = !!(group.passageText && group.passageText.trim());
+  const hasGappedContent = hasGappedDocument(group.contentHtml);
   const resolvedAudioSrc = audioSrc ?? `/api/backend/mock/groups/${group.id}/audio`;
   const resolvedImageSrc =
     imageSrc ?? (group.imageUrl ? `/api/backend/mock/groups/${group.id}/image` : null);
 
   return (
-    <Card className="mt-1.5 p-4 sm:p-5">
+    <Card className="mt-1.5 min-w-0 overflow-hidden p-3 sm:p-5">
         {group.title?.trim() && <h3 className="font-semibold text-fg">{group.title}</h3>}
         {skill === "listening" && !group.hasAudio && (
           <p className="mt-3 rounded-[8px] border border-warning/25 bg-warning/5 px-3 py-2 text-xs text-fg-muted">
@@ -133,12 +136,37 @@ function PreviewBody({
           <p className="mt-3 text-sm font-medium text-fg-muted">{group.instructions}</p>
         )}
 
-        <div className={cn("mt-3", hasPassage && "lg:grid lg:grid-cols-2 lg:gap-6")}>
-          {hasPassage && (
-            <div className="mb-4 max-h-[70vh] overflow-y-auto whitespace-pre-line rounded-[8px] border border-border bg-bg-subtle p-4 text-sm leading-relaxed text-fg lg:mb-0">
+        <div className={cn("mt-3 min-w-0", hasPassage && !hasGappedContent && "lg:grid lg:grid-cols-2 lg:gap-6")}>
+          {hasPassage && !hasGappedContent && (
+            <div className="mb-4 max-h-[40vh] min-w-0 overflow-y-auto whitespace-pre-line break-words rounded-[8px] border border-border bg-bg-subtle p-3 text-sm leading-relaxed text-fg sm:p-4 lg:mb-0 lg:max-h-[70vh]">
               {group.passageText}
             </div>
           )}
+          {hasGappedContent ? (
+            <div className="overflow-x-auto rounded-[8px] border border-border bg-surface p-3 sm:p-4">
+              <GappedContent
+                contentHtml={group.contentHtml!}
+                questions={group.questions}
+                renderGap={({ number, question }) =>
+                  question ? (
+                    <span className="mx-1 inline-flex max-w-full items-center gap-1 align-middle">
+                      <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-subtle text-xs font-semibold text-brand-subtle-fg tabular-nums">
+                        {number}
+                      </span>
+                      <Input
+                        value={answers[question.id] ?? ""}
+                        onChange={(event) => setAnswer(question.id, event.target.value)}
+                        aria-label={`Answer for question ${number}`}
+                        className="inline-flex h-8 min-w-24 w-32 sm:w-40"
+                      />
+                    </span>
+                  ) : (
+                    <span className="mx-1 rounded bg-danger-bg px-2 py-1 text-xs text-danger">Q{number}</span>
+                  )
+                }
+              />
+            </div>
+          ) : (
           <div className="space-y-4">
             {group.questions.map((q) => (
               <PreviewQuestionInput
@@ -153,7 +181,8 @@ function PreviewBody({
                 {tx(t, "noQuestionsPreview", "No questions yet.")}
               </p>
             )}
-        </div>
+          </div>
+          )}
       </div>
     </Card>
   );
@@ -206,7 +235,7 @@ function PreviewQuestionInput({
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="min-h-48"
+          className="min-h-32 sm:min-h-48"
           placeholder="..."
           spellCheck={false}
           autoCorrect="off"

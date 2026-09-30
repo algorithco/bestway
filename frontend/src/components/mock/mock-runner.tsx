@@ -26,6 +26,7 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ListeningAudio } from "@/components/mock/listening-engine";
+import { GappedContent, hasGappedDocument } from "@/components/mock/gapped-content";
 
 const SINGLE_CHOICE = new Set<MockQuestionType>([
   "multiple_choice",
@@ -386,6 +387,7 @@ function GroupBlock({
   onReviewComplete?: () => void;
 }) {
   const hasPassage = !!group.passageText;
+  const hasGappedContent = hasGappedDocument(group.contentHtml);
   const audioSrc = media(`/mock/groups/${group.id}/audio${strict ? `?attemptId=${attemptId}` : ""}`);
   return (
     <Card className="p-4 sm:p-5">
@@ -422,24 +424,52 @@ function GroupBlock({
         <p className="mt-3 text-sm font-medium text-fg-muted">{group.instructions}</p>
       )}
 
-      <div className={cn("mt-3", hasPassage && "lg:grid lg:grid-cols-2 lg:gap-6")}>
-        {hasPassage && (
+      <div className={cn("mt-3", hasPassage && !hasGappedContent && "lg:grid lg:grid-cols-2 lg:gap-6")}>
+        {hasPassage && !hasGappedContent && (
           <div className="mb-4 max-h-[70vh] overflow-y-auto whitespace-pre-line rounded-[8px] border border-border bg-bg-subtle p-4 text-sm leading-relaxed text-fg lg:mb-0">
             {group.passageText}
           </div>
         )}
-        <div className="space-y-4">
-          {group.questions.map((q) => (
-            <QuestionInput
-              key={q.id}
-              question={q}
-              attemptId={attemptId}
-              value={answers[q.id] ?? ""}
-              hasAudio={audioSet.has(q.id)}
-              onChange={(v) => onAnswer(q.id, v)}
+        {hasGappedContent ? (
+          <div className="overflow-x-auto rounded-[8px] border border-border bg-surface p-3 sm:p-4">
+            <GappedContent
+              contentHtml={group.contentHtml!}
+              questions={group.questions}
+              renderGap={({ number, question }) =>
+                question ? (
+                  <span className="mx-1 inline-flex max-w-full items-center gap-1 align-middle">
+                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand-subtle text-xs font-semibold text-brand-subtle-fg tabular-nums">
+                      {number}
+                    </span>
+                    <Input
+                      value={answers[question.id] ?? ""}
+                      onChange={(event) => onAnswer(question.id, event.target.value)}
+                      aria-label={`Answer for question ${number}`}
+                      className="inline-flex h-8 min-w-24 w-32 sm:w-40"
+                    />
+                  </span>
+                ) : (
+                  <span className="mx-1 inline-flex rounded bg-danger-bg px-2 py-1 text-xs text-danger" role="alert">
+                    Q{number}
+                  </span>
+                )
+              }
             />
-          ))}
-        </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {group.questions.map((q) => (
+              <QuestionInput
+                key={q.id}
+                question={q}
+                attemptId={attemptId}
+                value={answers[q.id] ?? ""}
+                hasAudio={audioSet.has(q.id)}
+                onChange={(v) => onAnswer(q.id, v)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </Card>
   );

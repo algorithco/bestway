@@ -52,8 +52,8 @@ export function PreviewDialog({ examId, onClose }: { examId: string; onClose: ()
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-4xl max-h-[92vh] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-2 shrink-0">
+      <DialogContent className="flex max-h-[92dvh] max-w-4xl flex-col overflow-hidden p-0 sm:max-h-[92vh]">
+        <DialogHeader className="shrink-0 px-4 pb-2 pt-5 sm:px-5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
             {tx(t, "studentView", "Student view")}
           </p>
@@ -67,7 +67,7 @@ export function PreviewDialog({ examId, onClose }: { examId: string; onClose: ()
             </p>
           )}
         </DialogHeader>
-        <DialogBody className="px-5 pb-3 overflow-y-auto space-y-6">
+        <DialogBody className="space-y-6 overflow-y-auto overscroll-contain px-4 pb-3 sm:px-5">
           {q.isLoading && (
             <div className="space-y-2" role="status" aria-label={tx(t, "loadingPreview", "Loading preview")}>
               <Skeleton className="h-24" />
@@ -122,8 +122,8 @@ export function PreviewDialog({ examId, onClose }: { examId: string; onClose: ()
             </section>
           ))}
         </DialogBody>
-        <DialogFooter className="px-5 pb-5 shrink-0">
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="shrink-0 px-4 pb-5 sm:px-5">
+          <Button variant="outline" onClick={onClose} className="min-h-10 w-full justify-center sm:w-auto">
             {tx(t, "backToEditing", "Back to editing")}
           </Button>
         </DialogFooter>

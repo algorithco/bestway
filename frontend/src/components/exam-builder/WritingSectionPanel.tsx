@@ -259,7 +259,7 @@ export function WritingSectionPanel({
           <p className="text-xs font-semibold text-fg-muted">
             Additional writing blocks ({others.length}) — IELTS needs only Task 1 + Task 2.
           </p>
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {others.map((g) => {
               const issues = groupIssueCount(g, "writing");
               const q = taskQuestion(g, "essay_task1");

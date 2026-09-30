@@ -36,6 +36,15 @@ async function bootstrap() {
   // api-contract.md: Base URL .../v1
   app.setGlobalPrefix('v1');
 
+  // AI JSON import paketlari 2 MiB gacha — default 100kb yetmaydi.
+  // Import route'lar uchun raw body saqlanadi (duplicate JSON key detection).
+  app.useBodyParser('json', {
+    limit: '3mb',
+    verify: (req: { url?: string; rawBody?: string }, _res: unknown, buf: Buffer) => {
+      if (req.url?.includes('/mock/exam-imports')) req.rawBody = buf.toString('utf8');
+    },
+  });
+
   // Diqqat: helmet statik fayllardan OLDIN ulanadi, aks holda /admin javoblariga
   // xavfsizlik sarlavhalari qo'shilmay qoladi.
   //

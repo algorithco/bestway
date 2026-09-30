@@ -506,6 +506,8 @@ export class MockGradingService {
         title: g.title,
         instructions: g.instructions,
         passageText: g.passageText,
+        contentHtml: g.contentHtml,
+        contentLayout: g.contentLayout,
         hasAudio: !!g.audioKey,
         questions: g.questions.map((qq) => {
           const ans = answerByQ.get(qq.id);

@@ -55,6 +55,8 @@ export interface ExamRow {
   isDemo: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** Optimistic content version (stale-tab save guard). Defaults to 1. */
+  contentVersion?: number;
   sections: SectionRow[];
 }
 
@@ -128,6 +130,7 @@ export function shapeExam(exam: ExamRow, includeAnswers: boolean, base: string) 
   return {
     id: exam.id,
     type: exam.type,
+    profile: (exam as { profile?: string }).profile ?? 'practice',
     title: exam.title,
     description: exam.description,
     level: exam.level,
@@ -135,6 +138,7 @@ export function shapeExam(exam: ExamRow, includeAnswers: boolean, base: string) 
     isDemo: exam.isDemo,
     createdAt: exam.createdAt,
     updatedAt: exam.updatedAt,
+    contentVersion: exam.contentVersion ?? 1,
     questionCount: countQuestions(exam),
     sections: [...exam.sections]
       .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -238,6 +242,7 @@ export function shapeExamMeta(exam: ExamRow) {
     isDemo: exam.isDemo,
     createdAt: exam.createdAt,
     updatedAt: exam.updatedAt,
+    contentVersion: exam.contentVersion ?? 1,
     questionCount: countQuestions(exam),
     durationMinutes: totalDuration(exam),
     sections: [],

@@ -35,6 +35,19 @@ export class CreateMockExamDto {
   @IsBoolean()
   starterStructure?: boolean;
 
+  /** practice = 1–4 skill (single-skill allowed); full_mock = strict IELTS blueprint. */
+  @IsOptional()
+  @IsIn(['practice', 'full_mock'])
+  profile?: string;
+
+  /** Starter sectionlar shu skilllar uchun yaratiladi (berilmasa barchasi). */
+  @IsOptional()
+  @IsArray()
+  @IsEnum(MockSkill, { each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(4)
+  skills?: MockSkill[];
+
   @IsEnum(MockExamType)
   type: MockExamType;
 
@@ -75,6 +88,10 @@ export class UpdateMockExamDto {
   @MinLength(3)
   @MaxLength(200)
   title?: string;
+
+  @IsOptional()
+  @IsIn(['practice', 'full_mock'])
+  profile?: string;
 
   @IsOptional()
   @IsString()
@@ -384,6 +401,16 @@ export class SaveGroupContentDto extends UpdateGroupDto {
   @ArrayMaxSize(200)
   @IsString({ each: true })
   deletedQuestionIds: string[];
+
+  /**
+   * Optimistic concurrency: yuklangan MockExam.contentVersion. Mos kelmasa
+   * 409 (boshqa tab saqlagan). Berilmasa — tekshirilmaydi (backward compatible).
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  expectedContentVersion?: number;
 }
 
 export class UpdateQuestionDto {

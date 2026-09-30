@@ -135,6 +135,11 @@ export function isAnswerCorrect(
   }
 
   const extra = opts.acceptedVariants ?? [];
-  const respVariants = variants(response, extra);
-  return correctAnswers.some((c) => anyOverlap(respVariants, variants(c, extra)));
+  // acceptedVariants expands only the key side. Expanding the response side too
+  // would let any response matching a variant pass regardless of the key.
+  const respVariants = variants(response);
+  const keySet = new Set<string>();
+  for (const c of correctAnswers) for (const v of variants(c)) keySet.add(v);
+  for (const e of extra) for (const v of variants(e)) keySet.add(v);
+  return anyOverlap(respVariants, keySet);
 }

@@ -181,9 +181,9 @@ export function SectionPanel({
               placeholder={tx(t, "sectionInstrHint", "Shown once at the start of this section.")}
             />
           </Field>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" loading={saving} onClick={() => void save()}>
-              <Save className="size-4" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button size="sm" loading={saving} onClick={() => void save()} className="min-h-9 justify-center sm:w-auto">
+              <Save className="size-4 shrink-0" aria-hidden />
               {tc("save")}
             </Button>
             <Button
@@ -191,22 +191,22 @@ export function SectionPanel({
               variant="danger"
               loading={delSection.isPending}
               onClick={handleDeleteSection}
-              className="ml-auto"
+              className="min-h-9 justify-center sm:ml-auto sm:w-auto"
             >
-              <Trash2 className="size-4" />
-              {tx(t, "deleteSection", "Delete section")}
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "deleteSection", "Delete section")}</span>
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-fg">
+      <div className="flex flex-wrap items-center gap-2">
+        <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-fg">
           {meta.units} ({section.groups.length})
         </h3>
-        <Button size="sm" variant="outline" loading={createGroup.isPending} onClick={handleAddGroup}>
-          <Plus className="size-4" />
-          {meta.addUnit}
+        <Button size="sm" variant="outline" loading={createGroup.isPending} onClick={handleAddGroup} className="min-h-9 shrink-0 max-sm:flex-1 max-sm:justify-center">
+          <Plus className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{meta.addUnit}</span>
         </Button>
       </div>
 
@@ -235,7 +235,7 @@ export function SectionPanel({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {section.groups.map((g, gi) => {
             const issues = groupIssueCount(g, section.skill);
             const n = g.questions.length;
@@ -244,9 +244,9 @@ export function SectionPanel({
                 key={g.id}
                 type="button"
                 onClick={() => onSelect({ kind: "group", groupId: g.id })}
-                className="rounded-[12px] border border-border bg-surface p-4 text-left transition hover:border-fg-subtle"
+                className="min-w-0 rounded-[12px] border border-border bg-surface p-3 text-left transition hover:border-fg-subtle sm:p-4"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   {issues > 0 ? (
                     <XCircle className="size-4 shrink-0 text-danger" />
                   ) : n > 0 ? (

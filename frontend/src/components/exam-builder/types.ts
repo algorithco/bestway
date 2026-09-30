@@ -11,7 +11,7 @@ export function tx(
 ): string {
   try {
     const v = t(key as never) as unknown;
-    if (typeof v === "string" && v !== key) return v;
+    if (typeof v === "string" && v !== key && !v.endsWith(`.${key}`)) return v;
     return fallback;
   } catch {
     return fallback;
