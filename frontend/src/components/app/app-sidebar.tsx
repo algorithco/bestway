@@ -13,31 +13,51 @@ import { cn } from "@/lib/utils";
 /** Yon panel holati — sahifa yangilanganda ham saqlanadi */
 const COLLAPSED_KEY = "bw-sidebar-collapsed";
 
+const collapsedListeners = new Set<() => void>();
+
+function readCollapsedSetting(): boolean {
+  try {
+    return window.localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    /* private mode — o'qib bo'lmaydi, panel ochiq qoladi */
+    return false;
+  }
+}
+
+function subscribeCollapsedSetting(onChange: () => void) {
+  collapsedListeners.add(onChange);
+  // Boshqa tablarda o'zgarsa ham sinxronlashadi
+  window.addEventListener("storage", onChange);
+  return () => {
+    collapsedListeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function writeCollapsedSetting(next: boolean) {
+  try {
+    window.localStorage.setItem(COLLAPSED_KEY, next ? "1" : "0");
+  } catch {
+    /* private mode — saqlanmaydi, lekin panel ishlaydi */
+  }
+  collapsedListeners.forEach((notify) => notify());
+}
+
 export function AppSidebar({ role }: { role: Role }) {
   const t = useTranslations("nav");
   const pathname = usePathname();
   const items = navForRole(role);
-  // Lazy init — serverda har doim ochiq (hydration mos), mijozda saqlangan holat
-  const [collapsed, setCollapsed] = React.useState<boolean>(() => {
-    if (typeof window === "undefined") return false;
-    try {
-      return window.localStorage.getItem(COLLAPSED_KEY) === "1";
-    } catch {
-      /* private mode — saqlanmaydi, lekin panel ishlaydi */
-      return false;
-    }
-  });
+  // Browser-only state via external store: SSR always renders expanded
+  // (matches server HTML), client restores the saved state after hydration.
+  const collapsed = React.useSyncExternalStore(
+    subscribeCollapsedSetting,
+    readCollapsedSetting,
+    () => false,
+  );
 
   const toggle = React.useCallback(() => {
-    setCollapsed((c) => {
-      try {
-        window.localStorage.setItem(COLLAPSED_KEY, c ? "0" : "1");
-      } catch {
-        /* ignore */
-      }
-      return !c;
-    });
-  }, []);
+    writeCollapsedSetting(!collapsed);
+  }, [collapsed]);
 
   return (
     <aside

@@ -1,0 +1,115 @@
+.bw-map {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  background: #0c1206;
+}
+
+/* Contain Leaflet's high internal z-indexes (controls go up to 1000)
+   so the overlay info card (z-10 sibling) always paints above. */
+.bw-map .leaflet-container {
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+  background: #0c1206;
+  font: inherit;
+  outline: none;
+}
+
+.bw-map .leaflet-container:focus-visible {
+  outline: 2px solid #89f336;
+  outline-offset: -2px;
+}
+
+/* Dark-mode tile filter — OSM raster tiles are light-styled; this recolors
+   them for the dark-only theme. Drop this rule if tiles become native-dark. */
+.bw-map .leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) brightness(0.94) contrast(0.92) saturate(0.85);
+}
+
+/* Required attribution — restyled to sit quietly in the dark theme. */
+.bw-map .leaflet-control-attribution {
+  background: rgb(9 12 5 / 0.72);
+  color: #8a937c;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-top-left-radius: 8px;
+  backdrop-filter: blur(4px);
+}
+
+.bw-map .leaflet-control-attribution a {
+  color: #aab59a;
+}
+
+/* Dark zoom control matching the site surface. */
+.bw-map .leaflet-bar {
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+}
+
+.bw-map .leaflet-bar a {
+  background: rgb(16 22 8 / 0.92);
+  color: #e8f3d8;
+  border-bottom: 1px solid rgb(255 255 255 / 0.1);
+  backdrop-filter: blur(8px);
+}
+
+.bw-map .leaflet-bar a:hover,
+.bw-map .leaflet-bar a:focus-visible {
+  background: #1d2a0e;
+  color: #89f336;
+}
+
+/* Brand pin — pulsing green marker, no default Leaflet images needed. */
+.bw-pin {
+  position: relative;
+  width: 44px;
+  height: 56px;
+  cursor: pointer;
+}
+
+.bw-pin__pulse {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 30px;
+  height: 12px;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: rgb(137 243 54 / 0.45);
+  filter: blur(2px);
+  animation: bw-pin-pulse 2.2s ease-out infinite;
+}
+
+.bw-pin svg {
+  position: relative;
+  display: block;
+  width: 44px;
+  height: 56px;
+  filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.55));
+}
+
+@keyframes bw-pin-pulse {
+  0% {
+    transform: translateX(-50%) scale(0.5);
+    opacity: 0.9;
+  }
+  70% {
+    transform: translateX(-50%) scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(-50%) scale(1.4);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bw-pin__pulse {
+    animation: none;
+    opacity: 0.5;
+    transform: translateX(-50%) scale(1);
+  }
+}

@@ -24,6 +24,9 @@ export interface GroupRow {
   title: string | null;
   instructions: string | null;
   passageText: string | null;
+  contentHtml: string | null;
+  audioScript: string | null;
+  contentLayout: string | null;
   audioKey: string | null;
   imageKey: string | null;
   partNumber: number | null;
@@ -85,6 +88,8 @@ export function shapeGroup(g: GroupRow, includeAnswers: boolean, base: string) {
     title: g.title,
     instructions: g.instructions,
     passageText: g.passageText,
+    contentHtml: g.contentHtml,
+    contentLayout: g.contentLayout,
     hasAudio: !!g.audioKey,
     audioUrl: g.audioKey ? `${base}/mock/groups/${g.id}/audio` : null,
     imageUrl: g.imageKey ? `${base}/mock/groups/${g.id}/image` : null,
@@ -94,6 +99,7 @@ export function shapeGroup(g: GroupRow, includeAnswers: boolean, base: string) {
     questions: [...g.questions]
       .sort((a, b) => a.sortOrder - b.sortOrder || a.number - b.number)
       .map((q) => shapeQuestion(q, includeAnswers)),
+    ...(includeAnswers ? { audioScript: g.audioScript } : {}),
   };
 }
 

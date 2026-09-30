@@ -2,6 +2,7 @@
 
 import { useLocale } from "next-intl";
 import { useParams } from "next/navigation";
+import * as React from "react";
 import { useTransition } from "react";
 import { Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,20 +21,30 @@ export function LanguageSwitcher() {
   const pathname = usePathname();
   const params = useParams();
   const [isPending, startTransition] = useTransition();
+  // Controlled + non-modal: a modal menu locks <body> (overflow hidden +
+  // padding-right compensation). If locale navigation unmounts the tree while
+  // it is open, that cleanup never runs — scrollbar vanishes (~15px right gap,
+  // content shifts) and the stuck overlay eats clicks. Non-modal never locks.
+  const [open, setOpen] = React.useState(false);
 
   function switchTo(next: Locale) {
+    // Same locale — no navigation (avoids a pointless replace + scroll jump).
+    if (next === locale) return;
+    // Close first, navigate after: menu state never survives into the
+    // locale transition, and scroll position is preserved.
+    setOpen(false);
     startTransition(() => {
       // pathname bu yerda tilsiz ko'rinishda ("/dashboard"), params dinamik segmentlarni saqlaydi
       router.replace(
         // @ts-expect-error — dinamik marshrutlar uchun params tipini next-intl aniq bilmaydi
         { pathname, params },
-        { locale: next },
+        { locale: next, scroll: false },
       );
     });
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" disabled={isPending} className="gap-1.5 px-2">
           <Globe className="size-4" />
