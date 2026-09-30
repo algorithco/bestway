@@ -635,10 +635,12 @@ model MockImportSourceMap {
 }
 
 /// Paketdagi review issue lar — teacher resolve qilgunga qadar publish bloklanadi.
+/// sourceKey + entityKind (section|group|question) editor navigatsiyasi uchun.
 model MockImportReviewIssue {
   id           String    @id @default(uuid())
   importId     String
   sourceKey    String?
+  entityKind   String?
   code         String
   path         String
   message      String

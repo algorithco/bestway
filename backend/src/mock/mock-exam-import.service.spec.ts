@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { describe, expect, it, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { MockExamImportService } from './mock-exam-import.service';
+import { MockExamImportService, resolveIssueSource } from './mock-exam-import.service';
 import { canonicalChecksum } from './mock-import-validate';
 
 function sample() {
@@ -141,6 +141,76 @@ describe('mock exam JSON import (RED)', () => {
     const res = await service.commitImport(actor, pkg, {}, checksum);
     expect(res.replay).toBe(true);
     expect(res.examId).toBe('exam-1');
+  });
+
+  it('resolves issue pointers to the nearest source (question > group > section)', () => {
+    const pkg = sample() as any;
+    expect(resolveIssueSource(pkg, '/exam/sections/0/groups/0/questions/1/correctAnswers')).toEqual({
+      kind: 'question', key: 'workshop-topic',
+    });
+    expect(resolveIssueSource(pkg, '/exam/sections/0/groups/0/contentHtml')).toEqual({
+      kind: 'group', key: 'library-table',
+    });
+    expect(resolveIssueSource(pkg, '/exam/sections/0/title')).toEqual({ kind: 'section', key: 'reading' });
+    expect(resolveIssueSource(pkg, '/media/0')).toBeNull();
+    expect(resolveIssueSource(pkg, 'nope')).toBeNull();
+  });
+
+  it('persists issue source keys for editor navigation', async () => {
+    const { service, tx, actor } = setup();
+    const pkg = sample();
+    (pkg as any).reviewIssues = [{
+      key: 'ambiguous-one', code: 'AMBIGUOUS_TEXT',
+      path: '/exam/sections/0/groups/1/questions/0/prompt',
+      message: 'Wording unclear.', sourceRef: 'p1',
+    }];
+    const created: any[] = [];
+    tx.mockImportReviewIssue = { createMany: vi.fn(async ({ data }: any) => { created.push(...data); return { count: data.length }; }) };
+    const checksum = canonicalChecksum(pkg);
+    await service.commitImport(actor, pkg, {}, checksum);
+    expect(created).toHaveLength(1);
+    expect(created[0]).toMatchObject({ sourceKey: 'quiet-room', entityKind: 'question', status: 'open' });
+  });
+
+  it('by-exam provenance is owner/admin-only and maps issues to entities', async () => {
+    const { service, prisma } = setup();
+    (prisma as any).mockExam = { findUnique: vi.fn(async () => ({ id: 'exam-1', createdById: 'teacher-1' })) };
+    (prisma as any).mockExamImport.findMany = vi.fn(async () => [
+      { id: 'import-1', packageId: 'pkg', revision: 2, profile: 'practice', createdAt: new Date() },
+    ]);
+    (prisma as any).mockImportReviewIssue = {
+      findMany: vi.fn(async () => [
+        { id: 'is-1', code: 'OTHER', path: '/exam/sections/0/title', message: 'm', sourceKey: 'reading', entityKind: 'section', status: 'open' },
+      ]),
+    };
+    (prisma as any).mockImportSourceMap = {
+      findMany: vi.fn(async () => [{ kind: 'section', sourceKey: 'reading', entityId: 'sec-1' }]),
+    };
+    const owner = await service.getByExam({ id: 'teacher-1', role: 'teacher' } as never, 'exam-1');
+    expect(owner.packageId).toBe('pkg');
+    expect(owner.openIssues).toBe(1);
+    expect(owner.sourceMaps).toEqual([{ kind: 'section', sourceKey: 'reading', entityId: 'sec-1' }]);
+    const admin = await service.getByExam({ id: 'admin-1', role: 'admin' } as never, 'exam-1');
+    expect(admin.packageId).toBe('pkg');
+    await expect(service.getByExam({ id: 'other', role: 'teacher' } as never, 'exam-1')).rejects.toMatchObject({ status: 404 });
+    (prisma as any).mockExamImport.findMany = vi.fn(async () => []);
+    await expect(service.getByExam({ id: 'teacher-1', role: 'teacher' } as never, 'exam-1')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('resolveIssue is owner/admin-only and audited', async () => {
+    const { service, prisma, audit } = setup();
+    (prisma as any).mockImportReviewIssue = {
+      findUnique: vi.fn(async () => ({ id: 'is-1', importId: 'import-1', code: 'OTHER', path: '/a', status: 'open' })),
+      update: vi.fn(async ({ data }: any) => ({ id: 'is-1', ...data })),
+    };
+    (prisma as any).mockExamImport.findUnique = vi.fn(async () => ({ id: 'import-1', examId: 'exam-1' }));
+    (prisma as any).mockExam = { findUnique: vi.fn(async () => ({ id: 'exam-1', createdById: 'teacher-1' })) };
+    const done = await service.resolveIssue({ id: 'teacher-1', role: 'teacher' } as never, 'is-1');
+    expect((done as any).status).toBe('resolved');
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'mock.exam.import.issue.resolve' }));
+    await expect(service.resolveIssue({ id: 'other', role: 'teacher' } as never, 'is-1')).rejects.toMatchObject({ status: 403 });
+    (prisma as any).mockImportReviewIssue.findUnique = vi.fn(async () => null);
+    await expect(service.resolveIssue({ id: 'teacher-1', role: 'teacher' } as never, 'is-1')).rejects.toMatchObject({ status: 404 });
   });
 
   it('imported drafts never expose keys/transcripts to students (answer visibility)', async () => {

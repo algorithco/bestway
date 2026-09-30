@@ -193,6 +193,18 @@ export class MockAuthoringService {
         isFreeForApproved: e.isFreeForApproved,
       })),
     );
+    // AI import provenance (latest revision per exam) — list badge uchun.
+    const importRows = await this.prisma.mockExamImport.findMany({
+      where: { examId: { in: exams.map((e) => e.id) } },
+      select: { examId: true, packageId: true, revision: true, createdAt: true },
+      orderBy: { revision: 'desc' },
+    });
+    const importByExam = new Map<string, { packageId: string; revision: number; importedAt: Date }>();
+    for (const r of importRows) {
+      if (!importByExam.has(r.examId)) {
+        importByExam.set(r.examId, { packageId: r.packageId, revision: r.revision, importedAt: r.createdAt });
+      }
+    }
     return exams.map((e) => {
       const questionCount = e.sections.reduce(
         (sum, s) => sum + s.groups.reduce((gs, g) => gs + g._count.questions, 0),
@@ -212,6 +224,7 @@ export class MockAuthoringService {
         durationMinutes: duration,
         price: e.price,
         access: accessMap.get(e.id) ?? 'locked',
+        imported: importByExam.get(e.id) ?? null,
       };
     });
   }
@@ -622,6 +635,15 @@ export class MockAuthoringService {
           409,
         );
       }
+      // Optimistic concurrency: eski tabning saqlashi konflikt sifatida qaytadi.
+      const checkVersion = (dto as { expectedContentVersion?: number }).expectedContentVersion;
+      if (checkVersion !== undefined && (exam as { contentVersion?: number }).contentVersion !== checkVersion) {
+        throw new AppException(
+          'MOCK_CONTENT_CONFLICT',
+          'Imtihon boshqa joyda saqlangan. Qayta yuklab, o‘zgarishlarni qayta kiriting',
+          409,
+        );
+      }
       const ownIds = new Set(group.questions.map((q) => q.id));
       const keptIds = dto.questions.flatMap((q) => q.id ? [q.id] : []);
       const removed = new Set(dto.deletedQuestionIds);
@@ -676,7 +698,7 @@ export class MockAuthoringService {
         ? sanitizeMockContent(dto.audioScript)
         : group.audioScript;
       assertGappedDocumentQuestions(contentHtml, rows.map((q) => q.number));
-      const { questions: _questions, deletedQuestionIds: _deleted, ...material } = dto;
+      const { questions: _questions, deletedQuestionIds: _deleted, expectedContentVersion: _v, ...material } = dto;
       await tx.mockQuestionGroup.update({
         where: { id: groupId },
         data: {
@@ -698,7 +720,17 @@ export class MockAuthoringService {
         include: { questions: { orderBy: [{ sortOrder: 'asc' }, { number: 'asc' }] } },
       });
       if (!freshGroup) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
-      return { saved: questions.length, questions, group: freshGroup };
+      // Version bump faqat tekshiruv so'ralganda — eski mijozlar o'zgarishsiz ishlaydi.
+      let version = (exam as { contentVersion?: number }).contentVersion ?? 1;
+      if (checkVersion !== undefined) {
+        const bumped = await tx.mockExam.update({
+          where: { id: exam.id },
+          data: { contentVersion: { increment: 1 } },
+          select: { contentVersion: true },
+        });
+        version = bumped.contentVersion;
+      }
+      return { saved: questions.length, questions, group: freshGroup, version };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 });
     await this.audit.log({ userId: actor.id, action: 'mock.group.content.save', entity: 'mockQuestionGroup', entityId: groupId, newValue: { count: result.saved } });
     return result;
@@ -1031,6 +1063,16 @@ export class MockAuthoringService {
 
     const total = countQs('listening') + countQs('reading') + countQs('writing');
     items.push({ key: 'total_questions', ok: total > 0, detail: `${total} L+R+W questions` });
+
+    // AI import review issues: teacher resolve qilgunga qadar publish bloklanadi.
+    const openImportIssues = await this.prisma.mockImportReviewIssue.count({
+      where: { import: { examId: id }, status: 'open' },
+    });
+    items.push({
+      key: 'import_issues',
+      ok: openImportIssues === 0,
+      detail: openImportIssues === 0 ? 'no open import issues' : `${openImportIssues} open import issue(s) — resolve in Exam Builder`,
+    });
 
     return { examId: id, ready: items.every((i) => i.ok), items };
   }

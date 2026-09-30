@@ -384,6 +384,16 @@ export class SaveGroupContentDto extends UpdateGroupDto {
   @ArrayMaxSize(200)
   @IsString({ each: true })
   deletedQuestionIds: string[];
+
+  /**
+   * Optimistic concurrency: yuklangan MockExam.contentVersion. Mos kelmasa
+   * 409 (boshqa tab saqlagan). Berilmasa — tekshirilmaydi (backward compatible).
+   */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  expectedContentVersion?: number;
 }
 
 export class UpdateQuestionDto {

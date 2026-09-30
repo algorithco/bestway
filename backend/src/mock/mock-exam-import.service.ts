@@ -23,6 +23,36 @@ function assertStaff(user: AuthUser): void {
 const SKILL_ORDER = ['listening', 'reading', 'writing', 'speaking'];
 const STAGED_TTL_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * Review issue JSON-pointer ini eng yaqin paket manbasiga yechadi
+ * (question > group > section) — editor navigatsiyasi uchun.
+ */
+export function resolveIssueSource(pkg: unknown, pointer: string): { kind: string; key: string } | null {
+  if (typeof pointer !== 'string' || !pointer.startsWith('/')) return null;
+  const parts = pointer.slice(1).split('/').map((p) => p.replace(/~1/g, '/').replace(/~0/g, '~'));
+  if (parts[0] !== 'exam' || parts[1] !== 'sections') return null;
+  const root = pkg as Pkg;
+  const sections = root?.exam?.sections;
+  if (!Array.isArray(sections)) return null;
+  const si = Number(parts[2]);
+  const section = sections[si];
+  if (!section || typeof section.key !== 'string') return null;
+  let out = { kind: 'section', key: section.key as string };
+  if (parts[3] === 'groups') {
+    const gi = Number(parts[4]);
+    const g = section.groups?.[gi];
+    if (!g || typeof g.key !== 'string') return out;
+    out = { kind: 'group', key: g.key as string };
+    if (parts[5] === 'questions') {
+      const qi = Number(parts[6]);
+      const q = g.questions?.[qi];
+      if (!q || typeof q.key !== 'string') return out;
+      out = { kind: 'question', key: q.key as string };
+    }
+  }
+  return out;
+}
+
 export interface CommitResult {
   examId: string;
   importId: string;
@@ -218,14 +248,18 @@ export class MockExamImportService {
         const reviewIssues: any[] = Array.isArray(p.reviewIssues) ? p.reviewIssues : [];
         if (reviewIssues.length) {
           await (tx as any).mockImportReviewIssue.createMany({
-            data: reviewIssues.map((r: any) => ({
-              importId: importRow.id,
-              sourceKey: null,
-              code: r.code,
-              path: r.path,
-              message: r.message,
-              status: 'open',
-            })),
+            data: reviewIssues.map((r: any) => {
+              const src = resolveIssueSource(p, r.path);
+              return {
+                importId: importRow.id,
+                sourceKey: src?.key ?? null,
+                entityKind: src?.kind ?? null,
+                code: r.code,
+                path: r.path,
+                message: r.message,
+                status: 'open',
+              };
+            }),
           });
         }
         if (stagedByKey.size) {
@@ -277,6 +311,75 @@ export class MockExamImportService {
 
   private shapeStatus(row: { id: string; examId: string; revision: number }, replay: boolean) {
     return { importId: row.id, examId: row.examId, revision: row.revision, replay, editorUrl: `/exam-builder/${row.examId}` };
+  }
+
+  /**
+   * Exam Builder uchun import provenance: paket kimligi, vaqti, ochiq
+   * issue lar va source-key → DB ID xaritasi (issue navigatsiyasi uchun).
+   * Faqat imtihon egasi (yoki admin) ko'radi; javob kalitlari Marvel emas —
+   * issue xabarlari staff-only.
+   */
+  async getByExam(actor: AuthUser, examId: string) {
+    assertStaff(actor);
+    const exam = await this.prisma.mockExam.findUnique({ where: { id: examId } });
+    if (!exam) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
+    const owner = (exam as { createdById?: string | null }).createdById;
+    const isAdmin = actor.role === 'admin' || actor.role === 'super_admin';
+    if (!isAdmin && owner !== actor.id) {
+      throw new AppException('MOCK_IMPORT_NOT_FOUND', 'Import topilmadi', 404);
+    }
+    const imports = await this.prisma.mockExamImport.findMany({
+      where: { examId },
+      orderBy: { revision: 'desc' },
+    });
+    if (!imports.length) throw new AppException('MOCK_IMPORT_NOT_FOUND', 'Import topilmadi', 404);
+    const latest = imports[0] as any;
+    const [issues, maps] = await Promise.all([
+      this.prisma.mockImportReviewIssue.findMany({
+        where: { importId: latest.id },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.mockImportSourceMap.findMany({ where: { importId: latest.id } }),
+    ]);
+    return {
+      packageId: latest.packageId as string,
+      revision: latest.revision as number,
+      profile: latest.profile as string,
+      importedAt: latest.createdAt,
+      openIssues: (issues as any[]).filter((i) => i.status !== 'resolved').length,
+      issues: (issues as any[]).map((i) => ({
+        id: i.id, code: i.code, path: i.path, message: i.message,
+        sourceKey: i.sourceKey ?? null, entityKind: i.entityKind ?? null, status: i.status,
+      })),
+      sourceMaps: (maps as any[]).map((m) => ({ kind: m.kind, sourceKey: m.sourceKey, entityId: m.entityId })),
+    };
+  }
+
+  /** Ochiq issue ni yopish — egasi yoki admin, audit bilan (publish gate ochiladi). */
+  async resolveIssue(actor: AuthUser, issueId: string) {
+    assertStaff(actor);
+    const issue = await this.prisma.mockImportReviewIssue.findUnique({ where: { id: issueId } });
+    if (!issue) throw new AppException('MOCK_IMPORT_NOT_FOUND', 'Issue topilmadi', 404);
+    const importRow = await this.prisma.mockExamImport.findUnique({ where: { id: (issue as any).importId } });
+    if (!importRow) throw new AppException('MOCK_IMPORT_NOT_FOUND', 'Import topilmadi', 404);
+    const exam = await this.prisma.mockExam.findUnique({ where: { id: (importRow as any).examId } });
+    if (!exam) throw new AppException('MOCK_EXAM_NOT_FOUND', 'Mock imtihon topilmadi', 404);
+    const isAdmin = actor.role === 'admin' || actor.role === 'super_admin';
+    if (!isAdmin && (exam as { createdById?: string | null }).createdById !== actor.id) {
+      throw new AppException('MOCK_FORBIDDEN', 'Bu amal faqat imtihon egasi uchun', 403);
+    }
+    const updated = await this.prisma.mockImportReviewIssue.update({
+      where: { id: issueId },
+      data: { status: 'resolved', resolvedById: actor.id, resolvedAt: new Date() },
+    });
+    await this.audit.log({
+      userId: actor.id,
+      action: 'mock.exam.import.issue.resolve',
+      entity: 'mockImportReviewIssue',
+      entityId: issueId,
+      newValue: { code: (issue as any).code, path: (issue as any).path },
+    });
+    return updated;
   }
 
   private replayOrConflict(

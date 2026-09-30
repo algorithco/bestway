@@ -105,6 +105,49 @@ describe('atomic block authoring', () => {
   });
 });
 
+describe('import-aware readiness and optimistic save version', () => {
+  it('blocks publish while import issues are open', async () => {
+    const { service, prisma } = setup();
+    (prisma as any).mockExam = {
+      ...(prisma as any).mockExam,
+      findUnique: vi.fn().mockResolvedValue({ id: 'exam', type: 'multilevel', sections: [] }),
+    };
+    (prisma as any).mockImportReviewIssue = { count: vi.fn().mockResolvedValue(2) };
+    const ready = await (service as any).readiness({ id: 'owner', role: 'teacher' }, 'exam');
+    const item = ready.items.find((i: { key: string }) => i.key === 'import_issues');
+    expect(item.ok).toBe(false);
+    expect(ready.ready).toBe(false);
+    (prisma as any).mockImportReviewIssue.count.mockResolvedValue(0);
+    const ready2 = await (service as any).readiness({ id: 'owner', role: 'teacher' }, 'exam');
+    expect(ready2.items.find((i: { key: string }) => i.key === 'import_issues').ok).toBe(true);
+  });
+
+  it('rejects stale versioned saves (409) and bumps the version on success', async () => {
+    const { service, tx, actor, dto } = setup();
+    (tx as any).mockExam = { update: vi.fn().mockImplementation(async ({ data }: any) => ({ contentVersion: 2 })) };
+    (tx as any).mockQuestionGroup.findUnique.mockResolvedValue({
+      id: 'group', questions: [{ id: 'existing', number: 1 }],
+      section: { skill: 'reading', exam: { id: 'exam', type: 'ielts_academic', createdById: 'owner', isPublished: false, contentVersion: 3 } },
+    });
+    await expect(
+      service.saveGroupContent(actor, 'group', { ...dto, expectedContentVersion: 2 } as never),
+    ).rejects.toMatchObject({ code: 'MOCK_CONTENT_CONFLICT' });
+    expect((tx as any).mockExam.update).not.toHaveBeenCalled();
+    const ok = await service.saveGroupContent(actor, 'group', { ...dto, expectedContentVersion: 3 } as never);
+    expect((ok as { version: number }).version).toBe(2);
+    expect((tx as any).mockExam.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'exam' } }),
+    );
+  });
+
+  it('leaves the version untouched when the client sends none', async () => {
+    const { service, tx, actor, dto } = setup();
+    const ok = await service.saveGroupContent(actor, 'group', dto);
+    expect((ok as { version: number }).version).toBe(1);
+    expect((tx as any).mockExam?.update ?? null).toBeNull();
+  });
+});
+
 describe('exam starter structure', () => {
   it('creates all IELTS units as empty editable blocks', () => {
     const sections = starterSections('ielts_academic');

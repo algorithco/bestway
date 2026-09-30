@@ -72,4 +72,19 @@ export class MockExamImportController {
   ) {
     return this.imports.getByPackage(user, packageId, revision);
   }
+
+  /** Exam Builder provenance: paket kimligi + ochiq issue lar + source xarita. */
+  @Roles('teacher', 'admin', 'super_admin')
+  @Get('by-exam/:examId')
+  byExam(@CurrentUser() user: AuthUser, @Param('examId') examId: string) {
+    return this.imports.getByExam(user, examId);
+  }
+
+  /** Ochiq issue ni yopish — egasi yoki admin (publish gate ochiladi). */
+  @Roles('teacher', 'admin', 'super_admin')
+  @Post('issues/:issueId/resolve')
+  @HttpCode(200)
+  resolveIssue(@CurrentUser() user: AuthUser, @Param('issueId') issueId: string) {
+    return this.imports.resolveIssue(user, issueId);
+  }
 }
