@@ -110,7 +110,7 @@ function PreviewBody({
     imageSrc ?? (group.imageUrl ? `/api/backend/mock/groups/${group.id}/image` : null);
 
   return (
-    <Card className="mt-1.5 p-4 sm:p-5">
+    <Card className="mt-1.5 min-w-0 overflow-hidden p-3 sm:p-5">
         {group.title?.trim() && <h3 className="font-semibold text-fg">{group.title}</h3>}
         {skill === "listening" && !group.hasAudio && (
           <p className="mt-3 rounded-[8px] border border-warning/25 bg-warning/5 px-3 py-2 text-xs text-fg-muted">
@@ -136,9 +136,9 @@ function PreviewBody({
           <p className="mt-3 text-sm font-medium text-fg-muted">{group.instructions}</p>
         )}
 
-        <div className={cn("mt-3", hasPassage && !hasGappedContent && "lg:grid lg:grid-cols-2 lg:gap-6")}>
+        <div className={cn("mt-3 min-w-0", hasPassage && !hasGappedContent && "lg:grid lg:grid-cols-2 lg:gap-6")}>
           {hasPassage && !hasGappedContent && (
-            <div className="mb-4 max-h-[70vh] overflow-y-auto whitespace-pre-line rounded-[8px] border border-border bg-bg-subtle p-4 text-sm leading-relaxed text-fg lg:mb-0">
+            <div className="mb-4 max-h-[40vh] min-w-0 overflow-y-auto whitespace-pre-line break-words rounded-[8px] border border-border bg-bg-subtle p-3 text-sm leading-relaxed text-fg sm:p-4 lg:mb-0 lg:max-h-[70vh]">
               {group.passageText}
             </div>
           )}
@@ -235,7 +235,7 @@ function PreviewQuestionInput({
         <Textarea
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="min-h-48"
+          className="min-h-32 sm:min-h-48"
           placeholder="..."
           spellCheck={false}
           autoCorrect="off"

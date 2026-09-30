@@ -286,7 +286,7 @@ export function GroupEditor({
   const visualImageSrc = localImageUrl ?? (group.imageUrl ? serverImage : null);
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
       {errors.length > 0 && (
         <div className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-danger">
           <ul className="list-disc space-y-0.5 pl-4">
@@ -298,13 +298,13 @@ export function GroupEditor({
       )}
 
       {/* Material */}
-      <Card>
+      <Card className="min-w-0 overflow-hidden">
         <CardHeader>
-          <div className="flex items-center justify-between gap-2">
-            <CardTitle>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <CardTitle className="min-w-0 flex-1 truncate">
               {part.title.trim() || `${meta.unit} · ${tx(t, "material", "material")}`}
             </CardTitle>
-            <Badge variant="info" className="capitalize">
+            <Badge variant="info" className="shrink-0 capitalize">
               {skill}
             </Badge>
           </div>
@@ -409,7 +409,7 @@ export function GroupEditor({
             {localAudioUrl && (
               <audio controls preload="metadata" src={localAudioUrl} className="mt-2 h-9 w-full" />
             )}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <input
                 ref={audioRef}
                 type="file"
@@ -424,20 +424,22 @@ export function GroupEditor({
                   update((p) => ({ ...p, audioPendingFile: f, audioFileName: f.name, hasAudio: true }));
                 }}
               />
-              <Button size="sm" variant="outline" onClick={() => audioRef.current?.click()}>
-                <Upload className="size-4" />
-                {group.hasAudio || part.audioPendingFile
-                  ? tx(t, "replaceAudio", "Replace audio")
-                  : tx(t, "uploadAudio", "Upload audio")}
+              <Button size="sm" variant="outline" onClick={() => audioRef.current?.click()} className="min-h-9 w-full justify-center sm:w-auto">
+                <Upload className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">
+                  {group.hasAudio || part.audioPendingFile
+                    ? tx(t, "replaceAudio", "Replace audio")
+                    : tx(t, "uploadAudio", "Upload audio")}
+                </span>
               </Button>
               {(part.audioFileName || part.audioDurationSec != null) && (
-                <span className="text-xs text-fg-muted">
+                <span className="min-w-0 break-all text-xs text-fg-muted">
                   {part.audioFileName}
                   {part.audioDurationSec != null && ` · ${fmtDuration(part.audioDurationSec)}`}
                 </span>
               )}
-              <div className="ml-auto flex items-center gap-2">
-                <Field label={tx(t, "playLimit", "Plays")} htmlFor="ge-plays" className="w-20">
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <Field label={tx(t, "playLimit", "Plays")} htmlFor="ge-plays" className="w-full sm:w-20">
                   <Input
                     id="ge-plays"
                     type="number"
@@ -494,9 +496,9 @@ export function GroupEditor({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" loading={saving} onClick={() => void save()}>
-              <Save className="size-4" />
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            <Button size="sm" loading={saving} onClick={() => void save()} className="min-h-9 justify-center sm:w-auto">
+              <Save className="size-4 shrink-0" aria-hidden />
               {tc("save")}
             </Button>
             <Button
@@ -504,23 +506,23 @@ export function GroupEditor({
               variant="danger"
               loading={delGroup.isPending}
               onClick={handleDeleteGroup}
-              className="ml-auto"
+              className="min-h-9 justify-center sm:ml-auto sm:w-auto"
             >
-              <Trash2 className="size-4" />
-              {tx(t, "deleteBlock", "Delete block")}
+              <Trash2 className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "deleteBlock", "Delete block")}</span>
             </Button>
           </div>
         </CardContent>
       </Card>
 
       {/* Questions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-sm font-bold text-fg">
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center">
+        <h3 className="min-w-0 flex-1 truncate text-sm font-bold text-fg">
           {tx(t, "questionsTitle", "Questions")} ({mode === "visual" ? visualQuestions.length : part.questions.length})
         </h3>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
           <div
-            className="flex items-center gap-1 rounded-[8px] border border-border p-0.5"
+            className="col-span-2 flex items-center gap-1 rounded-[8px] border border-border p-1 sm:col-span-1"
             role="tablist"
             aria-label={tx(t, "questionMode", "Question mode")}
           >
@@ -529,7 +531,7 @@ export function GroupEditor({
               role="tab"
               aria-selected={mode === "form"}
               onClick={() => selectMode("form")}
-              className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "form" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+              className={`min-h-8 flex-1 rounded-[6px] px-3 py-1.5 text-xs font-medium transition sm:flex-none ${mode === "form" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {tx(t, "formList", "Form list")}
             </button>
@@ -538,23 +540,23 @@ export function GroupEditor({
               role="tab"
               aria-selected={mode === "visual"}
               onClick={() => selectMode("visual")}
-              className={`rounded-[6px] px-2.5 py-1 text-xs font-medium transition ${mode === "visual" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
+              className={`min-h-8 flex-1 rounded-[6px] px-3 py-1.5 text-xs font-medium transition sm:flex-none ${mode === "visual" ? "bg-surface-hover text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {tx(t, "visualPaste", "Visual paste")}
             </button>
           </div>
-          <Button size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)}>
-            {showPreview ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            {tx(t, "preview", "Preview")}
+          <Button size="sm" variant="outline" onClick={() => setShowPreview((v) => !v)} className="min-h-9 justify-center">
+            {showPreview ? <EyeOff className="size-4 shrink-0" aria-hidden /> : <Eye className="size-4 shrink-0" aria-hidden />}
+            <span className="truncate">{tx(t, "preview", "Preview")}</span>
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowImport((v) => !v)}>
-            <Upload className="size-4" />
-            {tx(t, "import", "Import")}
+          <Button size="sm" variant="outline" onClick={() => setShowImport((v) => !v)} className="min-h-9 justify-center">
+            <Upload className="size-4 shrink-0" aria-hidden />
+            <span className="truncate">{tx(t, "import", "Import")}</span>
           </Button>
           {mode === "form" && (
-            <Button size="sm" variant="outline" onClick={addQuestion}>
-              <Plus className="size-4" />
-              {tx(t, "addQuestion", "Add question")}
+            <Button size="sm" variant="outline" onClick={addQuestion} className="col-span-2 min-h-9 justify-center sm:col-span-1">
+              <Plus className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "addQuestion", "Add question")}</span>
             </Button>
           )}
         </div>

@@ -165,7 +165,7 @@ export function ReadingSectionPanel({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {passages.map((g, gi) => {
             const passageNo = gi + 1;
             const issues = groupIssueCount(g, "reading");
