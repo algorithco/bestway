@@ -22,6 +22,7 @@ import {
   ListChecks,
   Layers,
   Sparkles,
+  ClipboardPaste,
   X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -33,6 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/feedback";
 import { QuestionFormDialog } from "@/components/tests/question-form-dialog";
+import { BulkQuestionImportDialog } from "@/components/tests/bulk-question-import-dialog";
 import { GapFillBuilder } from "@/components/tests/gap-fill-builder";
 import { useTest, useDeleteQuestion, useAddQuestion } from "@/hooks/use-tests";
 import type { TestSection, TestQuestionFull } from "@/lib/types";
@@ -81,6 +83,7 @@ export function TestManageView({ testId }: { testId: string }) {
 
   const [addOpen, setAddOpen] = React.useState(false);
   const [gapOpen, setGapOpen] = React.useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = React.useState(false);
   const [editQuestion, setEditQuestion] = React.useState<TestQuestionFull | null>(null);
   const [search, setSearch] = React.useState("");
   const [collapsed, setCollapsed] = React.useState<Set<TestSection>>(new Set());
@@ -286,7 +289,7 @@ export function TestManageView({ testId }: { testId: string }) {
       </Link>
 
       {/* Header */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mb-4 flex flex-col gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="brand">{test.type.toUpperCase()}</Badge>
@@ -318,7 +321,7 @@ export function TestManageView({ testId }: { testId: string }) {
             )}
           </p>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={expandAll} className="hidden sm:inline-flex">
             <ChevronDown className="size-4" /> {tFallback(t, "expandAll", "Expand")}
           </Button>
@@ -329,7 +332,11 @@ export function TestManageView({ testId }: { testId: string }) {
             <Layers />
             {tFallback(t, "gapFill", "Gap-fill")}
           </Button>
-          <Button size="sm" onClick={() => setAddOpen(true)}>
+          <Button size="sm" onClick={() => setBulkImportOpen(true)}>
+            <ClipboardPaste />
+            {tFallback(t, "bulkImport", "Smart paste")}
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
             <Plus />
             {tFallback(t, "addQuestion", "Add question")}
           </Button>
@@ -396,6 +403,9 @@ export function TestManageView({ testId }: { testId: string }) {
                 <Button size="sm" variant="outline" onClick={() => setGapOpen(true)}>
                   <Layers />
                   {tFallback(t, "gapFill", "Gap-fill")}
+                </Button>
+                <Button size="sm" onClick={() => setBulkImportOpen(true)}>
+                  <ClipboardPaste /> {tFallback(t, "bulkImport", "Smart paste")}
                 </Button>
                 <Button size="sm" onClick={() => setAddOpen(true)}>
                   <Plus /> {tFallback(t, "addQuestion", "Add question")}
@@ -615,6 +625,7 @@ export function TestManageView({ testId }: { testId: string }) {
 
       <QuestionFormDialog open={addOpen} onClose={() => setAddOpen(false)} testId={testId} />
       <GapFillBuilder open={gapOpen} onClose={() => setGapOpen(false)} testId={testId} />
+      <BulkQuestionImportDialog open={bulkImportOpen} onClose={() => setBulkImportOpen(false)} testId={testId} />
       <QuestionFormDialog
         open={!!editQuestion}
         onClose={() => setEditQuestion(null)}

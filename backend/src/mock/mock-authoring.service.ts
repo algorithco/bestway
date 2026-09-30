@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../videos/storage.service';
 import {
   AddQuestionsDto,
+  SaveGroupContentDto,
   CreateGroupDto,
   CreateMockExamDto,
   CreateSectionDto,
@@ -24,6 +25,7 @@ import { buildCorrectAnswers, parseQuestions } from './mock-parse';
 import { audioContentType } from './mock-storage';
 import { AUTO_SKILLS } from './mock-scoring';
 import { ExamRow, shapeExam, shapeExamMeta, totalDuration } from './mock-shape';
+import { starterSections } from './mock-starter';
 
 /** Variantlar (options) majburiy bo'lgan savol turlari */
 const OPTION_TYPES = new Set<MockQuestionType>([
@@ -81,6 +83,7 @@ export class MockAuthoringService {
         price: dto.price ?? 0,
         isFreeForApproved: dto.isFreeForApproved ?? true,
         createdById: actor.id,
+        ...(dto.starterStructure ? { sections: { create: starterSections(dto.type) } } : {}),
       },
     });
     await this.audit.log({
@@ -576,6 +579,69 @@ export class MockAuthoringService {
       orderBy: { sortOrder: 'asc' },
     });
     return { added: data.length, questions };
+  }
+
+  async saveGroupContent(actor: AuthUser, groupId: string, dto: SaveGroupContentDto) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const group = await tx.mockQuestionGroup.findUnique({
+        where: { id: groupId },
+        include: { questions: true, section: { include: { exam: true } } },
+      });
+      if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Block not found', 404);
+      const exam = group.section.exam;
+      if (!['admin', 'super_admin', 'teacher'].includes(actor.role) ||
+          (actor.role === 'teacher' && exam.createdById !== actor.id)) {
+        throw new AppException('MOCK_NOT_OWNER', 'You cannot edit this exam', 403);
+      }
+      // Content changes after students start would alter their questions and results.
+      if (exam.isPublished || await tx.mockAttempt.count({ where: { examId: exam.id } })) {
+        throw new AppException('MOCK_CONTENT_LOCKED', 'Unpublish an unused exam, or clone it before editing content used by students.', 409);
+      }
+      const ownIds = new Set(group.questions.map((q) => q.id));
+      const keptIds = dto.questions.flatMap((q) => q.id ? [q.id] : []);
+      const removed = new Set(dto.deletedQuestionIds);
+      if (new Set(keptIds).size !== keptIds.length || keptIds.some((id) => !ownIds.has(id) || removed.has(id)) ||
+          dto.deletedQuestionIds.some((id) => !ownIds.has(id))) {
+        throw new AppException('MOCK_CONTENT_CONFLICT', 'Question IDs changed. Reload this block before saving.', 409);
+      }
+      // Do not silently drop another editor's newly added questions.
+      if (group.questions.some((q) => !keptIds.includes(q.id) && !removed.has(q.id))) {
+        throw new AppException('MOCK_CONTENT_CONFLICT', 'This block has new questions. Reload before saving.', 409);
+      }
+      const numbers = dto.questions.map((q) => q.number);
+      if (new Set(numbers).size !== numbers.length) {
+        throw new AppException('VALIDATION_ERROR', 'Question numbers must be unique within the block.', 400);
+      }
+      const others = await tx.mockQuestion.findMany({
+        where: { group: { section: { examId: exam.id } }, groupId: { not: groupId }, number: { in: numbers } },
+        select: { number: true },
+      });
+      if (others.length) throw new AppException('VALIDATION_ERROR', `Question numbers already used: ${others.map((q) => q.number).join(', ')}`, 400);
+      const isAuto = AUTO_SKILLS.includes(group.section.skill);
+      const rows = dto.questions.map((q, index) => {
+        if (!q.prompt.trim()) throw new AppException('VALIDATION_ERROR', `Question ${index + 1} needs a prompt.`, 400);
+        this.validateQuestion(q, isAuto, index);
+        return {
+          number: q.number, sortOrder: index, type: q.type, prompt: q.prompt.trim(),
+          options: q.options ?? [], correctAnswers: q.correctAnswers ?? [],
+          acceptedVariants: q.acceptedVariants ?? [], wordLimit: q.wordLimit ?? null,
+          points: this.resolvePoints(exam.type, isAuto, q.points, `Question ${index + 1}: `),
+        };
+      });
+      const { questions: _questions, deletedQuestionIds: _deleted, ...material } = dto;
+      await tx.mockQuestionGroup.update({ where: { id: groupId }, data: material });
+      await tx.mockQuestion.deleteMany({ where: { groupId, id: { in: dto.deletedQuestionIds } } });
+      const questions = [];
+      for (const [index, data] of rows.entries()) {
+        const id = dto.questions[index].id;
+        questions.push(id
+          ? await tx.mockQuestion.update({ where: { id }, data })
+          : await tx.mockQuestion.create({ data: { ...data, groupId } }));
+      }
+      return { saved: questions.length, questions };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 });
+    await this.audit.log({ userId: actor.id, action: 'mock.group.content.save', entity: 'mockQuestionGroup', entityId: groupId, newValue: { count: result.saved } });
+    return result;
   }
 
   async addQuestions(actor: AuthUser, groupId: string, dto: AddQuestionsDto) {

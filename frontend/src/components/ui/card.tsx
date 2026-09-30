@@ -16,7 +16,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-[12px] border border-border bg-surface",
+        "rounded-[18px] border border-border bg-surface",
         interactive && "lift hover:border-border-strong",
         className,
       )}

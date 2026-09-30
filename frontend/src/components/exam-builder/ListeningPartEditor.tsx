@@ -29,12 +29,9 @@ import {
   type BuilderQuestion,
 } from "@/components/mock/exam-builder/types";
 import {
-  useAddMockQuestions,
   useDeleteMockGroup,
-  useDeleteMockQuestion,
   useSetMockGroupMedia,
-  useUpdateMockGroup,
-  useUpdateMockQuestion,
+  useSaveMockGroupContent,
 } from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
 import type { MockExamDetail, MockGroup, MockQuestionType } from "@/lib/types";
@@ -120,10 +117,9 @@ export function ListeningPartEditor({
   const section = detail.sections.find((s) => s.id === sectionId);
   const group = section?.groups.find((g) => g.id === groupId);
 
-  const updateGroup = useUpdateMockGroup(examId);
-  const addQuestions = useAddMockQuestions(examId);
-  const updateQuestion = useUpdateMockQuestion(examId);
-  const deleteQuestion = useDeleteMockQuestion(examId);
+  const saveContent = useSaveMockGroupContent(examId);
+  // Track only IDs this editor has loaded or saved; never delete unseen additions.
+  const persistedQuestionIds = React.useRef(group?.questions.map((q) => q.id) ?? []);
   const setMedia = useSetMockGroupMedia(examId);
   const delGroup = useDeleteMockGroup(examId);
 
@@ -179,7 +175,7 @@ export function ListeningPartEditor({
     const g = group;
     if (!part || !g) return false;
     // Visual mode: run the same save body against the visual copies.
-    const p = mode === "visual" ? { ...part, passageText: visualText, questions: visualQuestions } : part;
+    let p = mode === "visual" ? { ...part, passageText: visualText, questions: visualQuestions } : part;
     const errs = [...validatePart("listening", p), ...duplicateErrors(detail, g.id, p.questions)];
     if (p.passageText.length > 20000) {
       errs.push(tx(t, "passageTooLong", "Passage text must be 20000 characters or fewer."));
@@ -219,51 +215,25 @@ export function ListeningPartEditor({
     setUploadError(null);
     setUploadErrorDetail(null);
     try {
-      await updateGroup.mutateAsync({
+      const saved = await saveContent.mutateAsync({
         groupId: g.id,
         input: {
           title: p.title.trim() || undefined,
-          instructions: p.instructions.trim() || undefined,
+          instructions: p.instructions.trim(),
           partNumber: p.partNumber,
           audioDurationSec: p.audioDurationSec,
           audioPlayLimit: p.audioPlayLimit,
         },
+        questions: p.questions.map((q) => ({ id: q.savedQuestionId, number: q.number, type: q.type, prompt: q.prompt,
+          options: q.options, correctAnswers: q.correctAnswers, acceptedVariants: q.acceptedVariants,
+          points: q.points, wordLimit: q.wordLimit })),
+        deletedQuestionIds: persistedQuestionIds.current.filter((id) => !p.questions.some((local) => local.savedQuestionId === id)),
       });
-      const liveIds = new Set(p.questions.map((q) => q.savedQuestionId).filter(Boolean));
-      const removed = (g.questions ?? []).map((q) => q.id).filter((id) => !liveIds.has(id));
-      for (const qid of removed) await deleteQuestion.mutateAsync(qid);
-      for (const q of p.questions) {
-        if (!q.savedQuestionId) continue;
-        await updateQuestion.mutateAsync({
-          questionId: q.savedQuestionId,
-          input: {
-            number: q.number,
-            type: q.type,
-            prompt: q.prompt,
-            options: q.options.length ? q.options : undefined,
-            correctAnswers: q.correctAnswers.length ? q.correctAnswers : undefined,
-            acceptedVariants: q.acceptedVariants.length ? q.acceptedVariants : undefined,
-            points: q.points,
-            wordLimit: q.wordLimit,
-          },
-        });
-      }
-      const fresh = p.questions.filter((q) => !q.savedQuestionId);
-      if (fresh.length > 0) {
-        await addQuestions.mutateAsync({
-          groupId: g.id,
-          questions: fresh.map((q) => ({
-            number: q.number,
-            type: q.type,
-            prompt: q.prompt,
-            options: q.options.length ? q.options : undefined,
-            correctAnswers: q.correctAnswers.length ? q.correctAnswers : undefined,
-            acceptedVariants: q.acceptedVariants.length ? q.acceptedVariants : undefined,
-            points: q.points,
-            wordLimit: q.wordLimit,
-          })),
-        });
-      }
+      persistedQuestionIds.current = saved.questions.map((q) => q.id);
+      const savedQuestions = p.questions.map((q, index) => ({ ...q, savedQuestionId: saved.questions[index].id }));
+      p = { ...p, questions: savedQuestions };
+      setPart(p);
+      if (mode === "visual") setVisualQuestions(savedQuestions);
       if (p.audioPendingFile || imageFile) {
         const form = new FormData();
         if (p.audioPendingFile) form.append("audio", p.audioPendingFile);
@@ -308,7 +278,7 @@ export function ListeningPartEditor({
     } finally {
       setSaving(false);
     }
-  }, [part, group, detail, imageFile, mode, visualText, visualQuestions, updateGroup, deleteQuestion, updateQuestion, addQuestions, setMedia, t, tc]);
+  }, [part, group, detail, imageFile, mode, visualText, visualQuestions, saveContent, setMedia, localAudioUrl, localImageUrl, t, tc]);
 
   React.useEffect(() => {
     registerSave(() => save());

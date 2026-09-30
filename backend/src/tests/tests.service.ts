@@ -7,8 +7,9 @@ import { AppException } from '../common/app.exception';
 import { Paginated } from '../common/pagination';
 import { AuthUser } from '../common/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { DemoSubmitDto, CreateQuestionDto, CreateTestDto, QueryTestsDto, SubmitAnswerDto, FlagCheatDto, SaveMarksDto, UpdateQuestionDto, UpdateTestDto } from './dto/tests.dto';
+import { DemoSubmitDto, CreateQuestionDto, CreateTestDto, ImportQuestionsDto, QueryTestsDto, SubmitAnswerDto, FlagCheatDto, SaveMarksDto, UpdateQuestionDto, UpdateTestDto } from './dto/tests.dto';
 import { deleteTestAudio, streamTestAudio, testAudioExists } from './tests-storage';
+import { parseTestImport } from './test-import-parser';
 
 export const MANUAL_SECTIONS: TestSection[] = ['writing', 'speaking'];
 export const SECTION_ORDER: TestSection[] = ['listening', 'reading', 'writing', 'speaking'];
@@ -110,6 +111,37 @@ export class TestsService {
       newValue: { testId, section: dto.section },
     });
     return question;
+  }
+
+  previewQuestionImport(dto: ImportQuestionsDto) {
+    return parseTestImport(dto.text, dto.defaultSection);
+  }
+
+  async importQuestions(actor: AuthUser, testId: string, dto: ImportQuestionsDto) {
+    const parsed = parseTestImport(dto.text, dto.defaultSection);
+    if (parsed.errors.length) {
+      throw new AppException('TEST_IMPORT_INVALID', parsed.errors[0].message, 400);
+    }
+    const result = await this.prisma.$transaction(async (tx) => {
+      const test = await tx.test.findUnique({ where: { id: testId }, select: { id: true } });
+      if (!test) throw new AppException('TEST_NOT_FOUND', 'Test topilmadi', 404);
+      await tx.question.createMany({
+        data: parsed.questions.map(({ number: _number, line: _line, options, ...question }) => ({
+          ...question,
+          testId,
+          options: options ? (options as Prisma.InputJsonValue) : undefined,
+        })),
+      });
+      return { added: parsed.questions.length, sectionCounts: parsed.sectionCounts };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    await this.audit.log({
+      userId: actor.id,
+      action: 'questions.import',
+      entity: 'test',
+      entityId: testId,
+      newValue: result,
+    });
+    return result;
   }
 
   async updateQuestion(actor: AuthUser, questionId: string, dto: UpdateQuestionDto) {

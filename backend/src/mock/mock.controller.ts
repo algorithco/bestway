@@ -23,6 +23,7 @@ import { CurrentUser, OptionalAuth, Roles } from '../common/decorators';
 import { AuthUser } from '../common/types';
 import {
   AddQuestionsDto,
+  SaveGroupContentDto,
   BulkAnswersDto,
   ConfirmPurchaseDto,
   CreateGroupDto,
@@ -56,6 +57,17 @@ import { mockMediaMulterOptions, speakingAudioMulterOptions } from './mock-stora
 @ApiTags('mock')
 @Controller('mock')
 export class MockController {
+  @ApiBearerAuth()
+  @Roles('teacher', 'admin', 'super_admin')
+  @Put('groups/:groupId/content')
+  saveGroupContent(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId') groupId: string,
+    @Body() dto: SaveGroupContentDto,
+  ) {
+    return this.authoring.saveGroupContent(user, groupId, dto);
+  }
+
   constructor(
     private readonly authoring: MockAuthoringService,
     private readonly attempts: MockAttemptService,

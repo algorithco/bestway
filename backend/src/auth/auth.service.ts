@@ -6,6 +6,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes, randomInt, randomUUID, timingSafeEqual } from 'crypto';
 import { AppException } from '../common/app.exception';
 import { AuthUser } from '../common/types';
+import { AuditService } from '../audit/audit.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SETTING_KEYS, SettingsService } from '../settings/settings.service';
@@ -16,6 +17,7 @@ import {
   LoginDto,
   RefreshDto,
   RegisterDto,
+  UpdateMeDto,
 } from './dto/auth.dto';
 
 const LINK_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -42,6 +44,7 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
   // Kontraktdagi user obyekti: { id, name, phone, role, createdAt }
@@ -366,6 +369,29 @@ export class AuthService {
       unreadNotifications,
       telegramLinked: Boolean(user.telegramChatId),
     };
+  }
+
+  /** O'z ismini tahrirlash — barcha rollar uchun (profil sahifasi) */
+  async updateMe(auth: AuthUser, dto: UpdateMeDto) {
+    const name = dto.name.trim().replace(/\s+/g, ' ');
+    if (name.length < 2 || name.length > 100) {
+      throw new AppException('VALIDATION_ERROR', 'Ism 2 dan 100 belgigacha bo‘lishi kerak', 400);
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: auth.id } });
+    if (!user) throw new AppException('USER_NOT_FOUND', 'Foydalanuvchi topilmadi', 404);
+    if (!user.isActive) throw new AppException('FORBIDDEN', 'Faol bo‘lmagan akkaunt', 403);
+    if (user.name !== name) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { name } });
+      await this.audit.log({
+        userId: user.id,
+        action: 'user.updateMe',
+        entity: 'user',
+        entityId: user.id,
+        oldValue: { name: user.name },
+        newValue: { name },
+      });
+    }
+    return this.me(auth);
   }
 
   private async issueTokens(user: User) {

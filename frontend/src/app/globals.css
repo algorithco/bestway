@@ -1,46 +1,44 @@
 @import "tailwindcss";
 
-/* Dark-only — white/light theme deleted. `:root` IS the dark theme. */
+/* Dark-only — the vivid brand trio sits on warm, ink-dark neutrals. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
  * BESTWAY EC — dizayn tokenlari (faqat qorong'i mavzu)
  *
- * Tamoyil: fon neytral, rang faqat ma'no tashiganda ishlatiladi.
- * Brend yashili (to'q) holat yashilidan (yorqin) ataylab to'qroq —
- * shunda "Saqlash" tugmasi "to'landi" belgisi bilan chalkashmaydi.
+ * Primary: #89F336 (green), highlight: #FFED29 (yellow), warmth: #FF991C (orange).
+ * Dark olive surfaces keep the saturated palette cohesive and readable.
  */
 :root {
-  --bg: #0b0c0e;
-  --bg-subtle: #101215;
-  --surface: #131518;
-  --surface-hover: #1a1d21;
+  --bg: #0b0d08;
+  --bg-subtle: #11140c;
+  --surface: #171a10;
+  --surface-hover: #202418;
 
-  --fg: #e8eaed;
-  --fg-muted: #9ba1a9;
-  --fg-subtle: #6b7280;
+  --fg: #fffdf0;
+  --fg-muted: #b8b9aa;
+  --fg-subtle: #7f8272;
 
-  --border: #272b31;
-  --border-strong: #3a3f47;
+  --border: #303321;
+  --border-strong: #4b5030;
 
-  /* Qorong'ida to'q yashil o'qilmaydi — yorug'roq olinadi, matn esa qoraytiriladi */
-  --brand: #38c765;
-  --brand-hover: #2ba552;
-  --brand-fg: #04240f;
-  --brand-subtle: #123a1f;
-  --brand-subtle-fg: #8ef0ac;
+  --brand: #89F336;
+  --brand-hover: #9dff52;
+  --brand-fg: #101704;
+  --brand-subtle: #213416;
+  --brand-subtle-fg: #b9ff83;
 
-  --accent: #97d95c;
-  --accent-fg: #0f2b05;
-  --accent-subtle: #1d2f11;
+  --accent: #ffed29;
+  --accent-fg: #211d00;
+  --accent-subtle: #3a3510;
 
-  --orange: #f79a35;
-  --orange-fg: #241100;
-  --orange-subtle: #3a2408;
+  --orange: #ff991c;
+  --orange-fg: #251100;
+  --orange-subtle: #3c260d;
 
-  --highlight: #ffd24d;
+  --highlight: #ffed29;
 
-  --success: #4ade80;
+  --success: #89F336;
   --success-bg: #14532d;
   --success-border: #166534;
 
@@ -48,7 +46,7 @@
   --danger-bg: #601b1b;
   --danger-border: #991b1b;
 
-  --warning: #fbbf24;
+  --warning: #ff991c;
   --warning-bg: #5c2c07;
   --warning-border: #92400e;
 
@@ -59,36 +57,35 @@
 }
 
 .dark {
-  --bg: #0b0c0e;
-  --bg-subtle: #101215;
-  --surface: #131518;
-  --surface-hover: #1a1d21;
+  --bg: #0b0d08;
+  --bg-subtle: #11140c;
+  --surface: #171a10;
+  --surface-hover: #202418;
 
-  --fg: #e8eaed;
-  --fg-muted: #9ba1a9;
-  --fg-subtle: #6b7280;
+  --fg: #fffdf0;
+  --fg-muted: #b8b9aa;
+  --fg-subtle: #7f8272;
 
-  --border: #272b31;
-  --border-strong: #3a3f47;
+  --border: #303321;
+  --border-strong: #4b5030;
 
-  /* Qorong'ida to'q yashil o'qilmaydi — yorug'roq olinadi, matn esa qoraytiriladi */
-  --brand: #38c765;
-  --brand-hover: #2ba552;
-  --brand-fg: #04240f;
-  --brand-subtle: #123a1f;
-  --brand-subtle-fg: #8ef0ac;
+  --brand: #89F336;
+  --brand-hover: #9dff52;
+  --brand-fg: #101704;
+  --brand-subtle: #213416;
+  --brand-subtle-fg: #b9ff83;
 
-  --accent: #97d95c;
-  --accent-fg: #0f2b05;
-  --accent-subtle: #1d2f11;
+  --accent: #ffed29;
+  --accent-fg: #211d00;
+  --accent-subtle: #3a3510;
 
-  --orange: #f79a35;
-  --orange-fg: #241100;
-  --orange-subtle: #3a2408;
+  --orange: #ff991c;
+  --orange-fg: #251100;
+  --orange-subtle: #3c260d;
 
-  --highlight: #ffd24d;
+  --highlight: #ffed29;
 
-  --success: #4ade80;
+  --success: #89F336;
   --success-bg: #14532d;
   --success-border: #166534;
 
@@ -96,7 +93,7 @@
   --danger-bg: #601b1b;
   --danger-border: #991b1b;
 
-  --warning: #fbbf24;
+  --warning: #ff991c;
   --warning-bg: #5c2c07;
   --warning-border: #92400e;
 
@@ -152,8 +149,8 @@
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-control: 8px;
-  --radius-card: 12px;
+  --radius-control: 12px;
+  --radius-card: 18px;
 }
 
 @layer base {
@@ -178,7 +175,10 @@
   }
 
   body {
-    background-color: var(--bg);
+    background:
+      radial-gradient(circle at 8% -10%, rgba(137, 243, 54, 0.08), transparent 28rem),
+      radial-gradient(circle at 92% 10%, rgba(255, 153, 28, 0.07), transparent 26rem),
+      var(--bg);
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
     overflow-x: clip;
@@ -649,7 +649,7 @@
 /* ── Gradientlar, to'r fonlar, gradient chegara ──────────────────────────── */
 @layer utilities {
   .text-gradient-brand {
-    background-image: linear-gradient(120deg, var(--brand), var(--accent) 70%, var(--highlight));
+    background-image: linear-gradient(110deg, var(--brand), var(--accent) 52%, var(--orange));
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;

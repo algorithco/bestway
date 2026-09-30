@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import {
-  useAddMockQuestions,
   useCreateMockGroup,
   useDeleteMockSection,
   useUpdateMockSection,
@@ -18,7 +17,7 @@ import { ApiError } from "@/lib/api-client";
 import type { MockExamDetail } from "@/lib/types";
 import { groupIssueCount } from "./checks";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { nextQuestionNumber, tx, type Selection } from "./types";
+import { tx, type Selection } from "./types";
 
 /**
  * Speaking section view: a clean task list.
@@ -48,7 +47,6 @@ export function SpeakingSectionPanel({
   const update = useUpdateMockSection(examId);
   const delSection = useDeleteMockSection(examId);
   const createGroup = useCreateMockGroup(examId);
-  const addQuestions = useAddMockQuestions(examId);
 
   const [title, setTitle] = React.useState(section?.title ?? "");
   const [duration, setDuration] = React.useState(
@@ -114,11 +112,6 @@ export function SpeakingSectionPanel({
         sectionId: section.id,
         input: { title: `Part ${n}`, sortOrder: section.groups.length },
       })) as { id: string };
-      const number = nextQuestionNumber(detail.sections);
-      await addQuestions.mutateAsync({
-        groupId: g.id,
-        questions: [{ number, type: "speaking_task", prompt: "", points: 9 }],
-      });
       onSelect({ kind: "group", groupId: g.id });
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : tc("unknownError"));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api-client";
 import type { Me } from "@/lib/types";
 
@@ -21,5 +21,17 @@ export function useMe() {
     },
     staleTime: 60_000,
     retry: false,
+  });
+}
+
+/** PATCH /auth/me — o'z ismini tahrirlash (barcha rollar) */
+export function useUpdateMe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { name: string }) => api.patch<Me>("/auth/me", input),
+    onSuccess: (me) => {
+      qc.setQueryData(["me"], me);
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }

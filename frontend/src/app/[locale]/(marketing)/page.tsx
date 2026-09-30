@@ -62,9 +62,9 @@ const COURSE_PIXEL: Record<
   (typeof COURSES)[number]["key"],
   { variant: "default" | "blue" | "yellow" | "pink"; gap: number; speed: number; colors: string; active: string }
 > = {
-  ielts: { variant: "blue", gap: 12, speed: 32, colors: "#dcfce7,#86efac,#128139", active: "#128139" },
-  multilevel: { variant: "yellow", gap: 10, speed: 28, colors: "#eaf6d8,#b5e48c,#74bd3a", active: "#74bd3a" },
-  general: { variant: "pink", gap: 10, speed: 55, colors: "#ffedd5,#fed7aa,#f2901c", active: "#f2901c" },
+  ielts: { variant: "blue", gap: 12, speed: 32, colors: "#213416,#89F336,#B9FF83", active: "#89F336" },
+  multilevel: { variant: "yellow", gap: 10, speed: 28, colors: "#3A3510,#FFED29,#FFF580", active: "#FFED29" },
+  general: { variant: "pink", gap: 10, speed: 55, colors: "#3C260D,#FF991C,#FFC268", active: "#FF991C" },
 };
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -111,6 +111,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
           <div className="anim-float absolute -top-24 left-[4%] size-56 rounded-full bg-brand/20 blur-3xl sm:size-72" />
           <div className="anim-float-slow absolute top-8 right-[2%] hidden size-80 rounded-full bg-accent/25 blur-3xl sm:block" />
           <div className="anim-float absolute -bottom-16 left-1/3 hidden size-64 rounded-full bg-highlight/20 blur-3xl sm:block" />
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-accent to-orange" />
         </div>
 
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-8 lg:py-24">
@@ -386,7 +387,7 @@ function FancyCard({
   className?: string;
 }) {
   return (
-    <TiltCard maxTilt={5} className="h-full rounded-[12px]">
+    <TiltCard maxTilt={5} className="h-full rounded-[18px]">
       <Card
         className={cn(
           "shine hover-elevate group relative flex h-full flex-col overflow-hidden p-6 transition-colors duration-300 hover:border-border-strong",

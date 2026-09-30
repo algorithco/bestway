@@ -580,6 +580,24 @@ export interface CreateQuestionInput {
   audioUrl?: string;
 }
 
+export interface TestImportIssue {
+  line?: number;
+  message: string;
+}
+
+export interface TestImportQuestion extends CreateQuestionInput {
+  number: number;
+  line: number;
+  maxScore: number;
+}
+
+export interface TestImportPreview {
+  questions: TestImportQuestion[];
+  errors: TestImportIssue[];
+  warnings: TestImportIssue[];
+  sectionCounts: Partial<Record<TestSection, number>>;
+}
+
 /* ── Videos ──────────────────────────────────────────────────────────────── */
 
 export type VideoAccess = "granted" | "pending_confirmation" | "locked";
@@ -835,6 +853,7 @@ export interface MockPurchaseItem {
 /* ── Mock authoring inputs ───────────────────────────────────────────────── */
 
 export interface CreateMockExamInput {
+  starterStructure?: boolean;
   type: MockExamType;
   title: string;
   description?: string;

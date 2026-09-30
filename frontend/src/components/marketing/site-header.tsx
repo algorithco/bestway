@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/ui/button";
-import GooeyNav from "@/components/ui/gooey-nav";
+import { JellyNav } from "@/components/ui/jelly-nav";
 import { SpecularButton } from "@/components/ui/specular-button";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { Avatar } from "@/components/ui/avatar";
@@ -94,6 +94,13 @@ export function SiteHeader() {
           : "border-b border-transparent bg-transparent",
       )}
     >
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-brand via-accent to-orange transition-opacity duration-300",
+          scrolled ? "opacity-80" : "opacity-30",
+        )}
+      />
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:gap-4">
         <Link
           href="/"
@@ -103,21 +110,21 @@ export function SiteHeader() {
           <Brand size="md" />
         </Link>
 
-        {/* Desktop navigatsiya — GooeyNav (React Bits) */}
-        {/* xl breakpoint keeps RU labels (Преподаватели/Преимущества) from overlapping brand/actions at 1024-1279px */}
+        {/* Desktop navigation — springy jelly selector. */}
+        {/* xl breakpoint keeps longer navigation labels from overlapping brand/actions. */}
         <div className="hidden min-w-0 flex-1 justify-center overflow-hidden xl:flex">
           <div className="max-w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <GooeyNav
-              // Home-anchored hashes ("/#news"), NOT bare "#news": bare hashes
-              // resolve against the current URL and die on sub-pages like /news.
-              items={SECTIONS.map((s) => ({ label: t(s.key), href: `/#${s.hash}` }))}
-              particleCount={8}
-              particleDistances={[60, 10]}
-              particleR={100}
-              initialActiveIndex={activeIdx}
-              animationTime={600}
-              timeVariance={300}
-              colors={[1, 2, 3, 1, 2, 3, 1, 4]}
+            <JellyNav
+              items={SECTIONS.map((section) => ({
+                value: section.hash,
+                label: t(section.key),
+              }))}
+              value={SECTIONS[activeIdx]?.hash ?? SECTIONS[0].hash}
+              onChange={(hash, index) => {
+                setActiveIdx(index);
+                router.push(`/#${hash}`);
+              }}
+              ariaLabel="Main navigation"
             />
           </div>
         </div>
@@ -137,42 +144,41 @@ export function SiteHeader() {
               <Avatar name={me.user.name} size="sm" />
             </Link>
           ) : (
-            <>
+            <div className="hidden items-center gap-1.5 sm:flex">
               <SpecularButton
                 size="sm"
                 radius={12}
                 tint="#ffffff"
                 tintOpacity={0}
                 textColor="var(--fg-muted)"
-                lineColor="#128139"
-                baseColor="#e5e7eb"
+                lineColor="#FFED29"
+                baseColor="#303321"
                 intensity={1}
                 shineSize={10}
                 shineFade={40}
                 thickness={1.2}
                 onClick={() => router.push("/login")}
-                className="hidden sm:inline-flex"
               >
                 {t("login")}
               </SpecularButton>
               <SpecularButton
                 size="sm"
                 radius={12}
-                tint="#128139"
+                tint="#89F336"
                 tintOpacity={1}
-                textColor="#ffffff"
-                lineColor="#ffffff"
-                baseColor="#0d6a2d"
+                textColor="#101704"
+                lineColor="#FFED29"
+                baseColor="#4E9F1E"
                 intensity={1.2}
                 shineSize={10}
                 shineFade={40}
                 thickness={1.2}
                 onClick={() => router.push("/register")}
-                className="hidden shadow-sm sm:inline-flex"
+                className="shadow-sm"
               >
                 {t("heroCta")}
               </SpecularButton>
-            </>
+            </div>
           )}
 
           {/* Mobil menyu tugmasi */}
@@ -229,8 +235,8 @@ export function SiteHeader() {
                       tint="#ffffff"
                       tintOpacity={0}
                       textColor="var(--fg)"
-                      lineColor="#128139"
-                      baseColor="#d1d5db"
+                      lineColor="#FFED29"
+                      baseColor="#303321"
                       intensity={1}
                       shineSize={10}
                       shineFade={40}
@@ -245,11 +251,11 @@ export function SiteHeader() {
                     <SpecularButton
                       size="sm"
                       radius={12}
-                      tint="#128139"
+                      tint="#89F336"
                       tintOpacity={1}
-                      textColor="#ffffff"
-                      lineColor="#ffffff"
-                      baseColor="#0d6a2d"
+                      textColor="#101704"
+                      lineColor="#FFED29"
+                      baseColor="#4E9F1E"
                       intensity={1.2}
                       shineSize={10}
                       shineFade={40}

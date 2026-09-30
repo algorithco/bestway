@@ -9,14 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import {
-  useAddMockQuestions,
   useDeleteMockGroup,
-  useDeleteMockQuestion,
-  useUpdateMockGroup,
-  useUpdateMockQuestion,
+  useSaveMockGroupContent,
 } from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
-import type { MockExamDetail } from "@/lib/types";
+import type { MockQuestionType, MockExamDetail } from "@/lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { StudentPreview } from "./StudentPreview";
 import { nextQuestionNumber, tx, type Selection } from "./types";
@@ -58,10 +55,9 @@ export function SpeakingTaskEditor({
   const section = detail.sections.find((s) => s.id === sectionId);
   const group = section?.groups.find((g) => g.id === groupId);
 
-  const updateGroup = useUpdateMockGroup(examId);
-  const addQuestions = useAddMockQuestions(examId);
-  const updateQuestion = useUpdateMockQuestion(examId);
-  const deleteQuestion = useDeleteMockQuestion(examId);
+  const saveContent = useSaveMockGroupContent(examId);
+  // Track only IDs this editor has loaded or saved; never delete unseen additions.
+  const persistedQuestionIds = React.useRef(group?.questions.map((q) => q.id) ?? []);
   const delGroup = useDeleteMockGroup(examId);
 
   const groupIdsKey = section?.groups.map((g) => g.id).join(",") ?? "";
@@ -128,34 +124,22 @@ export function SpeakingTaskEditor({
     }
     setSaving(true);
     try {
-      await updateGroup.mutateAsync({
+      const saved = await saveContent.mutateAsync({
         groupId: group.id,
         input: {
           title: title.trim() || partLabel,
-          instructions: instructions.trim() || undefined,
-          passageText: context.trim() || undefined,
+          instructions: instructions.trim(),
+          passageText: context.trim(),
         },
+        questions: questions.map((q) => ({ id: q.savedId, number: q.number, type: "speaking_task" as MockQuestionType, prompt: q.prompt, points: 9 })),
+        deletedQuestionIds: persistedQuestionIds.current.filter((id) => !questions.some((local) => local.savedId === id)),
       });
-      const liveIds = new Set(questions.map((q) => q.savedId).filter(Boolean));
-      const removed = (group.questions ?? []).map((q) => q.id).filter((id) => !liveIds.has(id));
-      for (const qid of removed) await deleteQuestion.mutateAsync(qid);
-      for (const q of questions) {
-        if (!q.savedId) continue;
-        await updateQuestion.mutateAsync({
-          questionId: q.savedId,
-          input: { number: q.number, type: "speaking_task", prompt: q.prompt, points: 9 },
-        });
-      }
-      const fresh = questions.filter((q) => !q.savedId);
-      if (fresh.length > 0) {
-        await addQuestions.mutateAsync({
-          groupId: group.id,
-          questions: fresh.map((q) => ({ number: q.number, type: "speaking_task", prompt: q.prompt, points: 9 })),
-        });
-      }
+      persistedQuestionIds.current = saved.questions.map((q) => q.id);
+      const savedQuestions = questions.map((q, index) => ({ ...q, savedId: saved.questions[index].id }));
+      setQuestions(savedQuestions);
       toast.success(tc("saved"));
       setErrors([]);
-      setBaseline({ title, instructions, context, questions: JSON.parse(JSON.stringify(questions)) });
+      setBaseline({ title, instructions, context, questions: JSON.parse(JSON.stringify(savedQuestions)) });
       return true;
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : tc("unknownError");
@@ -165,7 +149,7 @@ export function SpeakingTaskEditor({
     } finally {
       setSaving(false);
     }
-  }, [group, section, questions, title, instructions, context, partLabel, updateGroup, deleteQuestion, updateQuestion, addQuestions, t, tc]);
+  }, [group, section, questions, title, instructions, context, partLabel, saveContent, t, tc]);
 
   React.useEffect(() => {
     registerSave(() => save());

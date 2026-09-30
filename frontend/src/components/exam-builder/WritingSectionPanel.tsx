@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/input";
 import {
-  useAddMockQuestions,
   useCreateMockGroup,
   useDeleteMockSection,
   useUpdateMockSection,
@@ -18,7 +17,7 @@ import { ApiError } from "@/lib/api-client";
 import type { MockExamDetail, MockGroup } from "@/lib/types";
 import { groupIssueCount } from "./checks";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { nextQuestionNumber, tx, type Selection } from "./types";
+import { tx, type Selection } from "./types";
 
 function taskQuestion(g: MockGroup, type: "essay_task1" | "essay_task2") {
   return g.questions.find((q) => q.type === type) ?? g.questions[0] ?? null;
@@ -104,7 +103,6 @@ export function WritingSectionPanel({
   const update = useUpdateMockSection(examId);
   const delSection = useDeleteMockSection(examId);
   const createGroup = useCreateMockGroup(examId);
-  const addQuestions = useAddMockQuestions(examId);
 
   const [title, setTitle] = React.useState(section?.title ?? "");
   const [duration, setDuration] = React.useState(
@@ -160,25 +158,19 @@ export function WritingSectionPanel({
   if (!section) return null;
 
   const groups = section.groups;
-  const task1Group = groups.find((g) => g.questions.some((q) => q.type === "essay_task1"));
-  const task2Group = groups.find((g) => g.questions.some((q) => q.type === "essay_task2"));
+  const task1Group = groups.find((g) => g.questions.some((q) => q.type === "essay_task1") || (!g.questions.length && g.title?.toLowerCase() === "task 1"));
+  const task2Group = groups.find((g) => g.questions.some((q) => q.type === "essay_task2") || (!g.questions.length && g.title?.toLowerCase() === "task 2"));
   const others = groups.filter((g) => g !== task1Group && g !== task2Group);
 
   async function handleAddTask(kind: "task1" | "task2") {
     if (!section || creating) return;
     setCreating(kind);
-    const type = kind === "task1" ? "essay_task1" : "essay_task2";
     const label = kind === "task1" ? "Task 1" : "Task 2";
     try {
       const g = (await createGroup.mutateAsync({
         sectionId: section.id,
         input: { title: label, sortOrder: section.groups.length },
       })) as { id: string };
-      const number = nextQuestionNumber(detail.sections);
-      await addQuestions.mutateAsync({
-        groupId: g.id,
-        questions: [{ number, type, prompt: "", points: 9 }],
-      });
       onSelect({ kind: "group", groupId: g.id });
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : tc("unknownError"));

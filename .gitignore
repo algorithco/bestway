@@ -59,3 +59,8 @@ frontend/public/logotip-grabcut.png
 
 # --- Tooling ---
 .freebuff/
+.incident-recovery/
+BESTWAY-production-deploy-EN.md
+INCIDENT_RESPONSE_REPORT_2026-09-28.md
+
+docker-compose.override.yml

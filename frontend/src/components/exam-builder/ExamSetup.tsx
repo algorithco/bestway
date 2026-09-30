@@ -43,6 +43,7 @@ export function ExamSetup() {
   const [price, setPrice] = React.useState("");
   const [isFreeForApproved, setIsFreeForApproved] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  const [starterStructure, setStarterStructure] = React.useState(true);
 
   function submit() {
     setError(null);
@@ -58,6 +59,7 @@ export function ExamSetup() {
     create.mutate(
       {
         type,
+        starterStructure,
         title: title.trim(),
         description: description.trim() || undefined,
         level: level.trim() || undefined,
@@ -123,6 +125,14 @@ export function ExamSetup() {
         </CardContent>
       </Card>
 
+      <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-brand/30 bg-brand-subtle p-4">
+        <input type="checkbox" checked={starterStructure} onChange={(event) => setStarterStructure(event.target.checked)} className="mt-1 accent-[var(--brand)]" />
+        <span>
+          <span className="block text-sm font-semibold">{t("starterTitle")}</span>
+          <span className="mt-1 block text-xs text-fg-muted">{t(type === "multilevel" ? "starterMultilevel" : "starterIelts")}</span>
+        </span>
+      </label>
+
       <Card className="mt-4">
         <CardHeader>
           <CardTitle>{tx(t, "basics", "Basics")}</CardTitle>
@@ -171,7 +181,7 @@ export function ExamSetup() {
               type="checkbox"
               checked={isFreeForApproved}
               onChange={(e) => setIsFreeForApproved(e.target.checked)}
-              className="mt-0.5 accent-[var(--color-brand,#38c765)]"
+              className="mt-0.5 accent-[var(--color-brand,#89F336)]"
             />
             <span>
               <span className="block text-sm font-medium text-fg">
