@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "1.0",
+  "packageId": "original-library-reading",
+  "revision": 1,
+  "profile": "practice",
+  "source": {
+    "kind": "original_practice",
+    "label": "Original fictional library practice sample",
+    "notes": "Six original Reading questions. This is not a complete IELTS paper or official exam material."
+  },
+  "exam": {
+    "type": "ielts_academic",
+    "title": "Community Library — Reading Practice",
+    "description": "Read the original passage, complete the table and answer the questions.",
+    "level": "B1–B2",
+    "isDemo": true,
+    "price": 0,
+    "isFreeForApproved": false,
+    "sections": [
+      {
+        "key": "reading",
+        "skill": "reading",
+        "title": "Reading",
+        "instructions": "Read the passage carefully. Follow the instructions for each question group.",
+        "durationMinutes": 12,
+        "groups": [
+          {
+            "key": "library-table",
+            "title": "Questions 1–2: Library services",
+            "instructions": "Complete the table. Write ONE WORD ONLY for each answer.",
+            "passageText": "The community library opens at nine on weekdays. Visitors can borrow gardening tools as well as books. On Saturdays, a volunteer runs a workshop about repairing bicycles. The quiet room is upstairs, while group activities take place downstairs. To join the library, residents show a document with their address. Membership is free. The library has recently added two services: tool lending and a bicycle workshop.",
+            "contentHtml": "<h3>Library services</h3><table><thead><tr><th>Service</th><th>Details</th></tr></thead><tbody><tr><td>Lending</td><td>Visitors can borrow gardening <span data-gap=\"1\"></span>.</td></tr><tr><td>Saturday workshop</td><td>A volunteer teaches people to repair <span data-gap=\"2\"></span>.</td></tr></tbody></table>",
+            "contentLayout": "table",
+            "audioScript": "",
+            "questions": [
+              { "key": "borrowed-items", "number": 1, "type": "table_completion", "prompt": "Visitors can borrow gardening ____.", "options": [], "correctAnswers": ["tools"], "acceptedVariants": [], "points": 1, "wordLimit": 1, "sourceRef": "Original passage, sentence 2; table row 1" },
+              { "key": "workshop-topic", "number": 2, "type": "table_completion", "prompt": "A volunteer teaches people to repair ____.", "options": [], "correctAnswers": ["bicycles"], "acceptedVariants": [], "points": 1, "wordLimit": 1, "sourceRef": "Original passage, sentence 3; table row 2" }
+            ]
+          },
+          {
+            "key": "library-questions",
+            "title": "Questions 3–6",
+            "instructions": "Answer using the passage below. For question 6, choose TWO letters.",
+            "passageText": "The community library opens at nine on weekdays. Visitors can borrow gardening tools as well as books. On Saturdays, a volunteer runs a workshop about repairing bicycles. The quiet room is upstairs, while group activities take place downstairs. To join the library, residents show a document with their address. Membership is free. The library has recently added two services: tool lending and a bicycle workshop.",
+            "contentHtml": "",
+            "contentLayout": "document",
+            "audioScript": "",
+            "questions": [
+              { "key": "quiet-room", "number": 3, "type": "multiple_choice", "prompt": "Where is the quiet room?", "options": ["Upstairs", "Downstairs", "Outside"], "correctAnswers": ["A"], "acceptedVariants": [], "points": 1, "sourceRef": "Original passage, sentence 4" },
+              { "key": "membership-cost", "number": 4, "type": "true_false_notgiven", "prompt": "Residents must pay to join the library.", "options": ["TRUE", "FALSE", "NOT GIVEN"], "correctAnswers": ["FALSE"], "acceptedVariants": [], "points": 1, "sourceRef": "Original passage, sentence 6" },
+              { "key": "membership-proof", "number": 5, "type": "short_answer", "prompt": "What information must a resident's document show? Write ONE WORD ONLY.", "options": [], "correctAnswers": ["address"], "acceptedVariants": [], "points": 1, "wordLimit": 1, "sourceRef": "Original passage, sentence 5" },
+              { "key": "new-services", "number": 6, "type": "multi_select", "prompt": "Which TWO services were recently added? Choose TWO letters.", "options": ["Tool lending", "Free meals", "A bicycle workshop", "Language examinations"], "correctAnswers": ["A", "C"], "acceptedVariants": [], "points": 1, "sourceRef": "Original passage, sentence 7" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "media": [],
+  "reviewIssues": []
+}
