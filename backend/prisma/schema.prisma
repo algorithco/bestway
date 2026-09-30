@@ -583,12 +583,92 @@ model MockExam {
   createdById       String? // yaratgan admin/teacher (User.id)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
+  // --- AI JSON import (additive; legacy imtihonlarda default qiymatlar) ---
+  profile         String  @default("practice") // practice | full_mock
+  blueprintRef    String? // full_mock tasdiqlangan blueprint havolasi (ixtiyoriy)
+  contentVersion  Int     @default(1) // optimistic concurrency (teacher save bilan)
 
   sections  MockSection[]
   attempts  MockAttempt[]
   purchases MockPurchase[]
+  imports   MockExamImport[]
 
   @@index([type])
+}
+
+/// AI JSON paketidan yaratilgan draft importi — replay/idempotency ledger.
+/// (createdById, packageId, revision) unique: bir xil paketni qayta yuborish
+/// asl imtihonni qaytaradi, teacher tahririni o'zgartirmaydi.
+model MockExamImport {
+  id                 String   @id @default(uuid())
+  createdById        String // session egasi — AI JSON yaratuvchini tanlay olmaydi
+  packageId          String
+  revision           Int
+  schemaVersion      String   @default("1.0")
+  profile            String   @default("practice")
+  rawChecksum        String // kelgan JSON ning canonical checksum
+  normalizedChecksum String // server normalizatsiyasidan keyingi checksum
+  validatedChecksum  String // dry-run da qaytarilgan checksum (commit tasdig'i)
+  examId             String
+  createdAt          DateTime @default(now())
+
+  exam       MockExam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  sourceMaps MockImportSourceMap[]
+  issues     MockImportReviewIssue[]
+
+  @@unique([createdById, packageId, revision])
+  @@index([examId])
+}
+
+/// Import paketidagi stable source key → yaratilgan DB ID xaritasi.
+model MockImportSourceMap {
+  id        String @id @default(uuid())
+  importId  String
+  kind      String // section | group | question | media
+  sourceKey String
+  entityId  String
+
+  import MockExamImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, kind, sourceKey])
+  @@index([importId])
+}
+
+/// Paketdagi review issue lar — teacher resolve qilgunga qadar publish bloklanadi.
+model MockImportReviewIssue {
+  id           String    @id @default(uuid())
+  importId     String
+  sourceKey    String?
+  code         String
+  path         String
+  message      String
+  status       String    @default("open") // open | resolved
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  import MockExamImport @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId, status])
+}
+
+/// Import media binding uchun staged upload — egasi tekshiriladi, muddati o'tgach o'chadi.
+model MockStagedMedia {
+  id            String    @id @default(uuid())
+  ownerId       String // yuklagan staff (User.id)
+  storageKey    String    @unique // mock/ ichidagi opaque kalit
+  fileName      String // asl basename (ko'rsatish uchun)
+  mimeType      String?
+  sizeBytes     Int
+  checksum      String // sha256 (file content)
+  kind          String // audio | image
+  expiresAt     DateTime
+  claimedAt     DateTime?
+  claimedImportId String?
+  createdAt     DateTime  @default(now())
+
+  @@index([ownerId])
+  @@index([expiresAt])
 }
 
 /// Mock imtihonni sotib olish (video xaridi kabi: qo'lda tasdiqlanadi)
