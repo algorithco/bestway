@@ -22,36 +22,35 @@ const SECTIONS = [
   { hash: "contact", key: "navContact" },
 ] as const;
 
+/** rAF-throttled scroll subscription for useSyncExternalStore (header shade). */
+function subscribeScrollPosition(onChange: () => void) {
+  let ticking = false;
+  const onScroll = () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      ticking = false;
+      onChange();
+    });
+  };
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+}
+
 export function SiteHeader() {
   const t = useTranslations("marketing");
   const router = useRouter();
   const { data: me, isLoading: meLoading } = useMe();
   const isLoggedIn = !!me?.user;
   const [open, setOpen] = React.useState(false);
-  // Initial scroll position is read lazily (SSR-safe) instead of syncing in an effect.
-  const [scrolled, setScrolled] = React.useState(
-    () => typeof window !== "undefined" && window.scrollY > 8,
+  // Scroll position is external browser state: useSyncExternalStore keeps the
+  // SSR HTML (not scrolled) and the client in sync with no hydration mismatch.
+  const scrolled = React.useSyncExternalStore(
+    subscribeScrollPosition,
+    () => window.scrollY > 8,
+    () => false,
   );
   const [activeIdx, setActiveIdx] = React.useState(0);
-
-  React.useEffect(() => {
-    let ticking = false;
-    let lastVal = window.scrollY > 8;
-    const onScroll = () => {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        const next = window.scrollY > 8;
-        if (next !== lastVal) {
-          lastVal = next;
-          setScrolled(next);
-        }
-        ticking = false;
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
 
   // Sync active pill with URL hash and visible section (scroll spy)
   React.useEffect(() => {
@@ -88,12 +87,21 @@ export function SiteHeader() {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 transition-all duration-300",
-        scrolled
-          ? "border-b border-border bg-bg/80 backdrop-blur-md supports-[backdrop-filter]:bg-bg/70"
-          : "border-b border-transparent bg-transparent",
+        "sticky top-0 z-40 border-b transition-colors duration-300",
+        scrolled ? "border-border" : "border-transparent",
       )}
     >
+      {/* Persistent frosted layer gated by opacity (never toggles backdrop-filter:
+          dynamically adding backdrop-filter to a sticky header during a locale
+          re-render leaves Chromium with an unpainted layer until the next
+          invalidation — header "disappears" until any click repaints it). */}
+      <div
+        aria-hidden
+        className={cn(
+          "absolute inset-0 bg-bg/80 backdrop-blur-md supports-[backdrop-filter]:bg-bg/70 transition-opacity duration-300",
+          scrolled ? "opacity-100" : "opacity-0",
+        )}
+      />
       <div
         aria-hidden
         className={cn(
@@ -101,7 +109,7 @@ export function SiteHeader() {
           scrolled ? "opacity-80" : "opacity-30",
         )}
       />
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:gap-4">
+      <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-2 px-4 sm:px-6 lg:gap-4">
         <Link
           href="/"
           aria-label="Best Way"
@@ -197,7 +205,7 @@ export function SiteHeader() {
 
       {/* Mobil ochiladigan panel */}
       {open && (
-        <div className="anim-fade max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-bg/95 backdrop-blur-md xl:hidden" data-state="open">
+        <div className="anim-fade relative max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-bg/95 backdrop-blur-md xl:hidden" data-state="open">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 sm:px-6">
             {SECTIONS.map((s) => (
               <Link
