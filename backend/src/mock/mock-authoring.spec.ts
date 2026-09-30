@@ -28,17 +28,23 @@ function setup() {
     title: 'Passage', deletedQuestionIds: [],
     questions: [{ id: 'existing', number: 1, type: 'short_answer', prompt: 'First question', correctAnswers: ['answer'] }],
   };
-  return { service, prisma, tx, group, actor, dto };
+  return { service, prisma, tx, group, actor, dto, audit };
 }
 
 describe('atomic block authoring', () => {
   it('retains IDs, returns newly created IDs and persists visual ordering in one transaction', async () => {
-    const { service, prisma, tx, actor, dto } = setup();
+    const { service, prisma, tx, actor, dto, audit } = setup();
     dto.questions.unshift({ number: 2, type: 'short_answer', prompt: 'New question', correctAnswers: ['new'] });
     const result = await service.saveGroupContent(actor, 'group', dto);
     expect(prisma.$transaction).toHaveBeenCalledOnce();
     expect(result.questions.map((q) => q.id)).toEqual(['new-id', 'existing']);
+    expect(result.group.id).toBe('group');
     expect(tx.mockQuestion.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ sortOrder: 1, options: [], wordLimit: null }) }));
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({
+      action: 'mock.group.content.save',
+      entityId: 'group',
+      newValue: { count: 2 },
+    }));
   });
 
   it('validates the entire batch before changing material or deleting questions', async () => {

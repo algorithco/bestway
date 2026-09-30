@@ -11,6 +11,7 @@ import type {
   MockExamDetail,
   MockExamListItem,
   MockExamType,
+  MockGroup,
   MockGroupInput,
   MockPurchaseItem,
   MockQuestionInput,
@@ -305,7 +306,11 @@ export function useSaveMockGroupContent(examId: string) {
       input: MockGroupInput;
       questions: (MockQuestionInput & { id?: string })[];
       deletedQuestionIds: string[];
-    }) => api.put<{ saved: number; questions: { id: string; number: number }[] }>(
+    }) => api.put<{
+      saved: number;
+      questions: { id: string; number: number }[];
+      group: MockGroup;
+    }>(
       `/mock/groups/${v.groupId}/content`,
       { ...v.input, questions: v.questions, deletedQuestionIds: v.deletedQuestionIds },
     ),

@@ -608,39 +608,59 @@ export class MockAuthoringService {
         where: { id: groupId },
         include: { questions: true, section: { include: { exam: true } } },
       });
-      if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Block not found', 404);
+      if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
       const exam = group.section.exam;
       if (!['admin', 'super_admin', 'teacher'].includes(actor.role) ||
           (actor.role === 'teacher' && exam.createdById !== actor.id)) {
-        throw new AppException('MOCK_NOT_OWNER', 'You cannot edit this exam', 403);
+        throw new AppException('MOCK_NOT_OWNER', 'Bu imtihonni tahrirlash huquqi yo‘q', 403);
       }
       // Content changes after students start would alter their questions and results.
       if (exam.isPublished || await tx.mockAttempt.count({ where: { examId: exam.id } })) {
-        throw new AppException('MOCK_CONTENT_LOCKED', 'Unpublish an unused exam, or clone it before editing content used by students.', 409);
+        throw new AppException(
+          'MOCK_CONTENT_LOCKED',
+          'O‘quvchilar ishlatgan kontentni o‘zgartirib bo‘lmaydi. Imtihondan nusxa oling',
+          409,
+        );
       }
       const ownIds = new Set(group.questions.map((q) => q.id));
       const keptIds = dto.questions.flatMap((q) => q.id ? [q.id] : []);
       const removed = new Set(dto.deletedQuestionIds);
       if (new Set(keptIds).size !== keptIds.length || keptIds.some((id) => !ownIds.has(id) || removed.has(id)) ||
           dto.deletedQuestionIds.some((id) => !ownIds.has(id))) {
-        throw new AppException('MOCK_CONTENT_CONFLICT', 'Question IDs changed. Reload this block before saving.', 409);
+        throw new AppException(
+          'MOCK_CONTENT_CONFLICT',
+          'Savollar boshqa joyda o‘zgargan. Blokni qayta yuklang',
+          409,
+        );
       }
       // Do not silently drop another editor's newly added questions.
       if (group.questions.some((q) => !keptIds.includes(q.id) && !removed.has(q.id))) {
-        throw new AppException('MOCK_CONTENT_CONFLICT', 'This block has new questions. Reload before saving.', 409);
+        throw new AppException(
+          'MOCK_CONTENT_CONFLICT',
+          'Blokka yangi savollar qo‘shilgan. Saqlashdan oldin qayta yuklang',
+          409,
+        );
       }
       const numbers = dto.questions.map((q) => q.number);
       if (new Set(numbers).size !== numbers.length) {
-        throw new AppException('VALIDATION_ERROR', 'Question numbers must be unique within the block.', 400);
+        throw new AppException('VALIDATION_ERROR', 'Blok ichida savol raqamlari takrorlanmasligi kerak', 400);
       }
       const others = await tx.mockQuestion.findMany({
         where: { group: { section: { examId: exam.id } }, groupId: { not: groupId }, number: { in: numbers } },
         select: { number: true },
       });
-      if (others.length) throw new AppException('VALIDATION_ERROR', `Question numbers already used: ${others.map((q) => q.number).join(', ')}`, 400);
+      if (others.length) {
+        throw new AppException(
+          'VALIDATION_ERROR',
+          `Bu savol raqamlari imtihonda ishlatilgan: ${others.map((q) => q.number).join(', ')}`,
+          400,
+        );
+      }
       const isAuto = AUTO_SKILLS.includes(group.section.skill);
       const rows = dto.questions.map((q, index) => {
-        if (!q.prompt.trim()) throw new AppException('VALIDATION_ERROR', `Question ${index + 1} needs a prompt.`, 400);
+        if (!q.prompt.trim()) {
+          throw new AppException('VALIDATION_ERROR', `${index + 1}-savol matni kiritilishi kerak`, 400);
+        }
         this.validateQuestion(q, isAuto, index);
         return {
           number: q.number, sortOrder: index, type: q.type, prompt: q.prompt.trim(),
@@ -673,7 +693,12 @@ export class MockAuthoringService {
           ? await tx.mockQuestion.update({ where: { id }, data })
           : await tx.mockQuestion.create({ data: { ...data, groupId } }));
       }
-      return { saved: questions.length, questions };
+      const freshGroup = await tx.mockQuestionGroup.findUnique({
+        where: { id: groupId },
+        include: { questions: { orderBy: [{ sortOrder: 'asc' }, { number: 'asc' }] } },
+      });
+      if (!freshGroup) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
+      return { saved: questions.length, questions, group: freshGroup };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 });
     await this.audit.log({ userId: actor.id, action: 'mock.group.content.save', entity: 'mockQuestionGroup', entityId: groupId, newValue: { count: result.saved } });
     return result;
