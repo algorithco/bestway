@@ -69,6 +69,18 @@ describe('mock JSON import contract (RED)', () => {
     }
   });
 
+  it('neutralizes XSS payloads through the shared sanitizer', () => {
+    const pkg = sample();
+    pkg.exam.sections[0].groups[0].contentHtml =
+      '<p>Hi<script>alert(1)</script><span data-gap="1"></span><span data-gap="2"></span><img src="https://evil.test/x.png" onerror="steal()"></p>';
+    const report = validateImportPackage(pkg);
+    expect(report.sanitizerNotes.some((n) => n.changed)).toBe(true);
+    expect(report.canImport).toBe(true); // gaps intact after sanitizing
+    const hostile = sample();
+    hostile.exam.sections[0].groups[0].contentHtml = '<script>alert(1)</script>';
+    expect(validateImportPackage(hostile).canImport).toBe(false);
+  });
+
   it('keeps checksums stable regardless of key order', () => {
     const a = sample();
     const b = JSON.parse(JSON.stringify(a));
