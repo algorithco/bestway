@@ -8,7 +8,6 @@ import {
   MapPin,
   MessageCircle,
   Phone,
-  Sparkles,
   Star,
   Wallet,
 } from "lucide-react";
@@ -24,7 +23,8 @@ import { HeroCta } from "@/components/marketing/hero-cta";
 import { TeachersCarousel } from "@/components/marketing/teachers-carousel";
 import type { TeacherProfile } from "@/components/marketing/teacher-card";
 import PixelCard from "@/components/ui/pixel-card-dynamic";
-import FoldText from "@/components/ui/fold-text-dynamic";
+import { HeroTitle } from "@/components/marketing/hero-title";
+import CenterMap from "@/components/marketing/center-map-dynamic";
 import { getGalleryImages, getLatestArticles, getTeachersPublic } from "@/lib/public-api";
 import { CENTER } from "@/lib/config";
 import { cn, formatPhone } from "@/lib/utils";
@@ -116,28 +116,8 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-8 lg:py-24">
           <div className="order-1 text-center lg:order-1 lg:text-left">
-            <Reveal>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/80 px-3 py-1 text-xs font-medium text-fg-muted backdrop-blur">
-                <Sparkles className="size-3.5 animate-pulse text-orange" />
-                {t("heroBadge")}
-              </span>
-            </Reveal>
-            <h1 className="mt-5 overflow-visible pt-1 text-[2rem] leading-[1.1] font-bold tracking-tight text-balance text-fg sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
-              <FoldText
-                text={t("heroTitle")}
-                splitBy="char"
-                hinge="bottom"
-                trigger="hover"
-                duration={1.2}
-                stagger={0.045}
-                ease="expo.out"
-                perspective={800}
-                creaseShading={0.7}
-                fontSize="inherit"
-                fontWeight={800}
-                color="currentColor"
-                style={{ lineHeight: "inherit", letterSpacing: "inherit" }}
-              />
+            <h1 className="mt-5 min-h-[2.2em] overflow-visible pt-1 text-[2rem] leading-[1.1] font-bold tracking-tight text-balance text-fg sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
+              <HeroTitle text={t("heroTitle")} />
             </h1>
             <Reveal delay={180}>
               <p className="mx-auto mt-5 max-w-xl text-base text-pretty text-fg-muted sm:text-lg lg:mx-0">
@@ -357,6 +337,19 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
               </FancyCard>
             </Reveal>
           </div>
+
+          {/* Live map — client-only Leaflet, lazy-loaded below the fold. */}
+          <Reveal delay={120}>
+            <div className="relative mt-4 h-[380px] overflow-hidden rounded-[18px] border border-border shadow-lg sm:h-[440px]">
+              <CenterMap
+                regionLabel={t("mapRegionLabel")}
+                findUsLabel={t("mapFindUs")}
+                directionsLabel={t("mapGetDirections")}
+                callLabel={t("mapCall")}
+                recenterLabel={t("mapRecenter")}
+              />
+            </div>
+          </Reveal>
 
           {/* Asoschi + tashkil etilgan yil */}
           <Reveal delay={120}>
