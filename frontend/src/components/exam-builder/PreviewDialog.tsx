@@ -1,19 +1,21 @@
 "use client";
 
+import * as React from "react";
+import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogBody,
   DialogContent,
-  DialogFooter,
-  DialogHeader,
+  DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ErrorState, Skeleton } from "@/components/ui/feedback";
 import { useMockPreview } from "@/hooks/use-mock";
 import type { MockSkill } from "@/lib/types";
+import { cn } from "@/lib/utils";
 import { StudentPreview, type PreviewGroup } from "./StudentPreview";
+import { ReadingPreviewShell } from "./reading-preview-shell";
 import { tx } from "./types";
 
 interface PreviewSection {
@@ -26,6 +28,7 @@ interface PreviewSection {
     title?: string | null;
     instructions?: string | null;
     passageText?: string | null;
+    contentHtml?: string | null;
     hasAudio?: boolean;
     imageUrl?: string | null;
     questions?: Array<{
@@ -40,93 +43,150 @@ interface PreviewSection {
   }>;
 }
 
+function toPreviewGroup(g: NonNullable<PreviewSection["groups"]>[number]): PreviewGroup {
+  return {
+    id: g.id,
+    title: g.title ?? null,
+    instructions: g.instructions ?? null,
+    passageText: g.passageText ?? null,
+    contentHtml: g.contentHtml ?? null,
+    hasAudio: !!g.hasAudio,
+    imageUrl: g.imageUrl ?? null,
+    questions: (g.questions ?? []).map((x) => ({
+      id: x.id,
+      number: x.number,
+      type: x.type,
+      prompt: x.prompt,
+      options: x.options ?? null,
+      points: x.points ?? 1,
+      wordLimit: x.wordLimit ?? null,
+    })),
+  };
+}
+
 /** Whole-exam student preview (sanitized, no keys) — no publish needed to look.
- *  Closing returns to the exact builder location (selection state is untouched). */
+ *  Closing returns to the exact builder location (selection state is untouched).
+ *  Reading sections render as a full-screen exam workspace; other skills keep
+ *  the stacked inline student view. Answers stay local and are never saved. */
 export function PreviewDialog({ examId, onClose }: { examId: string; onClose: () => void }) {
   const t = useTranslations("examBuilder");
   const tc = useTranslations("common");
   const q = useMockPreview(examId, true);
   const data = q.data as unknown as { title?: string; sections?: PreviewSection[] } | undefined;
   const sections = data?.sections ?? [];
-  const questionCount = sections.reduce((n, s) => n + (s.groups ?? []).reduce((a, g) => a + (g.questions ?? []).length, 0), 0);
+  const [activeSection, setActiveSection] = React.useState(0);
+  const clampedSection = Math.min(activeSection, Math.max(0, sections.length - 1));
+  const section = sections[clampedSection];
+  const sectionGroups = React.useMemo(() => (section?.groups ?? []).map(toPreviewGroup), [section]);
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="flex max-h-[92dvh] max-w-4xl flex-col overflow-hidden p-0 sm:max-h-[92vh]">
-        <DialogHeader className="shrink-0 px-4 pb-2 pt-5 sm:px-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
-            {tx(t, "studentView", "Student view")}
-          </p>
-          <DialogTitle>
-            {data?.title ?? tx(t, "preview", "Preview")}
-          </DialogTitle>
-          {!q.isLoading && !q.isError && sections.length > 0 && (
-            <p className="text-xs text-fg-muted">
-              {sections.length} {tx(t, "sections", "sections")} · {questionCount}{" "}
-              {tx(t, "questions", "questions")}
-            </p>
-          )}
-        </DialogHeader>
-        <DialogBody className="space-y-6 overflow-y-auto overscroll-contain px-4 pb-3 sm:px-5">
+      <DialogContent hideClose fullscreen className="flex flex-col p-0">
+        <DialogTitle className="sr-only">
+          {tx(t, "preview", "Preview")}: {data?.title ?? ""}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          Student preview — answers stay in this preview and are not saved.
+        </DialogDescription>
+
+        {/* Compact unobtrusive close */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={onClose}
+          autoFocus
+          aria-label={tx(t, "backToEditing", "Back to editing")}
+          className="absolute right-3 top-3 z-10 size-8 rounded-[6px] border border-border bg-bg/80 text-fg-muted hover:bg-surface-hover hover:text-fg"
+        >
+          <X aria-hidden />
+        </Button>
+
+        {/* Slim section switcher — only when the exam really has several sections */}
+        {!q.isLoading && !q.isError && sections.length > 1 && (
+          <div
+            className="flex shrink-0 gap-1.5 overflow-x-auto border-b border-border px-3 py-2 pr-14"
+            role="tablist"
+            aria-label="Preview sections"
+          >
+            {sections.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={i === clampedSection}
+                onClick={() => setActiveSection(i)}
+                className={cn(
+                  "h-8 shrink-0 rounded-[6px] border px-2.5 text-xs font-medium capitalize transition-colors",
+                  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  i === clampedSection
+                    ? "border-brand bg-brand-subtle text-brand-subtle-fg"
+                    : "border-border bg-transparent text-fg-muted hover:text-fg",
+                )}
+              >
+                {s.title?.trim() || s.skill}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Workspace */}
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           {q.isLoading && (
-            <div className="space-y-2" role="status" aria-label={tx(t, "loadingPreview", "Loading preview")}>
+            <div
+              className="space-y-2 overflow-y-auto px-5 py-4 md:px-8"
+              role="status"
+              aria-label={tx(t, "loadingPreview", "Loading preview")}
+            >
               <Skeleton className="h-24" />
               <Skeleton className="h-24" />
             </div>
           )}
           {q.isError && (
-            <ErrorState
-              title={tx(t, "previewFailed", "Preview failed to load.")}
-              action={
-                <Button variant="outline" size="sm" onClick={() => q.refetch()}>
-                  {tc("retry")}
-                </Button>
-              }
-            />
+            <div className="overflow-y-auto px-5 py-4 md:px-8">
+              <ErrorState
+                title={tx(t, "previewFailed", "Preview failed to load.")}
+                action={
+                  <Button variant="outline" size="sm" onClick={() => q.refetch()}>
+                    {tc("retry")}
+                  </Button>
+                }
+              />
+            </div>
           )}
           {!q.isLoading && !q.isError && sections.length === 0 && (
-            <p className="text-sm text-fg-muted">
+            <p className="px-5 py-4 text-sm text-fg-muted md:px-8">
               {tx(t, "previewEmpty", "Nothing to preview yet — add sections and questions first.")}
             </p>
           )}
-          {sections.map((s) => (
-            <section key={s.id} aria-label={s.title?.trim() || s.skill}>
-              <h3 className="mb-1 text-sm font-bold capitalize text-fg">
-                {s.title?.trim() || s.skill}
-              </h3>
-              {s.instructions?.trim() && (
-                <p className="mb-2 text-sm text-fg-muted">{s.instructions}</p>
-              )}
-              <div className="space-y-3">
-                {(s.groups ?? []).map((g) => {
-                  const pg: PreviewGroup = {
-                    id: g.id,
-                    title: g.title ?? null,
-                    instructions: g.instructions ?? null,
-                    passageText: g.passageText ?? null,
-                    hasAudio: !!g.hasAudio,
-                    imageUrl: g.imageUrl ?? null,
-                    questions: (g.questions ?? []).map((x) => ({
-                      id: x.id,
-                      number: x.number,
-                      type: x.type,
-                      prompt: x.prompt,
-                      options: x.options ?? null,
-                      points: x.points ?? 1,
-                      wordLimit: x.wordLimit ?? null,
-                    })),
-                  };
-                  return <StudentPreview key={g.id} group={pg} skill={s.skill} />;
-                })}
+          {!q.isLoading && !q.isError && sections.length > 0 && section && (
+            section.skill === "reading" ? (
+              <div key={section.id} className="min-h-0 flex-1">
+                <ReadingPreviewShell groups={sectionGroups} />
               </div>
-            </section>
-          ))}
-        </DialogBody>
-        <DialogFooter className="shrink-0 px-4 pb-5 sm:px-5">
-          <Button variant="outline" onClick={onClose} className="min-h-10 w-full justify-center sm:w-auto">
-            {tx(t, "backToEditing", "Back to editing")}
-          </Button>
-        </DialogFooter>
+            ) : (
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                <section key={section.id} aria-label={section.title?.trim() || section.skill}>
+                  <h3 className="mb-1 text-sm font-bold capitalize text-fg">
+                    {section.title?.trim() || section.skill}
+                  </h3>
+                  {section.instructions?.trim() && (
+                    <p className="mb-2 text-sm text-fg-muted">{section.instructions}</p>
+                  )}
+                  <div className="space-y-3 pb-2">
+                    {sectionGroups.map((pg) => (
+                      <StudentPreview
+                        key={pg.id}
+                        group={pg}
+                        skill={section.skill}
+                        variant="inline"
+                      />
+                    ))}
+                  </div>
+                </section>
+              </div>
+            )
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

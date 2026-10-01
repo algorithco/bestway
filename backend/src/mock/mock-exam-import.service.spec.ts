@@ -61,6 +61,93 @@ describe('mock exam JSON import (RED)', () => {
     expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'mock.exam.import' }));
   });
 
+  it('appends an import to an existing owned draft instead of creating another exam', async () => {
+    const { service, tx, actor, audit } = setup();
+    const pkg = sample();
+    const targetExamId = 'target-exam';
+    tx.mockExam.findUnique = vi.fn(async () => ({
+      id: targetExamId,
+      type: (pkg as any).exam.type,
+      createdById: 'teacher-1',
+      isPublished: false,
+      contentVersion: 4,
+      _count: { attempts: 0 },
+      sections: [{
+        id: 'existing-reading',
+        skill: 'reading',
+        groups: [{
+          id: 'existing-group',
+          sortOrder: 2,
+          partNumber: null,
+          questions: [{ number: 99 }],
+        }],
+      }],
+    }));
+    tx.mockExam.update = vi.fn(async () => ({}));
+
+    const result = await service.commitImport(
+      actor,
+      pkg,
+      {},
+      canonicalChecksum(pkg),
+      undefined,
+      targetExamId,
+    );
+
+    expect(result).toMatchObject({ examId: targetExamId, addedToExisting: true, replay: false });
+    expect(tx.mockExam.create).not.toHaveBeenCalled();
+    expect(tx.mockSection.create).not.toHaveBeenCalled();
+    expect(tx.mockQuestionGroup.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ sectionId: 'existing-reading', sortOrder: 3 }) }),
+    );
+    expect(tx.mockExam.update).toHaveBeenCalledWith({
+      where: { id: targetExamId },
+      data: { contentVersion: { increment: 1 } },
+    });
+    expect(audit.log).toHaveBeenCalledWith(expect.objectContaining({ action: 'mock.exam.import.append' }));
+  });
+
+  it('rejects question-number collisions when appending to an existing skill', async () => {
+    const { service, tx, actor } = setup();
+    const pkg = sample();
+    const firstNumber = (pkg as any).exam.sections[0].groups[0].questions[0].number;
+    tx.mockExam.findUnique = vi.fn(async () => ({
+      id: 'target-exam',
+      type: (pkg as any).exam.type,
+      createdById: 'teacher-1',
+      isPublished: false,
+      _count: { attempts: 0 },
+      sections: [{
+        id: 'existing-reading',
+        skill: 'reading',
+        groups: [{ sortOrder: 0, partNumber: null, questions: [{ number: firstNumber }] }],
+      }],
+    }));
+
+    await expect(
+      service.commitImport(actor, pkg, {}, canonicalChecksum(pkg), undefined, 'target-exam'),
+    ).rejects.toMatchObject({ code: 'MOCK_IMPORT_NUMBER_COLLISION', status: 409 });
+    expect(tx.mockExam.create).not.toHaveBeenCalled();
+    expect(tx.mockExamImport.create).not.toHaveBeenCalled();
+  });
+
+  it('does not allow a teacher to append to another teacher\'s draft', async () => {
+    const { service, tx, actor } = setup();
+    const pkg = sample();
+    tx.mockExam.findUnique = vi.fn(async () => ({
+      id: 'target-exam',
+      type: (pkg as any).exam.type,
+      createdById: 'teacher-2',
+      isPublished: false,
+      _count: { attempts: 0 },
+      sections: [],
+    }));
+
+    await expect(
+      service.commitImport(actor, pkg, {}, canonicalChecksum(pkg), undefined, 'target-exam'),
+    ).rejects.toMatchObject({ code: 'MOCK_NOT_OWNER', status: 403 });
+  });
+
   it('identical replay returns the original exam without creating another', async () => {
     const { service, prisma, actor } = setup();
     const pkg = sample();

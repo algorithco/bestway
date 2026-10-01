@@ -226,8 +226,8 @@ export function ExamBuilder({ examId }: { examId: string }) {
     () =>
       examClientChecks(detail?.sections ?? [], detail?.profile ?? "practice").filter(
         (c) => c.level === "error",
-      ).length,
-    [detail],
+      ).length + (provQ.data?.openIssues ?? 0),
+    [detail, provQ.data?.openIssues],
   );
 
   // Clone is the only manage-view action missing here (ported during the

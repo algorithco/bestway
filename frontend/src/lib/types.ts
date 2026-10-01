@@ -684,6 +684,7 @@ export interface MockExamListItem {
   level: string | null;
   isDemo: boolean;
   isPublished: boolean;
+  canEdit: boolean;
   skills: MockSkill[];
   questionCount: number;
   durationMinutes: number | null;
@@ -962,6 +963,7 @@ export interface MockImportCommit {
   importId: string;
   revision: number;
   replay: boolean;
+  addedToExisting: boolean;
   editorUrl: string;
 }
 

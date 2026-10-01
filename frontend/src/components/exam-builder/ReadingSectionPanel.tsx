@@ -18,6 +18,7 @@ import { groupIssueCount } from "./checks";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { partRangeLabel } from "./ReadingPassageEditor";
 import { QTYPE_LABEL } from "@/components/mock/exam-builder/types";
+import { clusterReadingPassages } from "./reading-passage-clusters";
 import { tx, type Selection } from "./types";
 
 function wordCount(text: string): number {
@@ -106,7 +107,9 @@ export function ReadingSectionPanel({
 
   if (!section) return null;
 
-  const passages = [...section.groups].sort((a, b) => a.sortOrder - b.sortOrder);
+  const passages = clusterReadingPassages(
+    [...section.groups].sort((a, b) => a.sortOrder - b.sortOrder),
+  );
   const questionCount = section.groups.reduce((a, g) => a + g.questions.length, 0);
   const nextNo = passages.length + 1;
 
@@ -166,13 +169,21 @@ export function ReadingSectionPanel({
         </Card>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {passages.map((g, gi) => {
-            const passageNo = gi + 1;
-            const issues = groupIssueCount(g, "reading");
-            const n = g.questions.length;
-            const hasText = !!g.passageText?.trim();
-            const range = partRangeLabel(g.questions.map((q) => q.number));
-            const types = [...new Set(g.questions.map((q) => q.type))];
+          {passages.map((passage) => {
+            const passageNo = passage.ordinal;
+            const firstGroup = passage.groups[0];
+            const issues = passage.groups.reduce(
+              (total, group) => total + groupIssueCount(group, "reading"),
+              0,
+            );
+            const n = passage.questions.length;
+            const hasText = !!passage.passageText?.trim();
+            const range = partRangeLabel(passage.questions.map((q) => q.number));
+            const types = [
+              ...new Set(
+                passage.groups.flatMap((group) => group.questions.map((q) => q.type)),
+              ),
+            ];
             const typeText =
               types.length === 0
                 ? ""
@@ -190,10 +201,10 @@ export function ReadingSectionPanel({
               );
             return (
               <button
-                key={g.id}
+                key={firstGroup.id}
                 type="button"
-                onClick={() => onSelect({ kind: "group", groupId: g.id })}
-                aria-label={`Passage ${passageNo}${g.title?.trim() ? ` — ${g.title.trim()}` : ""} — ${missing.length ? missing.join(", ") : tx(t, "ready", "Ready")}`}
+                onClick={() => onSelect({ kind: "group", groupId: firstGroup.id })}
+                aria-label={`Passage ${passageNo}${passage.title?.trim() ? ` — ${passage.title.trim()}` : ""} — ${missing.length ? missing.join(", ") : tx(t, "ready", "Ready")}`}
                 className="rounded-[12px] border border-border bg-surface p-4 text-left transition hover:border-fg-subtle focus-visible:outline-2 focus-visible:outline-brand"
               >
                 <div className="flex items-center gap-2">
@@ -204,8 +215,8 @@ export function ReadingSectionPanel({
                   )}
                   <span className="truncate text-sm font-semibold text-fg">
                     Passage {passageNo}
-                    {g.title?.trim() && g.title.trim() !== `Passage ${passageNo}` && (
-                      <span className="font-normal text-fg-muted"> · {g.title.trim()}</span>
+                    {passage.title?.trim() && passage.title.trim() !== `Passage ${passageNo}` && (
+                      <span className="font-normal text-fg-muted"> · {passage.title.trim()}</span>
                     )}
                   </span>
                   <span className="ml-auto shrink-0 text-xs text-fg-muted">
@@ -214,11 +225,16 @@ export function ReadingSectionPanel({
                     {n} {n === 1 ? tx(t, "questionOne", "question") : tx(t, "questions", "questions")}
                   </span>
                 </div>
-                {typeText && <p className="mt-1 text-xs text-fg-muted">{typeText}</p>}
+                {typeText && (
+                  <p className="mt-1 text-xs text-fg-muted">
+                    {typeText} · {passage.groups.length}{" "}
+                    {tx(t, "questionSets", "question sets")}
+                  </p>
+                )}
                 <p className={`mt-1.5 flex items-center gap-1.5 text-[11px] ${missing.length ? "text-danger" : "text-success"}`}>
                   <FileText className="size-3.5 shrink-0" aria-hidden />
                   {hasText
-                    ? `${tx(t, "passageTextReady", "Passage text")} · ${wordCount(g.passageText ?? "")} ${tx(t, "words", "words")}`
+                    ? `${tx(t, "passageTextReady", "Passage text")} · ${wordCount(passage.passageText ?? "")} ${tx(t, "words", "words")}`
                     : tx(t, "passageTextMissingShort", "Passage text missing")}
                   {missing.length > 0 && (
                     <span className="text-fg-subtle">· {missing.join(" · ")}</span>
@@ -300,7 +316,7 @@ export function ReadingSectionPanel({
         description={tx(
           t,
           "deleteSectionConfirm",
-          `Delete this section with all its content? This will remove its ${section.groups.length} passages and ${questionCount} questions.`,
+          `Delete this section with all its content? This will remove its ${passages.length} passages and ${questionCount} questions.`,
         )}
         confirmLabel={tx(t, "deleteSection", "Delete section")}
         loading={delSection.isPending}

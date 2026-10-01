@@ -45,7 +45,7 @@ export class MockExamImportController {
     return this.imports.stageMedia(user, file);
   }
 
-  /** Butun exam draftini bitta tranzaksiyada yaratadi (yangi 201, replay 200). */
+  /** Yangi draft yaratadi yoki tanlangan draftga atomik qo'shadi (yangi 201, replay 200). */
   @Roles('teacher', 'admin', 'super_admin')
   @Post()
   commit(
@@ -55,7 +55,14 @@ export class MockExamImportController {
     @Res({ passthrough: true }) res: Response,
   ) {
     return this.imports
-      .commitImport(user, dto.package, dto.mediaBindings ?? {}, dto.validatedChecksum, rawBodyOf(req))
+      .commitImport(
+        user,
+        dto.package,
+        dto.mediaBindings ?? {},
+        dto.validatedChecksum,
+        rawBodyOf(req),
+        dto.targetExamId,
+      )
       .then((result) => {
         res.status(result.replay ? 200 : 201);
         return result;

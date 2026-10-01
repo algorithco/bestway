@@ -1,0 +1,54 @@
+name: Deploy to VPS
+
+# Single-VPS Docker + Cloudflare deploy. Runs AFTER CI is green.
+# Trigger: push to main (or manual dispatch). PRs do NOT deploy.
+#
+# Required GitHub secrets (repo Settings → Secrets → Actions):
+#   VPS_HOST     — VPS IP or hostname (e.g. 203.0.113.10)
+#   VPS_USER     — SSH user on VPS (e.g. deploy)
+#   VPS_SSH_KEY  — private OpenSSH key for VPS_USER (no passphrase)
+#   VPS_PATH     — repo path on VPS (default /opt/bestway if unset)
+#
+# VPS prerequisites (one-time, see docs/vps-cloudflare-runbook.md):
+#   - repo cloned at $VPS_PATH, backend/.env + root .env present (chmod 600)
+#   - host Nginx vhosts installed (*.cf-origin.conf + direct-api conf)
+#   - docker compose up -d --build run at least once + seed:init done
+#
+# Safety notes:
+#   - Migrations run automatically via the backend image entrypoint
+#     (npx prisma migrate deploy && node dist/main.js). No separate migrate
+#     step here, so there is exactly ONE migration runner (no race).
+#   - Never `docker compose down` in CI — only up --wait (no dropped volumes).
+#   - Rollback = git revert + push (re-deploys previous image).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${VPS_PATH:-/opt/bestway}"
+            test -f ./backend/.env || { echo "backend/.env missing on VPS"; exit 1; }
+            git pull --ff-only
+            if [ -f docker-compose.prod.yml ]; then
+              docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait --wait-timeout 90
+            else
+              docker compose up -d --build --wait --wait-timeout 90
+            fi
+            curl -fsS --max-time 20 http://127.0.0.1:3001/v1/health > /dev/null
+            curl -fsS --max-time 20 http://127.0.0.1:3005/ > /dev/null
+            curl -fsS --max-time 30 https://api.bestwayec.uz/v1/health > /dev/null
+            docker image prune -f
+            docker compose ps

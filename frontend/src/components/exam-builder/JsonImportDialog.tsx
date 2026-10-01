@@ -1,12 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { FileUp, Loader2, Plug, TriangleAlert } from "lucide-react";
+import { BookOpenText, Clipboard, Download, FileJson, FileUp, Headphones, Loader2, Plug, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogBody,
@@ -19,6 +27,7 @@ import {
 import {
   useCommitExamImport,
   useImportStatus,
+  useMockExams,
   useStageImportMedia,
   useValidateExamImport,
 } from "@/hooks/use-mock";
@@ -31,6 +40,12 @@ import {
   groupImportIssues,
   parsePackageInput,
 } from "./import-json";
+import {
+  EXAM_IMPORT_TEMPLATES,
+  serializeExamImportTemplate,
+  type ExamImportTemplateId,
+  type ExamImportTemplateSkill,
+} from "./import-templates";
 
 type Phase = "edit" | "report" | "importing" | "imported";
 
@@ -58,11 +73,15 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
   const [commitError, setCommitError] = React.useState<string | null>(null);
   const [lookupOn, setLookupOn] = React.useState(false);
   const [imported, setImported] = React.useState<MockImportCommit | null>(null);
+  const [templateSkill, setTemplateSkill] = React.useState<ExamImportTemplateSkill>("reading");
+  const [templateId, setTemplateId] = React.useState<ExamImportTemplateId>("academic-reading-full");
+  const [targetExamId, setTargetExamId] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement | null>(null);
 
   const validate = useValidateExamImport();
   const stage = useStageImportMedia();
   const commit = useCommitExamImport();
+  const exams = useMockExams();
 
   const pkgId =
     typeof parsedPkg === "object" && parsedPkg !== null
@@ -73,6 +92,22 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
       ? Number((parsedPkg as Record<string, unknown>).revision ?? 0)
       : 0;
   const statusQ = useImportStatus(pkgId, pkgRev, lookupOn && !!pkgId && !!pkgRev);
+  const visibleTemplates = React.useMemo(
+    () => EXAM_IMPORT_TEMPLATES.filter((option) => option.skill === templateSkill),
+    [templateSkill],
+  );
+  const editableExams = React.useMemo(
+    () => (exams.data ?? []).filter((exam) => !exam.isPublished && exam.canEdit),
+    [exams.data],
+  );
+
+  function changeTemplateSkill(value: string) {
+    const skill = value as ExamImportTemplateSkill;
+    const first = EXAM_IMPORT_TEMPLATES.find((option) => option.skill === skill);
+    if (!first) return;
+    setTemplateSkill(skill);
+    setTemplateId(first.id);
+  }
 
   function reset() {
     setText("");
@@ -85,6 +120,7 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
     setCommitError(null);
     setLookupOn(false);
     setImported(null);
+    setTargetExamId("");
   }
 
   function close() {
@@ -149,6 +185,43 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
     reader.readAsText(file);
   }
 
+  function templateText() {
+    return serializeExamImportTemplate(templateId);
+  }
+
+  function useTemplate() {
+    setText(templateText());
+    setReport(null);
+    setParsedPkg(null);
+    setBindings({});
+    setStagedNames({});
+    setPhase("edit");
+    toast.success(tx(t, "jsonTemplateLoaded", "Template loaded — replace every placeholder before checking it."));
+  }
+
+  async function copyTemplate() {
+    const value = templateText();
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(tx(t, "jsonTemplateCopied", "JSON template copied."));
+    } catch {
+      setText(value);
+      toast.error(tx(t, "jsonTemplateCopyFailed", "Copy was blocked — the template was loaded into the editor instead."));
+    }
+  }
+
+  function downloadTemplate() {
+    const option = EXAM_IMPORT_TEMPLATES.find((item) => item.id === templateId);
+    const url = URL.createObjectURL(new Blob([templateText()], { type: "application/json;charset=utf-8" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = option?.fileName ?? "exam-import-template.json";
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   function handleStage(sourceKey: string, file: File | undefined) {
     if (!file) return;
     const form = new FormData();
@@ -180,7 +253,12 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
     setSessionExpired(false);
     setPhase("importing");
     commit.mutate(
-      { package: parsedPkg, mediaBindings: bindings, validatedChecksum: report.checksum },
+      {
+        package: parsedPkg,
+        mediaBindings: bindings,
+        validatedChecksum: report.checksum,
+        ...(targetExamId ? { targetExamId } : {}),
+      },
       {
         onSuccess: (r) => {
           setImported(r);
@@ -188,7 +266,9 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
           toast.success(
             r.replay
               ? tx(t, "importReplay", "This package was already imported — opening the existing draft.")
-              : tx(t, "importDone", "Draft created — review it before publishing."),
+              : r.addedToExisting
+                ? tx(t, "importAdded", "Content added to the selected exam.")
+                : tx(t, "importDone", "Draft created — review it before publishing."),
           );
         },
         onError: (e) => {
@@ -224,6 +304,45 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
+          {!sessionExpired && (phase === "edit" || phase === "report") && (
+            <section className="mb-4 space-y-2 rounded-[10px] border border-border bg-bg-subtle p-3">
+              <div>
+                <p className="text-sm font-semibold text-fg">
+                  {tx(t, "importDestination", "Import destination")}
+                </p>
+                <p className="mt-0.5 text-xs text-fg-muted">
+                  {tx(
+                    t,
+                    "importDestinationHint",
+                    "Create a separate exam or add these sections to an existing editable draft.",
+                  )}
+                </p>
+              </div>
+              <Select
+                value={targetExamId || "__new__"}
+                onValueChange={(value) => setTargetExamId(value === "__new__" ? "" : value)}
+              >
+                <SelectTrigger aria-label={tx(t, "importDestination", "Import destination")}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__new__">
+                    {tx(t, "newExam", "Create a new exam")}
+                  </SelectItem>
+                  {editableExams.map((exam) => (
+                    <SelectItem key={exam.id} value={exam.id}>
+                      {exam.title} · {exam.skills.join(", ") || tx(t, "emptyExam", "Empty")} · {exam.questionCount} {tx(t, "questions", "questions")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!exams.isLoading && editableExams.length === 0 && (
+                <p className="text-xs text-fg-subtle">
+                  {tx(t, "noEditableExams", "No editable drafts are available.")}
+                </p>
+              )}
+            </section>
+          )}
           {sessionExpired ? (
             <div className="rounded-[8px] border border-danger/40 bg-danger/5 px-3 py-3 text-sm" role="alert">
               <p className="font-medium">
@@ -239,7 +358,9 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
                 <Badge variant="success">
                   {imported.replay
                     ? tx(t, "importReplayTitle", "Already imported")
-                    : tx(t, "importSuccessTitle", "Draft created")}
+                    : imported.addedToExisting
+                      ? tx(t, "importAddedTitle", "Added to exam")
+                      : tx(t, "importSuccessTitle", "Draft created")}
                 </Badge>
                 <span className="text-xs text-fg-muted tabular-nums">
                   {tx(t, "provenanceRevision", "Revision")} {imported.revision}
@@ -252,7 +373,13 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
                       "importReplayHint",
                       "This package was already imported — your edits were kept. Open the existing draft to continue.",
                     )
-                  : tx(
+                  : imported.addedToExisting
+                    ? tx(
+                        t,
+                        "importAddedHint",
+                        "The existing exam was kept and the imported sections were added to it. Review the combined draft before publishing.",
+                      )
+                    : tx(
                       t,
                       "importSuccessHint",
                       "Nothing is published yet. Open the draft in Exam Builder to edit, preview and publish.",
@@ -270,7 +397,59 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
               </Button>
             </div>
           ) : phase === "edit" ? (
-            <div className="space-y-2">
+            <div className="space-y-4">
+              <section className="space-y-2 rounded-[10px] border border-border bg-bg-subtle p-3" aria-labelledby="json-template-title">
+                <div>
+                  <p id="json-template-title" className="text-sm font-semibold text-fg">
+                    {tx(t, "jsonTemplateTitle", "Start from a template")}
+                  </p>
+                  <p className="mt-0.5 text-xs text-fg-muted">
+                    {tx(t, "jsonTemplateHint", "Choose a section template, then load, copy or download the JSON. Replace all placeholders and answer keys before importing.")}
+                  </p>
+                </div>
+                <Tabs value={templateSkill} onValueChange={changeTemplateSkill}>
+                  <TabsList className="grid w-full grid-cols-2" aria-label={tx(t, "jsonTemplateSkill", "Template skill")}>
+                    <TabsTrigger value="reading" className="flex items-center justify-center gap-2">
+                      <BookOpenText className="size-4" aria-hidden />
+                      {tx(t, "templateReading", "Reading")}
+                    </TabsTrigger>
+                    <TabsTrigger value="listening" className="flex items-center justify-center gap-2">
+                      <Headphones className="size-4" aria-hidden />
+                      {tx(t, "templateListening", "Listening")}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                <Select value={templateId} onValueChange={(value) => setTemplateId(value as ExamImportTemplateId)}>
+                  <SelectTrigger aria-label={tx(t, "jsonTemplateSelect", "Select JSON template")}>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {visibleTemplates.map((option) => (
+                      <SelectItem key={option.id} value={option.id}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-fg-subtle">
+                  {EXAM_IMPORT_TEMPLATES.find((option) => option.id === templateId)?.description}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="outline" onClick={useTemplate} className="min-h-9">
+                    <FileJson className="size-4" aria-hidden />
+                    {tx(t, "jsonUseTemplate", "Load template")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => void copyTemplate()} className="min-h-9">
+                    <Clipboard className="size-4" aria-hidden />
+                    {tx(t, "copy", "Copy")}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={downloadTemplate} className="min-h-9">
+                    <Download className="size-4" aria-hidden />
+                    {tx(t, "downloadJson", "Download JSON")}
+                  </Button>
+                </div>
+              </section>
+              <div className="space-y-2">
               <label htmlFor="json-input" className="text-sm font-medium">
                 {tx(t, "jsonPasteLabel", "JSON package")}
               </label>
@@ -309,6 +488,7 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
                 >
                   {tx(t, "checkImport", "Check import")}
                 </Button>
+              </div>
               </div>
             </div>
           ) : (
@@ -431,7 +611,9 @@ export function JsonImportDialog({ open, onClose }: { open: boolean; onClose: ()
                   disabled={importing}
                   className="min-h-10 justify-center"
                 >
-                  {tx(t, "createDraft", "Create draft")}
+                  {targetExamId
+                    ? tx(t, "addToExam", "Add to selected exam")
+                    : tx(t, "createDraft", "Create draft")}
                 </Button>
               )}
             </>

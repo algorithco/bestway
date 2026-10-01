@@ -8,14 +8,25 @@ export function tx(
   t: ReturnType<typeof useTranslations>,
   key: string,
   fallback: string,
+  values?: Record<string, string | number>,
 ): string {
   try {
-    const v = t(key as never) as unknown;
+    const translate = t as unknown as (k: string, v?: Record<string, string | number>) => unknown;
+    const v = translate(key, values);
     if (typeof v === "string" && v !== key && !v.endsWith(`.${key}`)) return v;
-    return fallback;
+    return fill(fallback, values);
   } catch {
-    return fallback;
+    return fill(fallback, values);
   }
+}
+
+/** Manual `{name}` interpolation for the English fallback (key missing in locale). */
+function fill(template: string, values?: Record<string, string | number>): string {
+  if (!values) return template;
+  return Object.entries(values).reduce(
+    (s, [k, val]) => s.split(`{${k}}`).join(String(val)),
+    template,
+  );
 }
 
 export type Selection =
