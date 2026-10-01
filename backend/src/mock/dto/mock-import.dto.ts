@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsObject, IsOptional, IsString, Matches } from 'class-validator';
+import { IsObject, IsOptional, IsString, IsUUID, Matches } from 'class-validator';
 
 /** POST /mock/exam-imports/validate — dry-run, hech narsa persist qilinmaydi. */
 export class ValidateExamImportDto {
@@ -19,6 +19,11 @@ export class CommitExamImportDto extends ValidateExamImportDto {
   @IsString()
   @Matches(/^[0-9a-f]{64}$/)
   validatedChecksum: string;
+
+  /** Omit to create a new draft; provide an editable draft ID to append the package. */
+  @IsOptional()
+  @IsUUID()
+  targetExamId?: string;
 }
 
 export class MediaBindingsDto {

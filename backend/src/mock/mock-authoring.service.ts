@@ -221,6 +221,10 @@ export class MockAuthoringService {
         level: e.level,
         isDemo: e.isDemo,
         isPublished: e.isPublished,
+        canEdit:
+          viewer?.role === 'admin' ||
+          viewer?.role === 'super_admin' ||
+          (viewer?.role === 'teacher' && e.createdById === viewer.id),
         skills: e.sections.map((s) => s.skill),
         questionCount,
         durationMinutes: duration,

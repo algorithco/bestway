@@ -58,6 +58,7 @@ export interface CommitResult {
   importId: string;
   revision: number;
   replay: boolean;
+  addedToExisting: boolean;
   editorUrl: string;
 }
 
@@ -109,7 +110,8 @@ export class MockExamImportService {
   }
 
   /**
-   * Butun exam draftini bitta tranzaksiyada yaratadi. Hech qachon publish qilmaydi.
+   * Yangi draft yaratadi yoki tanlangan editable draftga paketni qo'shadi.
+   * Hech qachon publish qilmaydi.
    * (createdById, packageId, revision) bo'yicha idempotent: bir xil paket replay,
    * o'zgargan content 409.
    */
@@ -119,6 +121,7 @@ export class MockExamImportService {
     mediaBindings: Record<string, string> = {},
     validatedChecksum?: string,
     rawText?: string,
+    targetExamId?: string,
   ): Promise<CommitResult> {
     assertStaff(actor);
     const report = validateImportPackage(pkg, { mediaBindings, rawText });
@@ -144,14 +147,52 @@ export class MockExamImportService {
     const existing = await this.prisma.mockExamImport.findUnique({
       where: { createdById_packageId_revision: { createdById: actor.id, packageId, revision } },
     });
-    if (existing) return this.replayOrConflict(existing, report.checksum, revision);
+    if (existing) return this.replayOrConflict(existing, report.checksum, revision, targetExamId);
 
     // Staged binding ownership/expiry/kind — tranzaksiyadan oldin tekshiriladi.
     const stagedByKey = await this.resolveBindings(actor, p, mediaBindings);
 
     try {
       const result = await this.prisma.$transaction(async (tx) => {
-        const exam = await (tx as any).mockExam.create({
+        const target = targetExamId
+          ? await (tx as any).mockExam.findUnique({
+              where: { id: targetExamId },
+              include: {
+                sections: {
+                  include: {
+                    groups: {
+                      include: { questions: true },
+                    },
+                  },
+                },
+                _count: { select: { attempts: true } },
+              },
+            })
+          : null;
+        if (targetExamId && !target) {
+          throw new AppException('MOCK_EXAM_NOT_FOUND', 'Tanlangan imtihon topilmadi', 404);
+        }
+        if (target) {
+          const isAdmin = actor.role === 'admin' || actor.role === 'super_admin';
+          if (!isAdmin && target.createdById !== actor.id) {
+            throw new AppException('MOCK_NOT_OWNER', 'Bu imtihonni tahrirlash huquqi yo‘q', 403);
+          }
+          if (target.isPublished || (target._count?.attempts ?? 0) > 0) {
+            throw new AppException(
+              'MOCK_CONTENT_LOCKED',
+              'Nashr qilingan yoki o‘quvchilar ishlatgan imtihonga import qilib bo‘lmaydi. Avval nusxa oling',
+              409,
+            );
+          }
+          if (target.type !== p.exam.type) {
+            throw new AppException(
+              'MOCK_IMPORT_TYPE_MISMATCH',
+              `Paket turi ${p.exam.type}, tanlangan imtihon turi esa ${target.type}`,
+              409,
+            );
+          }
+        }
+        const exam = target ?? await (tx as any).mockExam.create({
           data: {
             type: p.exam.type,
             title: (p.exam.title as string).slice(0, 200),
@@ -168,12 +209,46 @@ export class MockExamImportService {
         });
         const sourceMaps: Array<{ kind: string; sourceKey: string; entityId: string }> = [];
         const sections: any[] = p.exam.sections;
-        sections.forEach((s: any, si: number) => {
-          void si;
-        });
         let sectionOrder = 0;
         for (const s of sections) {
-          const section = await (tx as any).mockSection.create({
+          const existingSection = target?.sections?.find((item: any) => item.skill === s.skill) ?? null;
+          if (existingSection) {
+            const existingNumbers = new Set<number>(
+              existingSection.groups.flatMap((group: any) =>
+                group.questions.map((question: any) => question.number as number),
+              ),
+            );
+            const incomingNumbers = (s.groups as any[]).flatMap((group: any) =>
+              (group.questions as any[]).map((question: any) => question.number as number),
+            );
+            const numberCollision = incomingNumbers.find((number: number) => existingNumbers.has(number));
+            if (numberCollision !== undefined) {
+              throw new AppException(
+                'MOCK_IMPORT_NUMBER_COLLISION',
+                `${s.skill} bo‘limida ${numberCollision}-savol allaqachon mavjud`,
+                409,
+              );
+            }
+            if (s.skill === 'listening') {
+              const existingParts = new Set<number>(
+                existingSection.groups
+                  .map((group: any) => group.partNumber)
+                  .filter((part: unknown): part is number => typeof part === 'number'),
+              );
+              const incomingParts = (s.groups as any[])
+                .map((group: any) => group.partNumber)
+                .filter((part: unknown): part is number => typeof part === 'number');
+              const partCollision = incomingParts.find((part: number) => existingParts.has(part));
+              if (partCollision !== undefined) {
+                throw new AppException(
+                  'MOCK_IMPORT_PART_COLLISION',
+                  `Listening Part ${partCollision} tanlangan imtihonda allaqachon mavjud`,
+                  409,
+                );
+              }
+            }
+          }
+          const section = existingSection ?? await (tx as any).mockSection.create({
             data: {
               examId: exam.id,
               skill: s.skill,
@@ -185,7 +260,9 @@ export class MockExamImportService {
           });
           sourceMaps.push({ kind: 'section', sourceKey: s.key, entityId: section.id });
           sectionOrder++;
-          let groupOrder = 0;
+          let groupOrder = existingSection?.groups?.length
+            ? Math.max(...existingSection.groups.map((group: any) => group.sortOrder ?? 0)) + 1
+            : 0;
           for (const g of s.groups as any[]) {
             const audioStaged = typeof g.audioRef === 'string' ? stagedByKey.get(g.audioRef) : null;
             const imageStaged = typeof g.imageRef === 'string' ? stagedByKey.get(g.imageRef) : null;
@@ -226,6 +303,12 @@ export class MockExamImportService {
               sourceMaps.push({ kind: 'question', sourceKey: q.key, entityId: created.id });
             }
           }
+        }
+        if (target) {
+          await (tx as any).mockExam.update({
+            where: { id: exam.id },
+            data: { contentVersion: { increment: 1 } },
+          });
         }
         const importRow = await (tx as any).mockExamImport.create({
           data: {
@@ -269,23 +352,30 @@ export class MockExamImportService {
             data: { claimedAt: new Date(), claimedImportId: importRow.id },
           });
         }
-        return { examId: exam.id, importId: importRow.id };
+        return { examId: exam.id, importId: importRow.id, addedToExisting: !!target };
       });
       await this.audit.log({
         userId: actor.id,
-        action: 'mock.exam.import',
+        action: result.addedToExisting ? 'mock.exam.import.append' : 'mock.exam.import',
         entity: 'mockExam',
         entityId: result.examId,
-        newValue: { packageId, revision, checksum: report.checksum },
+        newValue: { packageId, revision, checksum: report.checksum, targetExamId: targetExamId ?? null },
       });
-      return { examId: result.examId, importId: result.importId, revision, replay: false, editorUrl: `/exam-builder/${result.examId}` };
+      return {
+        examId: result.examId,
+        importId: result.importId,
+        revision,
+        replay: false,
+        addedToExisting: result.addedToExisting,
+        editorUrl: `/exam-builder/${result.examId}`,
+      };
     } catch (e) {
       // Concurrent retry: unique buzilishi → replay yoki 409 (preflight poygasi).
       if (typeof e === 'object' && e !== null && (e as any).code === 'P2002') {
         const raced = await this.prisma.mockExamImport.findUnique({
           where: { createdById_packageId_revision: { createdById: actor.id, packageId, revision } },
         });
-        if (raced) return this.replayOrConflict(raced, report.checksum, revision);
+        if (raced) return this.replayOrConflict(raced, report.checksum, revision, targetExamId);
       }
       throw e;
     }
@@ -310,7 +400,14 @@ export class MockExamImportService {
   }
 
   private shapeStatus(row: { id: string; examId: string; revision: number }, replay: boolean) {
-    return { importId: row.id, examId: row.examId, revision: row.revision, replay, editorUrl: `/exam-builder/${row.examId}` };
+    return {
+      importId: row.id,
+      examId: row.examId,
+      revision: row.revision,
+      replay,
+      addedToExisting: false,
+      editorUrl: `/exam-builder/${row.examId}`,
+    };
   }
 
   /**
@@ -386,6 +483,7 @@ export class MockExamImportService {
     existing: { id: string; examId: string; revision: number; normalizedChecksum: string },
     checksum: string,
     revision: number,
+    targetExamId?: string,
   ): CommitResult {
     if (existing.normalizedChecksum !== checksum) {
       throw new AppException(
@@ -395,7 +493,14 @@ export class MockExamImportService {
       );
     }
     // Identical replay: teacher tahririga tegilmaydi, asl imtihon qaytariladi.
-    return { examId: existing.examId, importId: existing.id, revision, replay: true, editorUrl: `/exam-builder/${existing.examId}` };
+    return {
+      examId: existing.examId,
+      importId: existing.id,
+      revision,
+      replay: true,
+      addedToExisting: !!targetExamId && existing.examId === targetExamId,
+      editorUrl: `/exam-builder/${existing.examId}`,
+    };
   }
 
   /** Binding → staged row; egalik, muddat va kind tekshiruvi. */
