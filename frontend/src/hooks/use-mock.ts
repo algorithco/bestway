@@ -447,6 +447,11 @@ export interface ValidateImportInput {
   mediaBindings?: Record<string, string>;
 }
 
+export interface CommitImportInput extends ValidateImportInput {
+  validatedChecksum: string;
+  targetExamId?: string;
+}
+
 export function useValidateExamImport() {
   return useMutation({
     mutationFn: (v: ValidateImportInput) =>
@@ -467,11 +472,12 @@ export function useStageImportMedia() {
 export function useCommitExamImport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: ValidateImportInput & { validatedChecksum: string }) =>
+    mutationFn: (v: CommitImportInput) =>
       api.post<import("@/lib/types").MockImportCommit>("/mock/exam-imports", {
         package: v.package,
         ...(v.mediaBindings ? { mediaBindings: v.mediaBindings } : {}),
         validatedChecksum: v.validatedChecksum,
+        ...(v.targetExamId ? { targetExamId: v.targetExamId } : {}),
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
   });

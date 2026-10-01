@@ -11,19 +11,38 @@ export const DialogClose = DialogPrimitive.Close;
 
 export const DialogContent = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideClose?: boolean }
->(function DialogContent({ className, children, hideClose, ...props }, ref) {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
+    hideClose?: boolean;
+    /**
+     * Full-viewport presentation. When enabled, the centered-modal geometry
+     * and size constraints are omitted entirely (not overridden) so no
+     * default max-height or centering transform can win in the cascade.
+     * Uses opacity-only enter/exit animation since the centered dialog
+     * keyframes carry a translate(-50%,-50%) offset.
+     */
+    fullscreen?: boolean;
+  }
+>(function DialogContent({ className, children, hideClose, fullscreen, ...props }, ref) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="anim-fade fixed inset-0 z-50 bg-black/40 backdrop-blur-[2px]" />
       <DialogPrimitive.Content
         ref={ref}
-        className={cn(
-          "anim-dialog fixed left-1/2 top-1/2 z-50 max-h-[min(92dvh,720px)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2",
-          "overflow-y-auto overscroll-contain rounded-[12px] border border-border bg-surface shadow-lg",
-          "max-sm:max-h-[92dvh]",
-          className,
-        )}
+        className={
+          fullscreen
+            ? cn(
+                "anim-fade fixed inset-0 left-0 top-0 z-50 h-screen max-h-none w-screen max-w-none translate-x-0 translate-y-0",
+                "overflow-hidden rounded-none border-0 bg-bg text-fg",
+                "supports-[height:100dvh]:h-[100dvh]",
+                className,
+              )
+            : cn(
+                "anim-dialog fixed left-1/2 top-1/2 z-50 max-h-[min(92dvh,720px)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2",
+                "overflow-y-auto overscroll-contain rounded-[12px] border border-border bg-surface shadow-lg",
+                "max-sm:max-h-[92dvh]",
+                className,
+              )
+        }
         {...props}
       >
         {children}

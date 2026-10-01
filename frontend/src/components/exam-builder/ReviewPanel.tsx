@@ -26,7 +26,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/feedback";
-import { useMockReadiness, useUpdateMockExam, type MockReadinessItem } from "@/hooks/use-mock";
+import {
+  useExamImportProvenance,
+  useMockReadiness,
+  useResolveImportIssue,
+  useUpdateMockExam,
+  type MockReadinessItem,
+} from "@/hooks/use-mock";
 import { ApiError } from "@/lib/api-client";
 import type {
   MockExamDetail,
@@ -34,9 +40,16 @@ import type {
   MockQuestion,
   MockSection,
   MockSkill,
+  MockExamImportProvenance,
 } from "@/lib/types";
 import { formatMoney } from "@/lib/utils";
 import { examClientChecks, type Check } from "./checks";
+import { issueSelection } from "./ImportProvenanceDialog";
+import {
+  clusterReadingPassages,
+  type ReadingPassageCluster,
+} from "./reading-passage-clusters";
+import { reviewBlockerCount } from "./review-blockers";
 import { tx, type Selection } from "./types";
 
 const SKILLS: MockSkill[] = ["listening", "reading", "writing", "speaking"];
@@ -111,6 +124,23 @@ function humanizeProblem(label: string): string {
 
 function serverItem(key: string, items: MockReadinessItem[]): MockReadinessItem | undefined {
   return items.find((i) => i.key === key);
+}
+
+function serverProblemTitle(key: string): string {
+  const labels: Record<string, string> = {
+    has_content: "Exam content is missing.",
+    answer_keys: "Answer keys are incomplete.",
+    manual_points: "Manual question points are invalid.",
+    duplicate_numbers: "Question numbers are duplicated.",
+    total_questions: "The exam has no questions.",
+    listening_audio: "Listening audio is incomplete.",
+    listening_parts: "Listening parts are incomplete.",
+    reading_passage: "Reading passage text is incomplete.",
+    writing_tasks: "Writing tasks are incomplete.",
+    writing_content: "Writing content is incomplete.",
+    speaking_content: "Speaking content is incomplete.",
+  };
+  return labels[key] ?? key.replaceAll("_", " ").replace(/^./, (value) => value.toUpperCase());
 }
 
 function firstGroupWith(
@@ -248,7 +278,10 @@ export function ReviewPanel({
 }) {
   const t = useTranslations("examBuilder");
   const readinessQ = useMockReadiness(examId);
+  const provenanceQ = useExamImportProvenance(examId, true);
+  const resolveIssue = useResolveImportIssue(examId);
   const qc = useQueryClient();
+  const [resolvingIssueId, setResolvingIssueId] = React.useState<string | null>(null);
 
   const client = React.useMemo(
     () => examClientChecks(detail.sections, detail.profile),
@@ -257,9 +290,13 @@ export function ReviewPanel({
   const errors = client.filter((c) => c.level === "error");
   const warnings = client.filter((c) => c.level === "warning");
   const serverItems = readinessQ.data?.items ?? [];
-  const serverBad = serverItems.filter((i) => !i.ok);
-  const serverErrorBlock = readinessQ.isError ? 1 : 0;
-  const blockers = errors.length + serverBad.length + serverErrorBlock;
+  const openImportIssues = (provenanceQ.data?.issues ?? []).filter((issue) => issue.status !== "resolved");
+  const blockers = reviewBlockerCount(
+    errors.length,
+    serverItems,
+    provenanceQ.data ? openImportIssues.length : null,
+    readinessQ.isError,
+  );
   const totalQ = detail.questionCount;
 
   const serverLoading = readinessQ.isLoading && !readinessQ.data;
@@ -268,7 +305,23 @@ export function ReviewPanel({
 
   async function handleRefresh() {
     await qc.invalidateQueries({ queryKey: ["mock-exam", examId] });
+    await qc.invalidateQueries({ queryKey: ["mock-import-provenance", examId] });
     await readinessQ.refetch();
+  }
+
+  function handleResolveImportIssue(issueId: string) {
+    if (resolveIssue.isPending) return;
+    setResolvingIssueId(issueId);
+    resolveIssue.mutate(issueId, {
+      onSuccess: () => {
+        setResolvingIssueId(null);
+        toast.success(tx(t, "issueResolvedToast", "Issue resolved."));
+      },
+      onError: (error) => {
+        setResolvingIssueId(null);
+        toast.error(error instanceof ApiError ? `${error.message} (${error.code})` : tx(t, "unknownError", "Unknown error"));
+      },
+    });
   }
 
   return (
@@ -290,6 +343,9 @@ export function ReviewPanel({
           client={client}
           warnings={warnings}
           serverItems={serverItems}
+          provenance={provenanceQ.data}
+          provenanceLoading={provenanceQ.isLoading}
+          resolvingIssueId={resolvingIssueId}
           blockers={blockers}
           serverLoading={serverLoading}
           serverError={serverError}
@@ -299,6 +355,7 @@ export function ReviewPanel({
           onSaveDraft={onSaveDraft}
           onPreview={onPreview}
           onRetry={() => void readinessQ.refetch()}
+          onResolveImportIssue={handleResolveImportIssue}
         />
       )}
 
@@ -307,6 +364,11 @@ export function ReviewPanel({
           examId={examId}
           detail={detail}
           blockers={blockers}
+          blockerDetail={
+            openImportIssues.length > 0
+              ? `${openImportIssues[0].message}${openImportIssues.length > 1 ? ` (+${openImportIssues.length - 1} more)` : ""}`
+              : undefined
+          }
           totalQ={totalQ}
           dirty={!!dirty}
           onFix={onFix}
@@ -345,6 +407,7 @@ function PublishRelease({
   examId,
   detail,
   blockers,
+  blockerDetail,
   totalQ,
   dirty,
   onFix,
@@ -354,6 +417,7 @@ function PublishRelease({
   examId: string;
   detail: MockExamDetail;
   blockers: number;
+  blockerDetail?: string;
   totalQ: number;
   dirty: boolean;
   onFix: (s: Selection) => void;
@@ -491,7 +555,7 @@ function PublishRelease({
                       String(blockers),
                     )
               }
-              detail={tx(t, "publishBlockedHint", "Open Review, fix every error, then come back.")}
+              detail={blockerDetail ?? tx(t, "publishBlockedHint", "Open Review, fix every error, then come back.")}
               fix={() => onFix({ kind: "review" })}
             />
           ) : (
@@ -651,6 +715,9 @@ function ReviewChecks({
   client,
   warnings,
   serverItems,
+  provenance,
+  provenanceLoading,
+  resolvingIssueId,
   blockers,
   serverLoading,
   serverError,
@@ -660,11 +727,15 @@ function ReviewChecks({
   onSaveDraft,
   onPreview,
   onRetry,
+  onResolveImportIssue,
 }: {
   detail: MockExamDetail;
   client: Check[];
   warnings: Check[];
   serverItems: MockReadinessItem[];
+  provenance: MockExamImportProvenance | null | undefined;
+  provenanceLoading: boolean;
+  resolvingIssueId: string | null;
   blockers: number;
   serverLoading: boolean;
   serverError: boolean;
@@ -674,6 +745,7 @@ function ReviewChecks({
   onSaveDraft: () => void;
   onPreview: () => void;
   onRetry: () => void;
+  onResolveImportIssue: (issueId: string) => void;
 }) {
   const t = useTranslations("examBuilder");
   const tc = useTranslations("common");
@@ -685,6 +757,9 @@ function ReviewChecks({
   const hasContentItem = serverItem("has_content", serverItems);
   const writingContentItem = serverItem("writing_content", serverItems);
   const speakingContentItem = serverItem("speaking_content", serverItems);
+  const importIssuesItem = serverItem("import_issues", serverItems);
+  const openImportIssues = (provenance?.issues ?? []).filter((issue) => issue.status !== "resolved");
+  const exactServerErrors = serverItems.filter((item) => !item.ok && item.key !== "import_issues");
   // Full Mock only: required-but-absent sections (practice never emits these).
   const missingSectionItems = serverItems.filter(
     (i) => !i.ok && /^(listening|reading|writing|speaking)_section$/.test(i.key),
@@ -760,10 +835,7 @@ function ReviewChecks({
               )}
             </p>
             <p className="text-xs text-fg-muted">
-              {tx(t, "fixBeforePublish", "Fix {n} errors before publishing.").replace(
-                "{n}",
-                String(blockers),
-              )}
+              {tx(t, "fixBeforePublish", "Fix {n} errors before publishing.", { n: blockers })}
             </p>
           </div>
         </div>
@@ -805,6 +877,94 @@ function ReviewChecks({
             </p>
           </div>
         </div>
+      )}
+
+      {blockers > 0 && !serverLoading && !serverError && (
+        <section className="space-y-2" aria-labelledby="exact-blockers-title">
+          <div>
+            <h3 id="exact-blockers-title" className="text-sm font-bold text-fg">
+              {tx(t, "exactBlockingIssues", "Exact blocking issues")}
+            </h3>
+            <p className="text-xs text-fg-muted">
+              {tx(t, "exactBlockingIssuesHint", "Each message below is an exact reason publication is blocked.")}
+            </p>
+          </div>
+
+          {client.filter((check) => check.level === "error").map((check, index) => (
+            <Row
+              key={`exact-client-${index}`}
+              tone="error"
+              icon={<XCircle className="size-4 text-danger" />}
+              title={humanizeProblem(check.label)}
+              detail={check.detail}
+              fix={() => onFix(check.target)}
+            />
+          ))}
+
+          {exactServerErrors.map((item) => (
+            <Row
+              key={`exact-server-${item.key}`}
+              tone="error"
+              icon={<XCircle className="size-4 text-danger" />}
+              title={serverProblemTitle(item.key)}
+              detail={item.detail || undefined}
+              fix={() => onFix(readinessFixTarget(item.key, detail))}
+            />
+          ))}
+
+          {provenanceLoading && importIssuesItem && !importIssuesItem.ok && (
+            <div className="flex items-center gap-2 rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2 text-sm text-fg-muted">
+              <RefreshCw className="size-4 animate-spin" aria-hidden />
+              {tx(t, "loadingImportIssues", "Loading exact import issues…")}
+            </div>
+          )}
+
+          {!provenanceLoading && openImportIssues.map((issue) => {
+            const target = provenance ? issueSelection(detail, provenance, issue) : null;
+            return (
+              <div
+                key={`exact-import-${issue.id}`}
+                className="rounded-[8px] border border-danger-border bg-danger-bg px-3 py-2"
+              >
+                <div className="flex items-start gap-2.5">
+                  <XCircle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="break-words text-sm font-medium text-fg">{issue.message}</p>
+                    <p className="mt-0.5 break-all font-mono text-[11px] text-fg-muted">
+                      {issue.code} · {issue.path}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-2 flex flex-wrap justify-end gap-2">
+                  {target && (
+                    <Button size="sm" variant="outline" onClick={() => onFix(target)}>
+                      <Wrench className="size-3.5" aria-hidden />
+                      {tx(t, "openLocation", "Open location")}
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    loading={resolvingIssueId === issue.id}
+                    onClick={() => onResolveImportIssue(issue.id)}
+                  >
+                    <CheckCircle2 className="size-3.5" aria-hidden />
+                    {tx(t, "markResolved", "Mark resolved")}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+
+          {!provenanceLoading && importIssuesItem && !importIssuesItem.ok && openImportIssues.length === 0 && (
+            <Row
+              tone="error"
+              icon={<XCircle className="size-4 text-danger" />}
+              title={tx(t, "importReviewIssue", "An import review issue is still open.")}
+              detail={importIssuesItem.detail || undefined}
+            />
+          )}
+        </section>
       )}
 
       {/* Refresh — server result is authoritative. */}
@@ -997,6 +1157,8 @@ function SkillChecklist({
   const sectionMissing = sectionItem && !sectionItem.ok;
 
   const groups = section ? sortedGroups(section) : [];
+  const readingPassages =
+    skill === "reading" ? clusterReadingPassages(groups) : [];
   const groupChecks = (groupId: string) => client.filter((c) => c.target.kind === "group" && c.target.groupId === groupId);
   const sectionChecks = section
     ? client.filter((c) => c.target.kind === "section" && c.target.sectionId === section.id)
@@ -1019,13 +1181,18 @@ function SkillChecklist({
       summary = `${groups.length} parts · ${audioReady}/${groups.length} audio ready`;
     }
   } else if (skill === "reading") {
-    if (groups.length === 0) {
+    if (readingPassages.length === 0) {
       summary = "No passages yet";
     } else {
-      const complete = groups.filter(
-        (g) => g.questions.length > 0 && (g.passageText?.trim() ?? "") !== "" && groupChecks(g.id).filter((c) => c.level === "error").length === 0,
+      const complete = readingPassages.filter(
+        (passage) =>
+          passage.questions.length > 0 &&
+          (passage.passageText?.trim() ?? "") !== "" &&
+          passage.groups.every(
+            (group) => groupChecks(group.id).filter((c) => c.level === "error").length === 0,
+          ),
       ).length;
-      summary = `${groups.length} passages · ${complete}/${groups.length} complete`;
+      summary = `${readingPassages.length} passages · ${complete}/${readingPassages.length} complete`;
     }
   } else if (skill === "writing") {
     const t1 = groups.some((g) => g.questions.some((q) => q.type === "essay_task1"));
@@ -1073,16 +1240,25 @@ function SkillChecklist({
             fix={() => onFix({ kind: "section", sectionId: section.id })}
           />
         )}
-        {groups.map((g) => (
-          <GroupCheckRow
-            key={g.id}
-            skill={skill}
-            groups={groups}
-            group={g}
-            checks={groupChecks(g.id)}
-            onFix={onFix}
-          />
-        ))}
+        {skill === "reading"
+          ? readingPassages.map((passage) => (
+              <ReadingPassageCheckRow
+                key={passage.groups[0].id}
+                passage={passage}
+                checksForGroup={groupChecks}
+                onFix={onFix}
+              />
+            ))
+          : groups.map((g) => (
+              <GroupCheckRow
+                key={g.id}
+                skill={skill}
+                groups={groups}
+                group={g}
+                checks={groupChecks(g.id)}
+                onFix={onFix}
+              />
+            ))}
         {skill === "writing" &&
           profile === "full_mock" &&
           groups.length > 0 &&
@@ -1139,6 +1315,78 @@ function SkillChecklist({
         ))}
       </CardContent>
     </Card>
+  );
+}
+
+function ReadingPassageCheckRow({
+  passage,
+  checksForGroup,
+  onFix,
+}: {
+  passage: ReadingPassageCluster<MockGroup>;
+  checksForGroup: (groupId: string) => Check[];
+  onFix: (s: Selection) => void;
+}) {
+  const checks = passage.groups.flatMap((group) =>
+    checksForGroup(group.id).map((check) => ({ check, group })),
+  );
+  const errors = checks.filter(({ check }) => check.level === "error");
+  const warnings = checks.filter(({ check }) => check.level === "warning");
+  const title =
+    passage.title && passage.title !== `Passage ${passage.ordinal}`
+      ? `Passage ${passage.ordinal} · ${passage.title}`
+      : `Passage ${passage.ordinal}`;
+  const firstTarget =
+    errors[0]?.check.target ??
+    warnings[0]?.check.target ?? { kind: "group" as const, groupId: passage.groups[0].id };
+
+  return (
+    <div
+      className={`min-w-0 rounded-[8px] border px-3 py-2 ${
+        errors.length > 0 ? "border-danger-border bg-danger-bg" : "border-border"
+      }`}
+    >
+      <div className="flex min-w-0 flex-col gap-2 min-[480px]:flex-row min-[480px]:items-start">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
+          {errors.length > 0 ? (
+            <XCircle className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
+          ) : warnings.length > 0 ? (
+            <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+          ) : (
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="break-words text-sm font-semibold text-fg">{title}</p>
+            <p className="break-words text-[11px] text-fg-muted">
+              {passage.questions.length} questions · {passage.groups.length} question sets · {passage.rangeLabel ? `Q${passage.rangeLabel}` : "no range"} · {passage.passageText?.trim() ? "passage ready" : "passage missing"}
+            </p>
+          </div>
+        </div>
+        <FixButton onFix={() => onFix(firstTarget)} label={title} />
+      </div>
+      {(errors.length > 0 || warnings.length > 0) && (
+        <ul className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5">
+          {[...errors, ...warnings].map(({ check, group }, index) => {
+            const numbers = group.questions.map((question) => question.number);
+            const range =
+              numbers.length === 0
+                ? "Question set"
+                : Math.min(...numbers) === Math.max(...numbers)
+                  ? `Q${numbers[0]}`
+                  : `Q${Math.min(...numbers)}–${Math.max(...numbers)}`;
+            return (
+              <li
+                key={`${check.level}-${group.id}-${index}`}
+                className={`text-xs ${check.level === "error" ? "text-danger" : "text-warning"}`}
+              >
+                {range}: {humanizeProblem(check.label)}
+                {check.detail && <span className="block text-fg-muted">{check.detail}</span>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 
