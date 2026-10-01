@@ -1,0 +1,25 @@
+# Production overlay for single-VPS Docker + Cloudflare deployments.
+# Usage (on VPS, where docker-compose.override.yml MUST NOT exist):
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait
+#
+# Why this file exists:
+# - docker-compose.yml already carries prod domains (CORS_ORIGIN/PUBLIC_URL) and
+#   loopback-only ports. This overlay makes prod intent EXPLICIT so a stray
+#   local override file can never silently revert PUBLIC_URL/CORS to localhost.
+# - It is additive only: no ports, volumes, or images are redefined here.
+# - Local dev keeps using: docker compose up  (base file + your git-ignored override)
+#
+# NOTE: secrets still come from the environment / root .env (POSTGRES_PASSWORD)
+# and backend/.env (JWT_SECRET, ...). Never commit real values.
+
+services:
+  backend:
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      CORS_ORIGIN: https://bestwayec.uz,https://www.bestwayec.uz
+      PUBLIC_URL: https://api.bestwayec.uz
+  frontend:
+    environment:
+      NODE_ENV: production
+      API_URL: http://backend:3001/v1
