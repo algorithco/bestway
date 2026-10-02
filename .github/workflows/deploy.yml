@@ -47,8 +47,15 @@ jobs:
             else
               docker compose up -d --build --wait --wait-timeout 90
             fi
-            curl -fsS --max-time 20 http://127.0.0.1:3001/v1/health > /dev/null
-            curl -fsS --max-time 20 http://127.0.0.1:3005/ > /dev/null
-            curl -fsS --max-time 30 https://api.bestwayec.uz/v1/health > /dev/null
+            # Local gates (fatal): reach services over the compose network.
+            # No host ports are published in prod (tunnel-only), so check via exec.
+            DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+            $DC exec -T backend wget -qO- http://localhost:3001/v1/health > /dev/null
+            $DC exec -T frontend wget -qO- http://localhost:3000/ > /dev/null
+            # Public gates (warn-only): fail before DNS cutover / tunnel setup.
+            curl -fsS --max-time 30 https://api.bestwayec.uz/v1/health > /dev/null \
+              || echo "WARN: public api.bestwayec.uz not reachable (DNS/tunnel pending?)"
+            curl -fsS --max-time 30 https://bestwayec.uz/ > /dev/null \
+              || echo "WARN: public bestwayec.uz not reachable (DNS/tunnel pending?)"
             docker image prune -f
             docker compose ps

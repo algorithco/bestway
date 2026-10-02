@@ -1,25 +1,63 @@
-# Production overlay for single-VPS Docker + Cloudflare deployments.
+# Production overlay for shared-VPS Docker + Cloudflare Tunnel deployments.
 # Usage (on VPS, where docker-compose.override.yml MUST NOT exist):
 #   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait
 #
-# Why this file exists:
+# Design (shared VPS, Option B — cloudflared tunnel):
 # - docker-compose.yml already carries prod domains (CORS_ORIGIN/PUBLIC_URL) and
 #   loopback-only ports. This overlay makes prod intent EXPLICIT so a stray
 #   local override file can never silently revert PUBLIC_URL/CORS to localhost.
-# - It is additive only: no ports, volumes, or images are redefined here.
+# - Host ports 80/443 on a shared VPS belong to the OTHER stack's reverse proxy
+#   (grandec nginx). Bestway publishes NOTHING externally: the `cloudflared`
+#   service below opens an outbound-only tunnel to Cloudflare, which routes
+#   bestwayec.uz / www / api to the internal services. Web-service host ports
+#   from the base file are reset to [] here; postgres keeps its loopback port
+#   so host-side backups (backend/scripts/backup.sh via 127.0.0.1:5433) work.
+# - Project name is pinned so `compose ps/ls` never collides with other stacks.
 # - Local dev keeps using: docker compose up  (base file + your git-ignored override)
 #
-# NOTE: secrets still come from the environment / root .env (POSTGRES_PASSWORD)
-# and backend/.env (JWT_SECRET, ...). Never commit real values.
+# NOTE: secrets still come from the environment / root .env
+# (POSTGRES_PASSWORD, TUNNEL_TOKEN) and backend/.env (JWT_SECRET, ...).
+# Never commit real values. See /.env.example.
+
+name: bestway-prod
 
 services:
   backend:
+    ports: !reset []
     environment:
       NODE_ENV: production
       PORT: 3001
       CORS_ORIGIN: https://bestwayec.uz,https://www.bestwayec.uz
       PUBLIC_URL: https://api.bestwayec.uz
   frontend:
+    ports: !reset []
     environment:
       NODE_ENV: production
       API_URL: http://backend:3001/v1
+  cloudflared:
+    # Pinned (check https://hub.docker.com/r/cloudflare/cloudflared/tags before bumping).
+    image: cloudflare/cloudflared:2026.9.3
+    container_name: education-cloudflared
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    # Token provisioned once in Cloudflare Zero Trust (Network -> Tunnels).
+    # Public hostnames are configured in the dashboard, NOT here:
+    #   bestwayec.uz          -> http://frontend:3000
+    #   www.bestwayec.uz      -> http://frontend:3000
+    #   api.bestwayec.uz      -> http://backend:3001
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:?TUNNEL_TOKEN must be set in root .env (Cloudflare Zero Trust tunnel token)}
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    networks:
+      - education-net
