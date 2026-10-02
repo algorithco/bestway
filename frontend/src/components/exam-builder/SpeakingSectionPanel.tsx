@@ -156,7 +156,7 @@ export function SpeakingSectionPanel({
               Add Speaking Task
             </Button>
           </div>
-          <div className="grid gap-3 xl:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {tasks.map((g, gi) => {
               const issues = groupIssueCount(g, "speaking");
               const q = g.questions[0] ?? null;

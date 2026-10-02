@@ -358,7 +358,7 @@ export function ImportPanel({
       analysis.warnings.some((w) => w.startsWith("Number jump")));
 
   return (
-    <Card className="border-brand/30">
+    <Card className="min-w-0 overflow-hidden border-brand/30">
       <CardHeader>
         <CardTitle>
           {tx(t, "importTitle", "Import questions")}
@@ -386,7 +386,7 @@ export function ImportPanel({
                   setText(e.target.value);
                   setImportError(null);
                 }}
-                className="min-h-48 font-mono text-[13px]"
+                className="min-h-36 font-mono text-[13px] sm:min-h-48"
                 placeholder={"1. The library opens at…\nA) 8 am\nB) 9 am\n\n2. Complete the note: The price is ___"}
                 aria-describedby="imp-text-count"
               />
@@ -408,14 +408,14 @@ export function ImportPanel({
                   setAnswers(e.target.value);
                   setImportError(null);
                 }}
-                className="min-h-48 font-mono text-[13px]"
+                className="min-h-36 font-mono text-[13px] sm:min-h-48"
                 placeholder={"1: B\n2: flowers\n3: TRUE"}
                 aria-invalid={key.bad.length > 0 ? true : undefined}
               />
             </Field>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <Field label={tx(t, "pointsEach", "Points each")} htmlFor="imp-points" className="w-28" error={pointsError}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+            <Field label={tx(t, "pointsEach", "Points each")} htmlFor="imp-points" className="w-full sm:w-28" error={pointsError}>
               <Input
                 id="imp-points"
                 type="number"
@@ -426,23 +426,26 @@ export function ImportPanel({
                 aria-invalid={pointsError ? true : undefined}
               />
             </Field>
-            <Button size="sm" variant="outline" loading={checking} onClick={() => void handleParse()}>
-              {tx(t, "parseQuestions", "Parse")}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setText("");
-                setAnswers("");
-                setPreview(null);
-                setSnapshot(null);
-                setPreviewError(null);
-                setImportError(null);
-              }}
-            >
-              Clear
-            </Button>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <Button size="sm" variant="outline" loading={checking} onClick={() => void handleParse()} className="min-h-9 justify-center">
+                {tx(t, "parseQuestions", "Parse")}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="min-h-9 justify-center"
+                onClick={() => {
+                  setText("");
+                  setAnswers("");
+                  setPreview(null);
+                  setSnapshot(null);
+                  setPreviewError(null);
+                  setImportError(null);
+                }}
+              >
+                Clear
+              </Button>
+            </div>
             <p className="w-full text-[11px] text-fg-subtle">
               Parse is a dry run — it never writes to the database.
             </p>

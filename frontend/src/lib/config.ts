@@ -12,6 +12,8 @@ export const CENTER = {
   phone2: "+998 91 234 56 78",
   email: "info@bestway.uz",
   address: "Shofirkon tumani, Buxoro viloyati",
+  coords: { lat: 40.12277447703201, lng: 64.48947270925045 },
+  mapZoom: 15,
   mapUrl: "https://maps.app.goo.gl/LgHbm8EYxr7FHBCdA",
   telegram: "https://t.me/bestway",
   instagram: "https://instagram.com/bestway",

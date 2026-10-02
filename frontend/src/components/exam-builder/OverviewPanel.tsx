@@ -107,9 +107,9 @@ export function OverviewPanel({
   const totalGroups = detail.sections.reduce((a, s) => a + s.groups.length, 0);
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 xl:grid-cols-5">
-        <Card className="xl:col-span-3">
+    <div className="min-w-0 space-y-4">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-5">
+        <Card className="min-w-0 lg:col-span-3">
           <CardHeader>
             <CardTitle>{tx(t, "examSettings", "Exam settings")}</CardTitle>
           </CardHeader>
@@ -119,6 +119,11 @@ export function OverviewPanel({
                 {detail.isPublished ? tx(t, "published", "Published") : tx(t, "draft", "Draft")}
               </Badge>
               <Badge variant="info">{EXAM_TYPE_LABEL[detail.type]}</Badge>
+              <Badge variant="info">
+                {detail.profile === "full_mock"
+                  ? tx(t, "modeFull", "Full Mock")
+                  : tx(t, "modePractice", "Practice")}
+              </Badge>
               <Badge>{detail.price > 0 ? formatMoney(detail.price) : tx(t, "free", "Free")}</Badge>
             </div>
             <Field label={tx(t, "title", "Title")} htmlFor="ov-title">
@@ -177,23 +182,23 @@ export function OverviewPanel({
           </CardContent>
         </Card>
 
-        <Card className="xl:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <CardHeader>
             <CardTitle>{tx(t, "content", "Content")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-[8px] bg-surface-hover p-2.5">
-                <p className="text-xl font-bold text-fg">{detail.sections.length}</p>
-                <p className="text-[11px] text-fg-muted">{tx(t, "sections", "sections")}</p>
+            <div className="grid grid-cols-3 gap-1.5 text-center sm:gap-2">
+              <div className="min-w-0 rounded-[8px] bg-surface-hover p-2 sm:p-2.5">
+                <p className="text-lg font-bold text-fg tabular-nums sm:text-xl">{detail.sections.length}</p>
+                <p className="truncate text-[11px] text-fg-muted">{tx(t, "sections", "sections")}</p>
               </div>
-              <div className="rounded-[8px] bg-surface-hover p-2.5">
-                <p className="text-xl font-bold text-fg">{totalGroups}</p>
-                <p className="text-[11px] text-fg-muted">{tx(t, "blocks", "blocks")}</p>
+              <div className="min-w-0 rounded-[8px] bg-surface-hover p-2 sm:p-2.5">
+                <p className="text-lg font-bold text-fg tabular-nums sm:text-xl">{totalGroups}</p>
+                <p className="truncate text-[11px] text-fg-muted">{tx(t, "blocks", "blocks")}</p>
               </div>
-              <div className="rounded-[8px] bg-surface-hover p-2.5">
-                <p className="text-xl font-bold text-fg">{detail.questionCount}</p>
-                <p className="text-[11px] text-fg-muted">{tx(t, "questions", "questions")}</p>
+              <div className="min-w-0 rounded-[8px] bg-surface-hover p-2 sm:p-2.5">
+                <p className="text-lg font-bold text-fg tabular-nums sm:text-xl">{detail.questionCount}</p>
+                <p className="truncate text-[11px] text-fg-muted">{tx(t, "questions", "questions")}</p>
               </div>
             </div>
             {detail.sections.map((s) => {
@@ -204,11 +209,11 @@ export function OverviewPanel({
                   key={s.id}
                   type="button"
                   onClick={() => onSelect({ kind: "section", sectionId: s.id })}
-                  className="flex w-full items-center gap-2 rounded-[8px] border border-border px-3 py-2 text-left text-sm transition hover:border-fg-subtle"
+                  className="flex min-h-[44px] w-full min-w-0 items-center gap-2 rounded-[8px] border border-border px-3 py-2 text-left text-sm transition hover:border-fg-subtle"
                 >
-                  <Icon className="size-4 shrink-0 text-fg-muted" />
-                  <span className="font-medium capitalize text-fg">{s.skill}</span>
-                  <span className="ml-auto text-xs text-fg-muted">
+                  <Icon className="size-4 shrink-0 text-fg-muted" aria-hidden />
+                  <span className="truncate font-medium capitalize text-fg">{s.skill}</span>
+                  <span className="ml-auto shrink-0 truncate text-xs text-fg-muted tabular-nums">
                     {s.groups.length} {tx(t, "blocks", "blocks")} · {n}q
                     {s.skill !== "listening" && s.durationMinutes != null && ` · ${s.durationMinutes} min`}
                   </span>

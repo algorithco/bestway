@@ -105,6 +105,33 @@ export function mockMediaMulterOptions() {
   };
 }
 
+/** AI JSON import staged upload — bitta `file` maydoni, audio yoki rasm. */
+export function stagedImportMulterOptions() {
+  return {
+    storage: mockDiskStorage(),
+    limits: {
+      fileSize: 100 * 1024 * 1024,
+      fieldNestingDepth: 3,
+      fields: 10,
+      files: 1,
+      fieldSize: 1024 * 1024,
+    },
+    fileFilter: (
+      _req: unknown,
+      file: Express.Multer.File,
+      cb: (error: Error | null, acceptFile: boolean) => void,
+    ) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const audio = file.mimetype.startsWith('audio/') && AUDIO_EXTS.has(ext);
+      const image = file.mimetype.startsWith('image/') && IMAGE_EXTS.has(ext);
+      if (!audio && !image) {
+        return cb(new AppException('INVALID_FILE_TYPE', 'Audio yoki rasm yuklang', 400), false);
+      }
+      cb(null, true);
+    },
+  };
+}
+
 const SPEAKING_AUDIO_MAX_MB = 25;
 
 /** Speaking javob audio uchun alohida profil — kichik limit va faqat audio/* */

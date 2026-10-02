@@ -86,7 +86,12 @@ async function proxy(req: NextRequest, ctx: { params: Promise<{ path: string[] }
   // (brauzer→Next→backend) — 8s default ularga yetmaydi.
   // 500MB sekin tarmoqda bir necha daqiqa olishi mumkin.
   const isUpload = (req.headers.get("content-type") ?? "").includes("multipart/form-data");
-  const timeoutMs = isUpload ? 600_000 : 8_000;
+  // AI JSON import (max 200 savol) validatsiyasi 8s dan oshishi mumkin —
+  // faqat shu route uchun 60s (boshqa route'lar o'zgarmaydi).
+  const isExamImport =
+    req.nextUrl.pathname.includes("/mock/exam-imports") &&
+    req.method !== "GET";
+  const timeoutMs = isUpload ? 600_000 : isExamImport ? 60_000 : 8_000;
 
   const send = (token?: string) =>
     fetch(target, {

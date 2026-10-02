@@ -355,7 +355,7 @@ function OptionRow({
 }) {
   const letter = String.fromCharCode(65 + index);
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
       <span className="grid size-6 shrink-0 place-items-center rounded-full bg-surface-hover font-mono text-xs font-bold text-fg-muted">
         {letter}
       </span>
@@ -377,7 +377,7 @@ function OptionRow({
           type="button"
           size="sm"
           variant="ghost"
-          className="h-7 w-7 p-0"
+          className="h-8 w-8 p-0 sm:h-7 sm:w-7"
           disabled={!canMoveUp}
           onClick={() => onMove(-1)}
           aria-label={`Move option ${letter} up`}
@@ -388,7 +388,7 @@ function OptionRow({
           type="button"
           size="sm"
           variant="ghost"
-          className="h-7 w-7 p-0"
+          className="h-8 w-8 p-0 sm:h-7 sm:w-7"
           disabled={!canMoveDown}
           onClick={() => onMove(1)}
           aria-label={`Move option ${letter} down`}
@@ -400,7 +400,7 @@ function OptionRow({
         type="button"
         size="sm"
         variant="ghost"
-        className="h-7 w-7 shrink-0 p-0 text-danger"
+        className="h-8 w-8 shrink-0 p-0 text-danger sm:h-7 sm:w-7"
         onClick={onRemove}
         aria-label={`Remove option ${letter}`}
       >
@@ -943,14 +943,14 @@ export function QuestionFieldSet(props: {
 
         {kind === "tfng" && (
           <Field label="Correct answer" error={errors.correct}>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Correct answer">
+            <div className="grid grid-cols-1 gap-2 min-[420px]:flex min-[420px]:flex-wrap" role="radiogroup" aria-label="Correct answer">
               {TFNG_OPTIONS.map((opt) => {
                 const checked = nonEmpty(question.correctAnswers)[0]?.trim().toUpperCase() === opt;
                 return (
                   <label
                     key={opt}
                     className={cn(
-                      "cursor-pointer rounded-[8px] border px-3 py-1.5 text-sm transition-colors",
+                      "min-h-[40px] cursor-pointer rounded-[8px] border px-4 py-2 text-center text-sm transition-colors sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-left",
                       checked
                         ? "border-brand bg-brand-subtle font-medium text-brand-subtle-fg"
                         : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
@@ -974,14 +974,14 @@ export function QuestionFieldSet(props: {
 
         {kind === "ynng" && (
           <Field label="Correct answer" error={errors.correct}>
-            <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Correct answer">
+            <div className="grid grid-cols-1 gap-2 min-[420px]:flex min-[420px]:flex-wrap" role="radiogroup" aria-label="Correct answer">
               {YNNG_OPTIONS.map((opt) => {
                 const checked = nonEmpty(question.correctAnswers)[0]?.trim().toUpperCase() === opt;
                 return (
                   <label
                     key={opt}
                     className={cn(
-                      "cursor-pointer rounded-[8px] border px-3 py-1.5 text-sm transition-colors",
+                      "min-h-[40px] cursor-pointer rounded-[8px] border px-4 py-2 text-center text-sm transition-colors sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-left",
                       checked
                         ? "border-brand bg-brand-subtle font-medium text-brand-subtle-fg"
                         : "border-border bg-surface text-fg-muted hover:bg-surface-hover",
@@ -1297,12 +1297,12 @@ export function QuestionEditor(props: {
   }
 
   return (
-    <div className="space-y-3 rounded-[8px] border border-border bg-surface p-3">
+    <div className="min-w-0 space-y-3 rounded-[8px] border border-border bg-surface p-3 sm:p-4">
       {/* Question + Type */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-fg">#{question.number}</span>
-          <span className="shrink-0 rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-fg-muted">
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+          <span className="shrink-0 text-sm font-medium text-fg tabular-nums">#{question.number}</span>
+          <span className="max-w-full truncate rounded-[6px] border border-border bg-surface-hover px-1.5 py-0.5 text-[11px] text-fg-muted">
             {QTYPE_LABEL[question.type]}
           </span>
           {question.savedQuestionId ? (
@@ -1311,7 +1311,7 @@ export function QuestionEditor(props: {
             </span>
           ) : null}
         </div>
-        <Button type="button" variant="danger" size="sm" onClick={onRemove}>
+        <Button type="button" variant="danger" size="sm" onClick={onRemove} className="min-h-8 shrink-0">
           {tc("delete")}
         </Button>
       </div>

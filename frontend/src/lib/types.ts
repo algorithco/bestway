@@ -668,6 +668,13 @@ export type MockAttemptStatus = "in_progress" | "grading" | "completed";
 export type MockAttemptMode = "practice" | "timed";
 export type MockAccess = "granted" | "pending" | "locked";
 
+/** Latest AI JSON import for an exam (null = created manually). */
+export interface MockExamImportRef {
+  packageId: string;
+  revision: number;
+  importedAt: string;
+}
+
 /** GET /mock/exams */
 export interface MockExamListItem {
   id: string;
@@ -677,11 +684,13 @@ export interface MockExamListItem {
   level: string | null;
   isDemo: boolean;
   isPublished: boolean;
+  canEdit: boolean;
   skills: MockSkill[];
   questionCount: number;
   durationMinutes: number | null;
   price: number;
   access: MockAccess;
+  imported: MockExamImportRef | null;
 }
 
 /** Runner savoli — o'quvchiga to'g'ri javobsiz; xodimga `correctAnswers` qo'shiladi */
@@ -731,6 +740,8 @@ export interface MockSection {
 export interface MockExamStructure {
   id: string;
   type: MockExamType;
+  /** practice = 1–4 skill, full_mock = strict IELTS blueprint. */
+  profile: string;
   title: string;
   description: string | null;
   level: string | null;
@@ -738,6 +749,8 @@ export interface MockExamStructure {
   isDemo: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Optimistic content version (stale-tab save guard). */
+  contentVersion: number;
   questionCount: number;
   sections: MockSection[];
 }
@@ -860,6 +873,9 @@ export interface MockPurchaseItem {
 
 export interface CreateMockExamInput {
   starterStructure?: boolean;
+  profile?: "practice" | "full_mock";
+  /** Starter sections are created only for these skills (default: all four). */
+  skills?: MockSkill[];
   type: MockExamType;
   title: string;
   description?: string;
@@ -910,4 +926,70 @@ export interface MockQuestionInput {
   acceptedVariants?: string[];
   points?: number;
   wordLimit?: number;
+}
+
+/* ── AI JSON import (POST /mock/exam-imports/*) ─────────────────────────── */
+
+export interface MockImportIssue {
+  code: string;
+  path: string;
+  message: string;
+  blocks: Array<"import" | "publish">;
+  sourceKey?: string;
+}
+
+export interface MockImportReport {
+  checksum: string;
+  issues: MockImportIssue[];
+  counts: { sections: number; skills: number; groups: number; questions: number; media: number };
+  canImport: boolean;
+  canPublish: boolean;
+  sanitizerNotes: Array<{ path: string; changed: boolean }>;
+  truncated: boolean;
+  totalIssues: number;
+}
+
+export interface MockStagedUpload {
+  uploadId: string;
+  fileName: string;
+  mimeType: string | null;
+  sizeBytes: number;
+  kind: string;
+  expiresAt: string;
+}
+
+export interface MockImportCommit {
+  examId: string;
+  importId: string;
+  revision: number;
+  replay: boolean;
+  addedToExisting: boolean;
+  editorUrl: string;
+}
+
+/** GET /mock/exam-imports/by-exam/:examId — staff-only provenance, no answer keys. */
+export interface MockImportProvenanceIssue {
+  id: string;
+  code: string;
+  path: string;
+  message: string;
+  sourceKey: string | null;
+  entityKind: string | null;
+  status: string;
+}
+
+export interface MockImportSourceMap {
+  kind: string;
+  sourceKey: string;
+  entityId: string;
+}
+
+export interface MockExamImportProvenance {
+  packageId: string;
+  revision: number;
+  profile: string;
+  importedAt: string;
+  openIssues: number;
+  issues: MockImportProvenanceIssue[];
+  sourceMaps: MockImportSourceMap[];
 }

@@ -27,7 +27,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PreviewDialog } from "@/components/exam-builder/PreviewDialog";
-import { useCloneMockExam, useMockExam } from "@/hooks/use-mock";
+import { ImportProvenanceDialog } from "@/components/exam-builder/ImportProvenanceDialog";
+import {
+  useCloneMockExam,
+  useExamImportProvenance,
+  useMockExam,
+  useResolveImportIssue,
+} from "@/hooks/use-mock";
+import { ApiError } from "@/lib/api-client";
 import type { MockExamDetail } from "@/lib/types";
 import { examClientChecks, groupIssueCount } from "./checks";
 import { GroupEditor } from "./GroupEditor";
@@ -162,10 +169,10 @@ function ContextShell({
   trailing?: React.ReactNode;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border pb-2.5">
-      <h2 className="min-w-0 truncate text-[15px] font-bold text-fg">{primary}</h2>
-      {trailing}
-      <p className="w-full truncate text-xs text-fg-muted sm:ml-auto sm:w-auto sm:max-w-[60%] sm:text-right">
+    <div className="mb-3 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border pb-2.5 sm:gap-x-3">
+      <h2 className="min-w-0 max-w-full flex-1 truncate text-[15px] font-bold text-fg sm:flex-none">{primary}</h2>
+      <span className="shrink-0">{trailing}</span>
+      <p className="w-full min-w-0 break-words text-xs text-fg-muted sm:ml-auto sm:w-auto sm:max-w-[60%] sm:truncate sm:text-right">
         {secondary}
       </p>
     </div>
@@ -183,6 +190,8 @@ export function ExamBuilder({ examId }: { examId: string }) {
   const examQ = useMockExam(examId);
   const [selection, setSelection] = React.useState<Selection>({ kind: "overview" });
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [provenanceOpen, setProvenanceOpen] = React.useState(false);
+  const [resolvingId, setResolvingId] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [dirty, setDirty] = React.useState(false);
   const [saveError, setSaveError] = React.useState<string | null>(null);
@@ -196,9 +205,29 @@ export function ExamBuilder({ examId }: { examId: string }) {
   const detail = examQ.data;
   const router = useRouter();
   const clone = useCloneMockExam();
+  const provQ = useExamImportProvenance(examId, true);
+  const resolveMut = useResolveImportIssue(examId);
+
+  function handleResolveIssue(issueId: string) {
+    if (resolveMut.isPending) return;
+    setResolvingId(issueId);
+    resolveMut.mutate(issueId, {
+      onSuccess: () => {
+        setResolvingId(null);
+        toast.success(tx(t, "issueResolvedToast", "Issue resolved."));
+      },
+      onError: (e) => {
+        setResolvingId(null);
+        toast.error(e instanceof ApiError ? `${e.message} (${e.code})` : tc("unknownError"));
+      },
+    });
+  }
   const blockers = React.useMemo(
-    () => examClientChecks(detail?.sections ?? []).filter((c) => c.level === "error").length,
-    [detail],
+    () =>
+      examClientChecks(detail?.sections ?? [], detail?.profile ?? "practice").filter(
+        (c) => c.level === "error",
+      ).length + (provQ.data?.openIssues ?? 0),
+    [detail, provQ.data?.openIssues],
   );
 
   // Clone is the only manage-view action missing here (ported during the
@@ -313,8 +342,8 @@ export function ExamBuilder({ examId }: { examId: string }) {
       <div className="space-y-3">
         <Skeleton className="h-12" />
         <div className="flex gap-4">
-          <Skeleton className="h-96 w-60 shrink-0" />
-          <Skeleton className="h-96 flex-1" />
+          <Skeleton className="hidden h-96 w-60 shrink-0 md:block" />
+          <Skeleton className="h-96 min-w-0 flex-1" />
         </div>
       </div>
     );
@@ -377,53 +406,72 @@ export function ExamBuilder({ examId }: { examId: string }) {
   );
 
   return (
-    <div className="-mx-4 -mt-6 px-4 pt-6 sm:-mx-6 sm:px-6">
+    <div className="-mx-4 -mt-6 min-w-0 max-w-full overflow-x-clip px-4 pt-6 sm:-mx-6 sm:px-6">
       <div ref={topAnchorRef} className="scroll-mt-20" />
 
       {/* Compact sticky top toolbar (sits under the app topbar: h-16 + z-20). */}
       <div className="sticky top-16 z-10 -mx-4 border-b border-border bg-bg/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:px-6">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label={tx(t, "backToList", "Back to exams")}
-            onClick={() => {
-              if (dirty) {
-                setPendingExit(true);
-                return;
-              }
-              router.push("/exam-builder");
-            }}
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-[15px] font-bold text-fg">{detail.title}</h1>
-              <Badge variant={detail.isPublished ? "success" : "warning"} className="shrink-0">
-                {detail.isPublished ? tx(t, "published", "Published") : tx(t, "draft", "Draft")}
-              </Badge>
-              <span className="shrink-0">{saveState}</span>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1.5">
+          <div className="flex min-w-0 items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label={tx(t, "backToList", "Back to exams")}
+              onClick={() => {
+                if (dirty) {
+                  setPendingExit(true);
+                  return;
+                }
+                router.push("/exam-builder");
+              }}
+              className="shrink-0"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                <h1 className="min-w-0 flex-1 truncate text-[15px] font-bold text-fg sm:flex-none sm:basis-auto">
+                  {detail.title}
+                </h1>
+                <Badge variant={detail.isPublished ? "success" : "warning"} className="shrink-0">
+                  {detail.isPublished ? tx(t, "published", "Published") : tx(t, "draft", "Draft")}
+                </Badge>
+                {provQ.data && (
+                  <button
+                    type="button"
+                    onClick={() => setProvenanceOpen(true)}
+                    className="shrink-0 rounded-full"
+                    aria-label={tx(t, "provenanceTitle", "AI import details")}
+                  >
+                    <Badge variant="info">
+                      {tx(t, "aiImported", "AI imported")}
+                      {provQ.data.openIssues > 0 ? ` · ${provQ.data.openIssues}` : ""}
+                    </Badge>
+                  </button>
+                )}
+                <span className="shrink-0">{saveState}</span>
+              </div>
+              <p className="truncate text-xs text-fg-muted">
+                {detail.questionCount} {tx(t, "questions", "questions")} · {detail.sections.length}{" "}
+                {tx(t, "sections", "sections")}
+              </p>
             </div>
-            <p className="truncate text-xs text-fg-muted">
-              {detail.questionCount} {tx(t, "questions", "questions")} · {detail.sections.length}{" "}
-              {tx(t, "sections", "sections")}
-            </p>
           </div>
-          <div className="ml-auto flex shrink-0 flex-wrap items-center gap-1.5">
-            <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)}>
-              <Eye className="size-4" aria-hidden />
-              {tx(t, "preview", "Preview")}
+          <div className="grid grid-cols-2 gap-1.5 sm:ml-auto sm:flex sm:shrink-0 sm:flex-wrap sm:items-center">
+            <Button size="sm" variant="outline" onClick={() => setPreviewOpen(true)} className="min-h-9 justify-center max-sm:w-full sm:min-h-0">
+              <Eye className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "preview", "Preview")}</span>
             </Button>
             <Button
               size="sm"
               variant="outline"
               loading={clone.isPending}
               onClick={handleClone}
-              aria-label={tx(t, "clone", "Clone")}
+              aria-label={tx(t, "duplicate", "Duplicate")}
+              className="min-h-9 justify-center max-sm:w-full sm:min-h-0"
             >
-              <Copy className="size-4" aria-hidden />
-              {tx(t, "clone", "Clone")}
+              <Copy className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "duplicate", "Duplicate")}</span>
             </Button>
             <Button
               size="sm"
@@ -434,22 +482,23 @@ export function ExamBuilder({ examId }: { examId: string }) {
                   ? `${tx(t, "review", "Review")} — ${blockers} ${tx(t, "blockers", "blockers")}`
                   : tx(t, "review", "Review")
               }
+              className="min-h-9 justify-center max-sm:w-full sm:min-h-0"
             >
-              <ClipboardList className="size-4" aria-hidden />
-              {tx(t, "review", "Review")}
+              <ClipboardList className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "review", "Review")}</span>
               {blockers > 0 && (
-                <Badge variant="danger" className="ml-0.5">
+                <Badge variant="danger" className="ml-0.5 shrink-0">
                   {blockers}
                 </Badge>
               )}
             </Button>
-            <Button size="sm" variant="outline" loading={saving} onClick={() => void handleSaveDraft()}>
-              <Save className="size-4" aria-hidden />
-              {tx(t, "saveDraft", "Save Draft")}
+            <Button size="sm" variant="outline" loading={saving} onClick={() => void handleSaveDraft()} className="min-h-9 justify-center max-sm:w-full sm:min-h-0">
+              <Save className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "saveDraft", "Save Draft")}</span>
             </Button>
-            <Button size="sm" onClick={() => requestSelect({ kind: "publish" })}>
-              <Rocket className="size-4" aria-hidden />
-              {tx(t, "publish", "Publish")}
+            <Button size="sm" onClick={() => requestSelect({ kind: "publish" })} className="col-span-2 min-h-9 justify-center sm:col-span-1 sm:min-h-0">
+              <Rocket className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{tx(t, "publish", "Publish")}</span>
             </Button>
           </div>
         </div>
@@ -467,8 +516,8 @@ export function ExamBuilder({ examId }: { examId: string }) {
         </p>
       )}
 
-      <div className="flex items-start gap-4 pt-4">
-        <div className="hidden md:block">
+      <div className="flex min-w-0 items-start gap-4 pt-4">
+        <div className="hidden shrink-0 md:block">
           <Sidebar
             examId={examId}
             detail={detail}
@@ -493,7 +542,7 @@ export function ExamBuilder({ examId }: { examId: string }) {
                 );
                 if (found) requestSelect(found.sel);
               }}
-              className="h-9 w-full rounded-[8px] border border-border bg-surface px-2 text-sm text-fg"
+              className="h-10 w-full min-w-0 rounded-[8px] border border-border bg-surface px-2 text-sm text-fg"
             >
               {outlineOptions(detail, (k, f) => tx(t, k, f)).map((o) => (
                 <option key={o.key} value={o.key}>
@@ -656,6 +705,19 @@ export function ExamBuilder({ examId }: { examId: string }) {
       </div>
 
       {previewOpen && <PreviewDialog examId={examId} onClose={() => setPreviewOpen(false)} />}
+
+      {detail && (
+        <ImportProvenanceDialog
+          open={provenanceOpen}
+          onClose={() => setProvenanceOpen(false)}
+          detail={detail}
+          provenance={provQ.data}
+          loading={provQ.isLoading}
+          onSelect={requestSelect}
+          onResolve={handleResolveIssue}
+          resolvingId={resolvingId}
+        />
+      )}
 
       {/* Unsaved-changes navigation guard (in-builder moves and leaving the exam) */}
       <Dialog

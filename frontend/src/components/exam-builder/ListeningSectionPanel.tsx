@@ -180,7 +180,7 @@ export function ListeningSectionPanel({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-3 xl:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           {parts.map((g) => {
             const partNo = g.partNumber ?? parts.findIndex((x) => x.id === g.id) + 1;
             const issues = groupIssueCount(g, "listening");

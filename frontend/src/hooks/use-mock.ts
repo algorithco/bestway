@@ -11,6 +11,7 @@ import type {
   MockExamDetail,
   MockExamListItem,
   MockExamType,
+  MockGroup,
   MockGroupInput,
   MockPurchaseItem,
   MockQuestionInput,
@@ -305,10 +306,26 @@ export function useSaveMockGroupContent(examId: string) {
       input: MockGroupInput;
       questions: (MockQuestionInput & { id?: string })[];
       deletedQuestionIds: string[];
-    }) => api.put<{ saved: number; questions: { id: string; number: number }[] }>(
-      `/mock/groups/${v.groupId}/content`,
-      { ...v.input, questions: v.questions, deletedQuestionIds: v.deletedQuestionIds },
-    ),
+    }) => {
+      // Optimistic concurrency: send the loaded contentVersion so a stale tab
+      // fails with a visible conflict instead of silently overwriting.
+      const cached = qc.getQueryData<{ contentVersion?: number }>(["mock-exam", examId]);
+      const version = cached?.contentVersion;
+      return api.put<{
+        saved: number;
+        questions: { id: string; number: number }[];
+        group: MockGroup;
+        version: number;
+      }>(
+        `/mock/groups/${v.groupId}/content`,
+        {
+          ...v.input,
+          questions: v.questions,
+          deletedQuestionIds: v.deletedQuestionIds,
+          ...(typeof version === "number" ? { expectedContentVersion: version } : {}),
+        },
+      );
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["mock-exam", examId] });
       qc.invalidateQueries({ queryKey: ["mock-exams"] });
@@ -420,5 +437,85 @@ export function useMockPreview(examId: string, enabled = false) {
     queryKey: ["mock-preview", examId],
     queryFn: () => api.get(`/mock/exams/${examId}/preview`),
     enabled: !!examId && enabled,
+  });
+}
+
+/* ── AI JSON import (staff; session stays in the HttpOnly cookie) ────────── */
+
+export interface ValidateImportInput {
+  package: unknown;
+  mediaBindings?: Record<string, string>;
+}
+
+export interface CommitImportInput extends ValidateImportInput {
+  validatedChecksum: string;
+  targetExamId?: string;
+}
+
+export function useValidateExamImport() {
+  return useMutation({
+    mutationFn: (v: ValidateImportInput) =>
+      api.post<import("@/lib/types").MockImportReport>("/mock/exam-imports/validate", {
+        package: v.package,
+        ...(v.mediaBindings ? { mediaBindings: v.mediaBindings } : {}),
+      }),
+  });
+}
+
+export function useStageImportMedia() {
+  return useMutation({
+    mutationFn: (form: FormData) =>
+      api.post<import("@/lib/types").MockStagedUpload>("/mock/exam-imports/media", form),
+  });
+}
+
+export function useCommitExamImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: CommitImportInput) =>
+      api.post<import("@/lib/types").MockImportCommit>("/mock/exam-imports", {
+        package: v.package,
+        ...(v.mediaBindings ? { mediaBindings: v.mediaBindings } : {}),
+        validatedChecksum: v.validatedChecksum,
+        ...(v.targetExamId ? { targetExamId: v.targetExamId } : {}),
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["mock-exams"] }),
+  });
+}
+
+export function useImportStatus(packageId: string, revision: number, enabled = false) {
+  return useQuery({
+    queryKey: ["mock-import-status", packageId, revision],
+    queryFn: () =>
+      api.get<import("@/lib/types").MockImportCommit>(
+        `/mock/exam-imports/by-package/${encodeURIComponent(packageId)}/revisions/${revision}`,
+      ),
+    enabled: !!packageId && !!revision && enabled,
+    retry: false,
+  });
+}
+
+/** Exam Builder provenance: package identity + open issues + source maps. */
+export function useExamImportProvenance(examId: string, enabled = false) {
+  return useQuery({
+    queryKey: ["mock-import-provenance", examId],
+    queryFn: () =>
+      api.get<import("@/lib/types").MockExamImportProvenance>(
+        `/mock/exam-imports/by-exam/${examId}`,
+      ),
+    enabled: !!examId && enabled,
+    retry: false,
+  });
+}
+
+export function useResolveImportIssue(examId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (issueId: string) =>
+      api.post(`/mock/exam-imports/issues/${issueId}/resolve`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["mock-import-provenance", examId] });
+      qc.invalidateQueries({ queryKey: ["mock-readiness", examId] });
+    },
   });
 }

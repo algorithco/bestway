@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCreateMockGroup, useCreateMockSection } from "@/hooks/use-mock";
 import type { MockExamDetail, MockGroup, MockSkill } from "@/lib/types";
 import { groupIssueCount } from "./checks";
+import { clusterReadingPassages } from "./reading-passage-clusters";
 import { SKILL_META, SKILL_ORDER, tx, type Selection } from "./types";
 
 const SKILL_ICON: Record<MockSkill, typeof Headphones> = {
@@ -121,7 +122,12 @@ export function Sidebar({
       );
       return;
     }
-    const n = section.groups.length;
+    const n =
+      skill === "reading"
+        ? clusterReadingPassages(
+            [...section.groups].sort((a, b) => a.sortOrder - b.sortOrder),
+          ).length
+        : section.groups.length;
     const meta = SKILL_META[skill];
     if (skill === "listening" && n >= 4) return;
     const nextSort = Math.max(-1, ...section.groups.map((g) => g.sortOrder)) + 1;
@@ -202,12 +208,21 @@ export function Sidebar({
             }
             const qCount = section.groups.reduce((a, g) => a + g.questions.length, 0);
             const issues = section.groups.reduce((a, g) => a + groupIssueCount(g, skill), 0);
+            const readingPassages =
+              skill === "reading"
+                ? clusterReadingPassages(
+                    [...section.groups].sort((a, b) => a.sortOrder - b.sortOrder),
+                  )
+                : [];
+            const unitCount = skill === "reading" ? readingPassages.length : section.groups.length;
             const sectionMeta =
               section.groups.length === 0
                 ? tx(t, "notConfigured", "Not configured")
                 : qCount === 0
-                  ? `${section.groups.length} ${meta.units.toLowerCase()} · ${tx(t, "empty", "Empty")}`
-                  : `${qCount} ${tx(t, "questions", "questions")}`;
+                  ? `${unitCount} ${meta.units.toLowerCase()} · ${tx(t, "empty", "Empty")}`
+                  : skill === "reading"
+                    ? `${unitCount} ${tx(t, "passages", "passages")} · ${qCount} ${tx(t, "questions", "questions")}`
+                    : `${qCount} ${tx(t, "questions", "questions")}`;
             return (
               <div key={skill} className="pt-1">
                 <div className="flex items-start gap-0.5">
@@ -246,7 +261,78 @@ export function Sidebar({
                 </div>
                 {section.groups.length > 0 && (
                   <div className="ml-[18px] space-y-0.5 border-l border-border py-0.5 pl-1.5">
-                    {section.groups.map((g, gi) => {
+                    {skill === "reading" ? (
+                      readingPassages.map((passage) => {
+                        const passageIssues = passage.groups.reduce(
+                          (total, group) => total + groupIssueCount(group, "reading"),
+                          0,
+                        );
+                        const passageActive =
+                          selection.kind === "group" &&
+                          passage.groups.some((group) => group.id === selection.groupId);
+                        const passageTitle =
+                          passage.title && passage.title !== `Passage ${passage.ordinal}`
+                            ? `Passage ${passage.ordinal} · ${passage.title}`
+                            : `Passage ${passage.ordinal}`;
+                        return (
+                          <div key={passage.groups[0].id} className="space-y-0.5">
+                            <OutlineButton
+                              active={passageActive}
+                              onClick={() =>
+                                onSelect({ kind: "group", groupId: passage.groups[0].id })
+                              }
+                              label={`${passageTitle} — ${passage.groups.length} question sets — ${passage.rangeLabel ? `Questions ${passage.rangeLabel}` : tx(t, "empty", "Empty")}`}
+                            >
+                              {passageIssues > 0 ? (
+                                <XCircle className="mt-0.5 size-3.5 shrink-0 text-danger" aria-hidden />
+                              ) : passage.questions.length > 0 ? (
+                                <CheckCircle2 className="mt-0.5 size-3.5 shrink-0 text-success" aria-hidden />
+                              ) : (
+                                <Circle className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" aria-hidden />
+                              )}
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate">{passageTitle}</span>
+                                <span className="block truncate text-[11px] font-normal text-fg-subtle">
+                                  {passage.rangeLabel ? `Q${passage.rangeLabel}` : tx(t, "empty", "Empty")} · {passage.groups.length}{" "}
+                                  {tx(t, "questionSets", "question sets")}
+                                </span>
+                              </span>
+                            </OutlineButton>
+                            {passage.groups.length > 1 && (
+                              <div className="ml-4 space-y-0.5 border-l border-border/70 pl-1.5">
+                                {passage.groups.map((g, taskIndex) => {
+                                  const taskIssues = groupIssueCount(g, "reading");
+                                  const taskActive =
+                                    selection.kind === "group" && selection.groupId === g.id;
+                                  const taskRange = rangeLabel(g.questions);
+                                  const taskLabel = taskRange ?? `${tx(t, "questionSet", "Question set")} ${taskIndex + 1}`;
+                                  return (
+                                    <OutlineButton
+                                      key={g.id}
+                                      active={taskActive}
+                                      onClick={() => onSelect({ kind: "group", groupId: g.id })}
+                                      label={`${taskLabel} — ${groupMeta(g, "reading")}`}
+                                    >
+                                      {taskIssues > 0 ? (
+                                        <XCircle className="mt-0.5 size-3 shrink-0 text-danger" aria-hidden />
+                                      ) : (
+                                        <Circle className="mt-0.5 size-3 shrink-0 text-fg-subtle" aria-hidden />
+                                      )}
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block truncate">{taskLabel}</span>
+                                        <span className="block truncate text-[10px] font-normal text-fg-subtle">
+                                          {g.questions.length} {tx(t, "questions", "questions")}
+                                        </span>
+                                      </span>
+                                    </OutlineButton>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    ) : section.groups.map((g, gi) => {
                       const gi_issues = groupIssueCount(g, skill);
                       const label = g.title?.trim() || `${meta.unit} ${gi + 1}`;
                       const active = selection.kind === "group" && selection.groupId === g.id;

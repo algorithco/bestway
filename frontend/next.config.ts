@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
@@ -8,6 +10,10 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
+  turbopack: {
+    // Ignore unrelated lockfiles above the repository (for example ~/package-lock.json).
+    root: dirname(fileURLToPath(import.meta.url)),
+  },
 
   // 1. Turbopack / Webpack tunnelni bloklamasligi uchun (Terminal so'ragan asosiy sozlama)
   // Diqqat: BARE host yoziladi (sxemasiz) — 'https://' bilan hech qachon match bo'lmaydi.

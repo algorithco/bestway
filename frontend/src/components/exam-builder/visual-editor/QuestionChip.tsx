@@ -38,15 +38,15 @@ export function QuestionChip(props: NodeViewProps) {
       data-client-id={clientId}
       onClick={() => store?.openDrawer(clientId)}
       onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); store?.openDrawer(clientId); } }}
-      className={`mx-0.5 inline-flex cursor-pointer items-center gap-1 rounded-full border px-2 py-0.5 align-baseline text-xs font-medium ${color}`}
+      className={`mx-0.5 inline-flex max-w-full cursor-pointer items-center gap-1 rounded-full border px-2 py-1 align-baseline text-xs font-medium sm:py-0.5 ${color}`}
     >
-      <span aria-hidden>#{number}</span>
-      <span>{label}</span>
-      {incomplete && <span aria-hidden className="inline-block size-1.5 rounded-full bg-red-500" />}
+      <span aria-hidden className="shrink-0 tabular-nums">#{number}</span>
+      <span className="min-w-0 truncate">{label}</span>
+      {incomplete && <span aria-hidden className="inline-block size-1.5 shrink-0 rounded-full bg-red-500" />}
       <button
         type="button"
         aria-label={`Delete question ${number}`}
-        className="ml-0.5 rounded-full px-1 opacity-60 hover:opacity-100"
+        className="ml-0.5 min-h-6 min-w-6 shrink-0 rounded-full px-1 opacity-60 hover:opacity-100 sm:min-h-0 sm:min-w-0"
         onClick={(e) => { e.stopPropagation(); store?.deleteNode(clientId); }}
       >
         ×

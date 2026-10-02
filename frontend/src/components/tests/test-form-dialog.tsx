@@ -25,8 +25,8 @@ const SECTIONS: TestSection[] = ["listening", "reading", "writing", "speaking"];
 
 function tFallback(t: ReturnType<typeof useTranslations>, key: string, fallback: string): string {
   try {
-    const v = t(key as never) as string;
-    if (!v || v === key) return fallback;
+    const v = t(key as never) as unknown;
+    if (typeof v !== "string" || !v || v === key || v.endsWith(`.${key}`)) return fallback;
     return v;
   } catch {
     return fallback;

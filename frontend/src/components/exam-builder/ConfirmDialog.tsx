@@ -55,11 +55,11 @@ export function ConfirmDialog({
           </p>
         </DialogBody>
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel}>
+          <Button variant="outline" onClick={onCancel} className="min-h-10 justify-center">
             {tx(t, "keepEditing", "Keep editing")}
           </Button>
-          <Button variant="danger" loading={loading} onClick={onConfirm}>
-            {confirmLabel || tc("delete")}
+          <Button variant="danger" loading={loading} onClick={onConfirm} className="min-h-10 justify-center">
+            <span className="truncate">{confirmLabel || tc("delete")}</span>
           </Button>
         </DialogFooter>
       </DialogContent>

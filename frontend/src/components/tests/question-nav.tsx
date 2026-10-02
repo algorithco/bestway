@@ -7,6 +7,12 @@ import type { AttemptQuestion, TestSection } from "@/lib/types";
 
 const SECTION_ORDER: TestSection[] = ["listening", "reading", "writing", "speaking"];
 
+function tFallback(t: ReturnType<typeof useTranslations>, key: string, fallback: string): string {
+  const v = t(key as never) as unknown;
+  if (typeof v !== "string" || v === key || v.endsWith(`.${key}`)) return fallback;
+  return v;
+}
+
 export function QuestionNav({
   questions,
   answers,
@@ -41,7 +47,7 @@ export function QuestionNav({
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
         {/* Scores pill */}
         <span className="shrink-0 rounded-full bg-bg-subtle px-3 py-1 text-xs font-semibold text-fg-muted">
-          {t("score") !== "score" ? t("score") : "Scores"}: {Object.values(answers).filter((v) => v?.trim()).length}/{questions.length}
+          {tFallback(t, "score", "Scores")}: {Object.values(answers).filter((v) => v?.trim()).length}/{questions.length}
         </span>
 
         <div className="flex items-center gap-1.5" role="tablist" aria-label="Question navigation">
@@ -84,7 +90,7 @@ export function QuestionNav({
                   : "text-fg-muted hover:bg-bg-subtle hover:text-fg",
               )}
             >
-              {t(`sections.${sec}`) !== `sections.${sec}` ? t(`sections.${sec}`) : sec}
+              {tFallback(t, `sections.${sec}`, sec)}
             </button>
           ))}
         </div>
@@ -92,9 +98,11 @@ export function QuestionNav({
 
       {/* tiny keyboard hint */}
       <p className="mt-1 hidden text-[11px] text-fg-subtle sm:block">
-        {t("navHint") !== "navHint"
-          ? t("navHint")
-          : "Tip: Click a number to jump · Tab / Shift+Tab to move · Answers auto-save on blur"}
+        {tFallback(
+          t,
+          "navHint",
+          "Tip: Click a number to jump · Tab / Shift+Tab to move · Answers auto-save on blur",
+        )}
       </p>
     </div>
   );
