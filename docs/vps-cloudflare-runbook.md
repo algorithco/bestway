@@ -72,3 +72,94 @@ curl -f https://bestwayec.uz/ && curl -f https://api.bestwayec.uz/v1/health
 - Frontend `UPLOAD_API_HOST` wiring (>90MB → direct-api) still needs a small client change.
 - Proper fix later: chunked tus or R2/S3 presigned multipart (each request <100MB).
 - Never `Flexible` SSL; never expose 3001/3005/5433 publicly; never `migrate dev` in prod.
+
+## 6. Shared VPS (Option B: cloudflared tunnel — grandec co-host, 194.163.150.178)
+
+Supersedes sections 1-2 on any VPS where host ports 80/443 already belong to
+another stack. Grandec (`lms-platform-prod`, `/opt/lms`) is NEVER touched:
+no shared nginx, no container restarts, no config edits.
+
+### Architecture
+
+```
+Cloudflare edge (orange cloud, Full strict)
+  bestwayec.uz, www.bestwayec.uz ─┐
+  api.bestwayec.uz ───────────────┤
+                                  ▼
+              cloudflared (outbound-only tunnel, education-cloudflared)
+                                  ▼
+              education-net (docker, no published web ports)
+              ├── education-frontend :3000
+              ├── education-backend  :3001
+              └── education-postgres :5432 (loopback 127.0.0.1:5433 for host backups)
+```
+
+- Compose project: `bestway-prod` (`name:` in docker-compose.prod.yml).
+  Deploy path on this VPS: `/home/deploy/bestway` (`VPS_PATH` secret;
+  `/opt` is root-owned and the deploy user has no sudo).
+- `docker-compose.prod.yml` adds the `cloudflared:2026.9.3` service
+  (`tunnel --no-autoupdate run`, `TUNNEL_TOKEN` from root `.env`, fail-fast
+  if unset) and resets web-service host ports to `[]`.
+- Repo is public: `git pull` on the VPS needs no credential.
+
+### Resource limits (8GB VPS)
+
+| Stack | Caps | Typical use |
+|---|---|---|
+| bestway postgres | 768m | ~50MB |
+| bestway backend | 1g | ~90MB |
+| bestway frontend | 768m | ~100MB |
+| bestway cloudflared | 256m | ~20MB |
+| grandec (7 containers, uncapped) | — | ~630MB |
+
+Worst-case bestway footprint ≈ 2.8GB; measured total ≈ 1.3GB used of 8GB.
+Alert if `free` available drops below 1GB. Never raise bestway caps without
+re-checking grandec headroom first.
+
+### First deploy (all as `deploy`, never root, never grandec files)
+
+```bash
+git clone --branch main https://github.com/bestwayec/bestway.git /home/deploy/bestway
+cd /home/deploy/bestway
+# root .env (chmod 600): POSTGRES_PASSWORD=$(openssl rand -hex 16),
+# TUNNEL_TOKEN=<Zero Trust tunnel token>
+# backend/.env (chmod 600): copy from backend/.env.example, set JWT_SECRET /
+# STREAM_TOKEN_SECRET ($(openssl rand -hex 32)), SEED_SUPER_ADMIN_* (strong).
+# First boot WITHOUT the tunnel (token comes later):
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait postgres backend frontend
+# seed:init needs ts-node (devDep, absent from prod image) — run it via npx
+# with an in-container tsconfig (see runbook history / deploy log Oct 2026).
+# NEVER run seed / seed:mock in prod.
+# Attach the tunnel once TUNNEL_TOKEN is in root .env:
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --wait cloudflared
+docker logs education-cloudflared  # expect "Registered tunnel connection"
+```
+
+### Deploy / rollback (CI: `.github/workflows/deploy.yml` on push to main)
+
+- Deploy: push to `main` → Actions SSH (`VPS_HOST/USER/KEY/PATH` secrets) →
+  `git pull --ff-only` → `up -d --build --wait` → exec health gates (fatal) +
+  public URL gates (warn-only pre-cutover) → image prune.
+- Rollback: `git revert + push` (re-deploys previous code). Grandec rollback
+  (`.last_good_tag`) is a separate system — never mix the two.
+- FORBIDDEN on shared VPS: `docker compose down` (drops nothing but kills
+  uptime; use `up -d`), `docker system prune -a` (would delete grandec
+  images/containers' layers — prune DANGLING only, and even that is scoped
+  per-invocation), any `docker`/`nginx`/`/opt/lms` command targeting grandec.
+
+### Grandec safety check (before AND after every bestway change)
+
+```bash
+docker ps --format 'table {{.Names}}\t{{.Status}}'   # 7/7 healthy, uptimes unchanged
+curl -k -s -o /dev/null -w '%{http_code} %{time_total}\n' --resolve grandec.uz:443:127.0.0.1 https://grandec.uz/
+curl -s -o /dev/null -w '%{http_code} %{time_total}\n' https://grandec.uz/   # ~0.9s edge baseline
+```
+
+### 100MB upload limitation (Option B has NO grey-cloud bypass)
+
+The tunnel only works proxied (orange cloud), so Cloudflare Free's 100MB
+request-body cap applies to ALL bestway traffic. The app allows up to
+`MAX_UPLOAD_MB=500` (videos, mock storage) — uploads >100MB will fail
+(413/524) until the app chunks them. Do NOT work around this with a grey-cloud
+host: it would need host :443, which grandec owns. Proper fixes (app-level):
+client-side chunking (tus) or R2/S3 presigned multipart, each request <100MB.
