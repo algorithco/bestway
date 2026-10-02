@@ -636,6 +636,9 @@ model MockQuestionGroup {
   title        String?
   instructions String? // "Complete the notes. Write ONE WORD ONLY."
   passageText  String? // Reading matni / Listening transkripti
+  contentHtml  String? // Sanitized rich document; gaps are <span data-gap="N"></span>
+  audioScript  String? // Staff-only sanitized transcript/review material
+  contentLayout String? // document | table | notes | summary | sentences
   audioKey     String? // Listening audio (storage kaliti)
   imageKey     String? // Map/diagram labelling uchun rasm
   // --- IELTS full-test (v2026.1): Listening 4 part, dynamic audio muddati ---

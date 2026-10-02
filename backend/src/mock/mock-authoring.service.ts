@@ -21,6 +21,7 @@ import {
   UpdateSectionDto,
 } from './dto/mock.dto';
 import { MockAccessService } from './mock-access.service';
+import { assertGappedDocumentQuestions, sanitizeMockContent } from './mock-content';
 import { buildCorrectAnswers, parseQuestions } from './mock-parse';
 import { audioContentType } from './mock-storage';
 import { AUTO_SKILLS } from './mock-scoring';
@@ -319,6 +320,9 @@ export class MockAuthoringService {
     const section = await this.sectionOrThrow(sectionId);
     await this.assertCanAuthor(actor, section.examId);
     const count = await this.prisma.mockQuestionGroup.count({ where: { sectionId } });
+    const contentHtml = sanitizeMockContent(dto.contentHtml);
+    const audioScript = sanitizeMockContent(dto.audioScript);
+    assertGappedDocumentQuestions(contentHtml, []);
     const group = await this.prisma.mockQuestionGroup.create({
       data: {
         sectionId,
@@ -326,6 +330,9 @@ export class MockAuthoringService {
         title: dto.title,
         instructions: dto.instructions,
         passageText: dto.passageText,
+        contentHtml,
+        audioScript,
+        contentLayout: dto.contentLayout,
         partNumber: dto.partNumber,
         audioDurationSec: dto.audioDurationSec,
         audioPlayLimit: dto.audioPlayLimit ?? 1,
@@ -342,8 +349,19 @@ export class MockAuthoringService {
   }
 
   async updateGroup(actor: AuthUser, groupId: string, dto: UpdateGroupDto) {
-    await this.groupOrThrow(groupId);
+    const group = await this.prisma.mockQuestionGroup.findUnique({
+      where: { id: groupId },
+      include: { questions: { select: { number: true } } },
+    });
+    if (!group) throw new AppException('MOCK_GROUP_NOT_FOUND', 'Blok topilmadi', 404);
     await this.assertCanAuthorForGroup(actor, groupId);
+    const contentHtml = dto.contentHtml !== undefined
+      ? sanitizeMockContent(dto.contentHtml)
+      : group.contentHtml;
+    const audioScript = dto.audioScript !== undefined
+      ? sanitizeMockContent(dto.audioScript)
+      : group.audioScript;
+    assertGappedDocumentQuestions(contentHtml, group.questions.map((q) => q.number));
     const updated = await this.prisma.mockQuestionGroup.update({
       where: { id: groupId },
       data: {
@@ -351,6 +369,9 @@ export class MockAuthoringService {
         ...(dto.title !== undefined ? { title: dto.title } : {}),
         ...(dto.instructions !== undefined ? { instructions: dto.instructions } : {}),
         ...(dto.passageText !== undefined ? { passageText: dto.passageText } : {}),
+        ...(dto.contentHtml !== undefined ? { contentHtml } : {}),
+        ...(dto.audioScript !== undefined ? { audioScript } : {}),
+        ...(dto.contentLayout !== undefined ? { contentLayout: dto.contentLayout } : {}),
         ...(dto.partNumber !== undefined ? { partNumber: dto.partNumber } : {}),
         ...(dto.audioDurationSec !== undefined ? { audioDurationSec: dto.audioDurationSec } : {}),
         ...(dto.audioPlayLimit !== undefined ? { audioPlayLimit: dto.audioPlayLimit } : {}),
@@ -628,8 +649,22 @@ export class MockAuthoringService {
           points: this.resolvePoints(exam.type, isAuto, q.points, `Question ${index + 1}: `),
         };
       });
+      const contentHtml = dto.contentHtml !== undefined
+        ? sanitizeMockContent(dto.contentHtml)
+        : group.contentHtml;
+      const audioScript = dto.audioScript !== undefined
+        ? sanitizeMockContent(dto.audioScript)
+        : group.audioScript;
+      assertGappedDocumentQuestions(contentHtml, rows.map((q) => q.number));
       const { questions: _questions, deletedQuestionIds: _deleted, ...material } = dto;
-      await tx.mockQuestionGroup.update({ where: { id: groupId }, data: material });
+      await tx.mockQuestionGroup.update({
+        where: { id: groupId },
+        data: {
+          ...material,
+          ...(dto.contentHtml !== undefined ? { contentHtml } : {}),
+          ...(dto.audioScript !== undefined ? { audioScript } : {}),
+        },
+      });
       await tx.mockQuestion.deleteMany({ where: { groupId, id: { in: dto.deletedQuestionIds } } });
       const questions = [];
       for (const [index, data] of rows.entries()) {
@@ -830,6 +865,9 @@ export class MockAuthoringService {
               title: g.title,
               instructions: g.instructions,
               passageText: g.passageText,
+              contentHtml: g.contentHtml,
+              audioScript: g.audioScript,
+              contentLayout: g.contentLayout,
               partNumber: g.partNumber,
               audioDurationSec: g.audioDurationSec,
               audioPlayLimit: g.audioPlayLimit,
