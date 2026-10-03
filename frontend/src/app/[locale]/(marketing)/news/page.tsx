@@ -47,15 +47,15 @@ export default async function NewsPage({ params }: { params: Promise<{ locale: s
       ) : (
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {articles.map((a) => (
-            <Link key={a.id} href={`/news/${a.id}`} className="group">
-              <Card className="h-full p-6 transition-colors group-hover:border-border-strong">
+            <Link key={a.id} href={`/news/${a.id}`} className="group min-w-0">
+              <Card className="h-full min-w-0 p-6 transition-colors group-hover:border-border-strong">
                 {a.category && (
-                  <span className="text-xs font-semibold tracking-wide text-brand uppercase">
+                  <span className="block truncate text-xs font-semibold tracking-wide text-brand uppercase">
                     {a.category}
                   </span>
                 )}
-                <h2 className="mt-2 line-clamp-2 text-lg font-semibold text-fg">{a.title}</h2>
-                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-fg-muted">{a.body}</p>
+                <h2 className="mt-2 line-clamp-2 text-lg font-semibold break-words text-fg">{a.title}</h2>
+                <p className="mt-2 line-clamp-3 text-sm leading-relaxed break-words text-fg-muted">{a.body}</p>
                 <time className="mt-4 block text-xs text-fg-subtle">
                   {format.dateTime(new Date(a.createdAt), {
                     day: "numeric",

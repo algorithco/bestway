@@ -177,14 +177,38 @@
   }
 
   body {
-    background:
-      radial-gradient(circle at 8% -10%, rgba(137, 243, 54, 0.08), transparent 28rem),
-      radial-gradient(circle at 92% 10%, rgba(255, 153, 28, 0.07), transparent 26rem),
-      var(--bg);
+    background: var(--bg);
     color: var(--fg);
     -webkit-font-smoothing: antialiased;
     overflow-x: clip;
     overflow-wrap: break-word;
+  }
+
+  /* ── Seamless marketing background: ONE fixed ambient layer ──────────────
+     Single near-black / deep forest base + restrained ambient lighting.
+     Fixed so it never bands or stripes while scrolling on mobile. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(42rem 30rem at 12% -6%, rgba(137, 243, 54, 0.07), transparent 70%),
+      radial-gradient(36rem 26rem at 88% 4%, rgba(255, 237, 41, 0.05), transparent 70%),
+      radial-gradient(60rem 44rem at 50% 55%, rgba(32, 68, 22, 0.28), transparent 72%),
+      radial-gradient(54rem 40rem at 50% 108%, rgba(20, 42, 16, 0.32), transparent 72%),
+      var(--bg);
+  }
+
+  @media (max-width: 640px) {
+    body::before {
+      background:
+        radial-gradient(26rem 20rem at 50% -4%, rgba(137, 243, 54, 0.06), transparent 70%),
+        radial-gradient(30rem 24rem at 50% 55%, rgba(32, 68, 22, 0.24), transparent 72%),
+        radial-gradient(28rem 22rem at 50% 105%, rgba(20, 42, 16, 0.26), transparent 72%),
+        var(--bg);
+    }
   }
 
   /* Raqamlar ustunda tik turishi uchun (jadval, summa, ball) */
@@ -671,12 +695,58 @@
     background-size: 22px 22px;
   }
 
+  /* CD exam highlighter — brand yellow mark on dark passages */
+  mark.cd-mark {
+    background: rgba(255, 237, 41, 0.35);
+    color: inherit;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+
+  /* OGL particle backdrop — fills its fixed wrapper, canvas never blocks */
+  .particles-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+  .particles-container canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
   /* Gradient chegarali karta — ichki fon + tashqi gradient halqa */
   .ring-gradient {
     background:
       linear-gradient(var(--surface), var(--surface)) padding-box,
       linear-gradient(120deg, var(--brand), var(--accent), var(--orange)) border-box;
     border: 1.5px solid transparent;
+  }
+
+  /* ── Seamless sections: boundaries via spacing, not color blocks ─────────
+     Sections stay transparent so the fixed body::before shows through as ONE
+     continuous canvas. --tint adds an extremely subtle vertical veil only
+     where separation helps readability — no hard edges. */
+  .marketing-section {
+    position: relative;
+    background: transparent;
+  }
+  .marketing-section--tint {
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgba(255, 255, 255, 0.014) 22%,
+      rgba(255, 255, 255, 0.014) 78%,
+      transparent
+    );
+  }
+  .marketing-footer {
+    position: relative;
+    background:
+      linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.22)),
+      transparent;
   }
 }
 

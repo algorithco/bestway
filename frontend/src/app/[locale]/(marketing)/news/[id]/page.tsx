@@ -54,20 +54,20 @@ export default async function ArticlePage({
         </span>
       </div>
 
-      <h1 className="mt-4 text-3xl font-bold tracking-tight text-balance text-fg sm:text-4xl">
+      <h1 className="mt-4 text-3xl font-bold tracking-tight text-balance break-words text-fg sm:text-4xl">
         {article.title}
       </h1>
 
       {article.authorName && (
-        <p className="mt-3 text-sm text-fg-muted">{article.authorName}</p>
+        <p className="mt-3 text-sm break-words text-fg-muted">{article.authorName}</p>
       )}
 
-      <div className="mt-8 leading-relaxed whitespace-pre-wrap text-fg">{article.body}</div>
+      <div className="mt-8 leading-relaxed break-words whitespace-pre-wrap text-fg">{article.body}</div>
 
       {article.tags.length > 0 && (
         <div className="mt-10 flex flex-wrap gap-2 border-t border-border pt-6">
           {article.tags.map((tag) => (
-            <Badge key={tag} variant="neutral">
+            <Badge key={tag} variant="neutral" className="max-w-full break-all">
               #{tag}
             </Badge>
           ))}

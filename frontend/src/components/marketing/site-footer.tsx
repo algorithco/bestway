@@ -11,7 +11,7 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="relative overflow-hidden border-t border-border bg-bg-subtle">
+    <footer className="marketing-footer relative overflow-hidden border-t border-border/60">
       <div className="mx-auto max-w-6xl px-4 pt-14 pb-8 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div className="lg:col-span-2">
@@ -43,7 +43,7 @@ export function SiteFooter() {
             <ul className="mt-3 space-y-2 text-sm text-fg-muted">
               <li>IELTS</li>
               <li>Multilevel</li>
-              <li>General English</li>
+              <li>SAT</li>
             </ul>
           </div>
 
@@ -82,6 +82,9 @@ export function SiteFooter() {
             © {year} {CENTER.name}. Barcha huquqlar himoyalangan.
           </p>
           <div className="flex items-center gap-4">
+            <Link href="/desktop" className="hover:text-fg">
+              {t("desktopApp")}
+            </Link>
             <Link href="/login" className="hover:text-fg">
               {t("login")}
             </Link>

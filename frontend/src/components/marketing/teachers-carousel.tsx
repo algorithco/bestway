@@ -72,7 +72,7 @@ export function TeachersCarousel({ teachers }: { teachers: TeacherProfile[] }) {
       const cell = track.querySelector<HTMLElement>(`[data-index="${clamped}"]`);
       cell?.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
-        inline: "start",
+        inline: "center",
         block: "nearest",
       });
     },
@@ -91,14 +91,14 @@ export function TeachersCarousel({ teachers }: { teachers: TeacherProfile[] }) {
         aria-roledescription="carousel"
         aria-label={t("teachersTitle")}
         tabIndex={0}
-        className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-1 py-5 [scrollbar-width:none] motion-reduce:scroll-auto [&::-webkit-scrollbar]:hidden"
+        className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth px-[8%] py-5 [scrollbar-width:none] motion-reduce:scroll-auto sm:px-1 [&::-webkit-scrollbar]:hidden"
       >
         {teachers.map((teacher, i) => (
           <div
             key={teacher.id}
             data-cell=""
             data-index={i}
-            className="w-[84%] shrink-0 snap-start sm:w-[calc(50%-10px)] lg:w-[calc(33.333%-14px)] xl:w-[calc(25%-15px)]"
+            className="w-[84%] shrink-0 snap-center sm:w-[calc(50%-10px)] sm:snap-start lg:w-[calc(33.333%-14px)] xl:w-[calc(25%-15px)]"
           >
             <TeacherProfileCard teacher={teacher} active={i === active} />
           </div>
