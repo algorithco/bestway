@@ -161,9 +161,9 @@ export function DesktopDownload() {
     : null;
 
   return (
-    <div className="mx-auto mt-10 max-w-6xl">
+    <div className="mx-auto mt-10 w-full min-w-0 max-w-6xl">
       {/* ── Recommended for this device ── */}
-      <Card className="ring-gradient shine anim-scale-in p-6 sm:p-10">
+      <Card className="ring-gradient shine anim-scale-in min-w-0 overflow-hidden p-5 sm:p-10">
         {loading ? (
           <p className="inline-flex items-center gap-2 text-sm text-fg-muted" role="status">
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -205,34 +205,43 @@ export function DesktopDownload() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-6">
+          <div className="flex w-full min-w-0 flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-6">
             <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-brand-subtle text-brand-subtle-fg sm:size-20">
               <Download className="size-8 sm:size-9" aria-hidden />
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+            <div className="w-full min-w-0 flex-1">
+              <p className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-fg-muted">
                 {recommended ? (
-                  <Badge variant="success">
-                    <span aria-hidden className="anim-glow inline-block size-1.5 rounded-full bg-current" />
-                    {t("desktopRecommended")}
+                  <Badge variant="success" className="max-w-full min-w-0">
+                    <span aria-hidden className="anim-glow inline-block size-1.5 shrink-0 rounded-full bg-current" />
+                    <span className="min-w-0 truncate">{t("desktopRecommended")}</span>
                   </Badge>
                 ) : (
-                  <Badge variant="warning">{t("desktopUnknownNote")}</Badge>
+                  <Badge variant="warning" className="max-w-full">
+                    {t("desktopUnknownNote")}
+                  </Badge>
                 )}
                 {recommended && (
-                  <span className="font-semibold text-fg">
+                  <span className="min-w-0 font-semibold break-words text-fg">
                     {OS_META[recommended].label}
                     {release.version ? ` · ${t("desktopVersion")} ${release.version}` : ""}
                   </span>
                 )}
               </p>
               {recommended && recommendedAssets.length > 0 ? (
-                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                <div className="mt-4 flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
                   {recommendedAssets.slice(0, 2).map((a) => (
-                    <Button key={a.url} size="lg" asChild className="min-h-13 w-full justify-center px-8 sm:w-auto">
-                      <a href={a.url} rel="noopener noreferrer">
-                        <Download className="size-5" aria-hidden />
-                        {t("desktopDownload")} · {a.sizeMB}
+                    <Button
+                      key={a.url}
+                      size="lg"
+                      asChild
+                      className="min-h-13 w-full max-w-full min-w-0 justify-center px-4 sm:w-auto sm:px-8"
+                    >
+                      <a href={a.url} rel="noopener noreferrer" className="min-w-0">
+                        <Download className="size-5 shrink-0" aria-hidden />
+                        <span className="min-w-0 truncate">
+                          {t("desktopDownload")} · {a.sizeMB}
+                        </span>
                       </a>
                     </Button>
                   ))}
@@ -254,7 +263,7 @@ export function DesktopDownload() {
 
       {/* ── All platforms ── */}
       {!loading && release && (
-        <div className="mt-6 grid gap-5 sm:grid-cols-3">
+        <div className="mt-6 grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-3">
           {(Object.keys(OS_META) as (keyof typeof OS_META)[]).map((key, i) => {
             const Icon = OS_META[key].icon;
             const assets = release[key];
@@ -262,26 +271,46 @@ export function DesktopDownload() {
             return (
               <Card
                 key={key}
-                className={cn("lift anim-scale-in flex flex-col p-6", isRec && "border-brand/50")}
+                className={cn(
+                  "lift anim-scale-in flex min-w-0 max-w-full flex-col overflow-hidden p-5 sm:p-6",
+                  isRec && "border-brand/50",
+                )}
                 style={{ animationDelay: `${i * 90}ms` }}
               >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-2 font-semibold text-fg">
-                    <Icon className="size-5 text-brand" aria-hidden />
-                    {OS_META[key].label}
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+                  <span className="inline-flex min-w-0 items-center gap-2 font-semibold text-fg">
+                    <Icon className="size-5 shrink-0 text-brand" aria-hidden />
+                    <span className="min-w-0 truncate">{OS_META[key].label}</span>
                   </span>
-                  {isRec && <Badge variant="success">{t("desktopRecommended")}</Badge>}
+                  {isRec && (
+                    <Badge variant="success" className="max-w-full min-w-0 shrink-0">
+                      <span className="min-w-0 truncate">{t("desktopRecommended")}</span>
+                    </Badge>
+                  )}
                 </div>
-                <div className="mt-4 flex flex-1 flex-col gap-2.5">
+                <div className="mt-4 flex min-w-0 flex-1 flex-col gap-2.5">
                   {assets.length === 0 ? (
                     <p className="text-xs text-fg-subtle">{t("desktopNoAssets")}</p>
                   ) : (
                     assets.map((a) => (
-                      <Button key={a.url} variant="outline" size="sm" asChild className="h-auto min-h-12 justify-start py-2.5">
-                        <a href={a.url} rel="noopener noreferrer" title={a.name}>
+                      <Button
+                        key={a.url}
+                        variant="outline"
+                        size="sm"
+                        asChild
+                        className="h-auto max-w-full min-h-12 w-full min-w-0 justify-start overflow-hidden py-2.5 whitespace-normal"
+                      >
+                        <a
+                          href={a.url}
+                          rel="noopener noreferrer"
+                          title={a.name}
+                          className="min-w-0 w-full"
+                        >
                           <Download className="size-4 shrink-0" aria-hidden />
                           <span className="min-w-0 flex-1 truncate text-left text-[13px]">{a.name}</span>
-                          <span className="shrink-0 text-xs text-fg-subtle tabular-nums">{a.sizeMB}</span>
+                          <span className="shrink-0 text-xs whitespace-nowrap text-fg-subtle tabular-nums">
+                            {a.sizeMB}
+                          </span>
                         </a>
                       </Button>
                     ))
