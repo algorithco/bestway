@@ -31,8 +31,8 @@ export function HeroShowcase() {
 
   return (
     <div className="relative mx-auto w-full max-w-[700px] border-0 bg-transparent shadow-none outline-none sm:translate-x-4 lg:translate-x-8">
-      <div className="relative h-[440px] overflow-visible bg-transparent sm:h-[500px]">
-        <BestWayLogo3D interactive={!reduceMotion} />
+      <div className="relative h-[280px] overflow-visible bg-transparent sm:h-[420px] lg:h-[500px]">
+        <BestWayLogo3D interactive={!reduceMotion} glow={false} />
       </div>
     </div>
   );

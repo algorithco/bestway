@@ -83,10 +83,9 @@ export function JellyNav({
   stagger = 22,
   stiffness = 580,
 }: JellyNavProps) {
-  const activeIndex = Math.max(
-    0,
-    items.findIndex((item) => item.value === value),
-  );
+  // -1 = no selection (used off the home page, where section pills are meaningless).
+  const activeIndex = items.findIndex((item) => item.value === value);
+  const focusIndex = Math.max(0, activeIndex);
   const reduceMotion = useReducedMotion();
   const groupRef = React.useRef<HTMLDivElement>(null);
   const chipRefs = React.useRef<Array<HTMLButtonElement | null>>([]);
@@ -113,8 +112,8 @@ export function JellyNav({
 
       motionValues.forEach((mv, index) => {
         const selectedChip = index === selected;
-        const distance = Math.abs(index - selected);
-        const direction = Math.sign(index - selected) * (rtl ? -1 : 1);
+        const distance = selected < 0 ? Math.abs(index) + 1 : Math.abs(index - selected);
+        const direction = selected < 0 ? 0 : Math.sign(index - selected) * (rtl ? -1 : 1);
         const x = direction * push;
         const scale = selectedChip ? 1 + swell : 1 - shrink;
 
@@ -233,7 +232,7 @@ export function JellyNav({
           type="button"
           role="radio"
           aria-checked={index === activeIndex}
-          tabIndex={index === activeIndex ? 0 : -1}
+          tabIndex={index === focusIndex ? 0 : -1}
           disabled={disabled || item.disabled}
           className={styles.chip}
           data-on={index === activeIndex ? "true" : "false"}

@@ -11,14 +11,14 @@ export function HeroCta({ label }: { label: string }) {
   const isLoggedIn = !!me?.user;
 
   if (isLoading) {
-    return <span className="inline-flex h-[52px] w-44 animate-pulse rounded-[14px] bg-border/40" aria-hidden />;
+    return <span className="inline-flex h-12 w-44 animate-pulse rounded-[14px] bg-border/40" aria-hidden />;
   }
 
   if (isLoggedIn) return null;
 
   return (
     <SpecularButton
-      size="lg"
+      size="md"
       radius={14}
       tint="#89F336"
       tintOpacity={1}

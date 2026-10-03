@@ -1,0 +1,308 @@
+"use client";
+
+import * as React from "react";
+import {
+  Download,
+  FileDown,
+  Laptop,
+  Loader2,
+  Monitor,
+  RefreshCw,
+  Terminal,
+  TriangleAlert,
+} from "lucide-react";
+import { useTranslations } from "next-intl";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+const REPO = "bestwayec/bw-tauri";
+const RELEASES_URL = `https://github.com/${REPO}/releases/latest`;
+const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+
+type Os = "windows" | "macos" | "linux" | "mobile" | "unknown";
+
+interface ReleaseAsset {
+  name: string;
+  url: string;
+  sizeMB: string;
+}
+
+interface ReleaseInfo {
+  version: string;
+  publishedAt: string;
+  windows: ReleaseAsset[];
+  macos: ReleaseAsset[];
+  linux: ReleaseAsset[];
+}
+
+function detectOs(): Os {
+  if (typeof navigator === "undefined") return "unknown";
+  const uaData = navigator as Navigator & {
+    userAgentData?: { platform?: string; mobile?: boolean };
+  };
+  const platform = uaData.userAgentData?.platform?.toLowerCase() ?? "";
+  if (uaData.userAgentData?.mobile) return "mobile";
+  if (/win/.test(platform)) return "windows";
+  if (/mac/.test(platform)) return "macos";
+  if (/linux|chromeos|ubuntu/.test(platform)) return "linux";
+  const ua = navigator.userAgent.toLowerCase();
+  if (/android|iphone|ipad|ipod|mobile/.test(ua)) return "mobile";
+  if (/win/.test(ua)) return "windows";
+  if (/mac/.test(ua)) return "macos";
+  if (/linux|x11/.test(ua)) return "linux";
+  return "unknown";
+}
+
+function pickAssets(names: { name: string; url: string; size: number }[]): {
+  windows: ReleaseAsset[];
+  macos: ReleaseAsset[];
+  linux: ReleaseAsset[];
+} {
+  const fmt = (size: number) => `${(size / 1024 / 1024).toFixed(1)} MB`;
+  const lower = (n: string) => n.toLowerCase();
+  const windows = names
+    .filter((a) => /\.exe$|\.msi$/i.test(a.name))
+    .sort((a, b) => Number(/setup/i.test(b.name)) - Number(/setup/i.test(a.name)))
+    .map((a) => ({ name: a.name, url: a.url, sizeMB: fmt(a.size) }));
+  const macos = names
+    .filter((a) => /\.dmg$/i.test(a.name))
+    .map((a) => {
+      const n = lower(a.name);
+      const arch = /arm64|aarch64/.test(n) ? "Apple Silicon" : /x64|intel/.test(n) ? "Intel" : null;
+      return { name: arch ? `${a.name} · ${arch}` : a.name, url: a.url, sizeMB: fmt(a.size) };
+    });
+  const linux = names
+    .filter((a) => /\.appimage$|\.deb$/i.test(a.name))
+    .sort((a, b) => Number(/\.appimage$/i.test(a.name)) - Number(/\.appimage$/i.test(b.name)))
+    .map((a) => ({ name: a.name, url: a.url, sizeMB: fmt(a.size) }));
+  return { windows, macos, linux };
+}
+
+const OS_META: Record<Exclude<Os, "mobile" | "unknown">, { icon: typeof Monitor; label: string }> = {
+  windows: { icon: Monitor, label: "Windows" },
+  macos: { icon: Laptop, label: "macOS" },
+  linux: { icon: Terminal, label: "Linux" },
+};
+
+export function DesktopDownload() {
+  const t = useTranslations("marketing");
+  const [os] = React.useState<Os>(() => detectOs());
+  const [release, setRelease] = React.useState<ReleaseInfo | null>(null);
+  const [error, setError] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
+
+  function applyRelease(json: {
+    tag_name: string;
+    published_at: string;
+    assets: { name: string; browser_download_url: string; size: number }[];
+  }) {
+    const picked = pickAssets(
+      (json.assets ?? []).map((a) => ({ name: a.name, url: a.browser_download_url, size: a.size })),
+    );
+    setRelease({
+      version: String(json.tag_name ?? "").replace(/^bestway-app-v/, "v"),
+      publishedAt: json.published_at,
+      ...picked,
+    });
+    setError(false);
+    setLoading(false);
+  }
+
+  function failRelease() {
+    setRelease(null);
+    setError(true);
+    setLoading(false);
+  }
+
+  function requestRelease() {
+    return fetch(API_URL, { headers: { Accept: "application/vnd.github+json" } }).then(
+      async (res) => {
+        if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+        return (await res.json()) as {
+          tag_name: string;
+          published_at: string;
+          assets: { name: string; browser_download_url: string; size: number }[];
+        };
+      },
+    );
+  }
+
+  React.useEffect(() => {
+    let live = true;
+    requestRelease().then(
+      (json) => {
+        if (live) applyRelease(json);
+      },
+      () => {
+        if (live) failRelease();
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  function retry() {
+    setLoading(true);
+    setError(false);
+    requestRelease().then(applyRelease, failRelease);
+  }
+
+  const recommended = os === "windows" || os === "macos" || os === "linux" ? os : null;
+  const recommendedAssets = recommended && release ? release[recommended] : [];
+  const date = release?.publishedAt
+    ? new Date(release.publishedAt).toLocaleDateString(undefined, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="mx-auto mt-10 max-w-6xl">
+      {/* ── Recommended for this device ── */}
+      <Card className="ring-gradient shine anim-scale-in p-6 sm:p-10">
+        {loading ? (
+          <p className="inline-flex items-center gap-2 text-sm text-fg-muted" role="status">
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            {t("desktopDetecting")}
+          </p>
+        ) : os === "mobile" ? (
+          <div className="flex items-start gap-3">
+            <Laptop className="mt-0.5 size-5 shrink-0 text-brand" aria-hidden />
+            <div>
+              <p className="font-semibold text-fg">{t("desktopYourOs")}: mobile</p>
+              <p className="mt-1 text-sm text-fg-muted">{t("desktopMobileNote")}</p>
+              <a
+                href={RELEASES_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-brand hover:underline"
+              >
+                <FileDown className="size-4" aria-hidden />
+                {t("desktopAllDownloads")}
+              </a>
+            </div>
+          </div>
+        ) : error || !release ? (
+          <div className="flex items-start gap-3" role="alert">
+            <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+            <div>
+              <p className="font-semibold text-fg">{t("desktopLoadFailed")}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={retry}>
+                  <RefreshCw className="size-4" aria-hidden />
+                  {t("desktopRetry")}
+                </Button>
+                <Button size="sm" variant="ghost" asChild>
+                  <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">
+                    {t("desktopAllDownloads")}
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-start gap-5 sm:flex-row sm:items-center sm:gap-6">
+            <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-brand-subtle text-brand-subtle-fg sm:size-20">
+              <Download className="size-8 sm:size-9" aria-hidden />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-2 text-sm text-fg-muted">
+                {recommended ? (
+                  <Badge variant="success">
+                    <span aria-hidden className="anim-glow inline-block size-1.5 rounded-full bg-current" />
+                    {t("desktopRecommended")}
+                  </Badge>
+                ) : (
+                  <Badge variant="warning">{t("desktopUnknownNote")}</Badge>
+                )}
+                {recommended && (
+                  <span className="font-semibold text-fg">
+                    {OS_META[recommended].label}
+                    {release.version ? ` · ${t("desktopVersion")} ${release.version}` : ""}
+                  </span>
+                )}
+              </p>
+              {recommended && recommendedAssets.length > 0 ? (
+                <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                  {recommendedAssets.slice(0, 2).map((a) => (
+                    <Button key={a.url} size="lg" asChild className="min-h-13 w-full justify-center px-8 sm:w-auto">
+                      <a href={a.url} rel="noopener noreferrer">
+                        <Download className="size-5" aria-hidden />
+                        {t("desktopDownload")} · {a.sizeMB}
+                      </a>
+                    </Button>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-fg-muted">
+                  {recommended ? t("desktopNoAssets") : t("desktopUnknownNote")}
+                </p>
+              )}
+              {date && (
+                <p className="mt-2 text-xs text-fg-subtle">
+                  {t("desktopReleased")}: {date}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* ── All platforms ── */}
+      {!loading && release && (
+        <div className="mt-6 grid gap-5 sm:grid-cols-3">
+          {(Object.keys(OS_META) as (keyof typeof OS_META)[]).map((key, i) => {
+            const Icon = OS_META[key].icon;
+            const assets = release[key];
+            const isRec = recommended === key;
+            return (
+              <Card
+                key={key}
+                className={cn("lift anim-scale-in flex flex-col p-6", isRec && "border-brand/50")}
+                style={{ animationDelay: `${i * 90}ms` }}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-2 font-semibold text-fg">
+                    <Icon className="size-5 text-brand" aria-hidden />
+                    {OS_META[key].label}
+                  </span>
+                  {isRec && <Badge variant="success">{t("desktopRecommended")}</Badge>}
+                </div>
+                <div className="mt-4 flex flex-1 flex-col gap-2.5">
+                  {assets.length === 0 ? (
+                    <p className="text-xs text-fg-subtle">{t("desktopNoAssets")}</p>
+                  ) : (
+                    assets.map((a) => (
+                      <Button key={a.url} variant="outline" size="sm" asChild className="h-auto min-h-12 justify-start py-2.5">
+                        <a href={a.url} rel="noopener noreferrer" title={a.name}>
+                          <Download className="size-4 shrink-0" aria-hidden />
+                          <span className="min-w-0 flex-1 truncate text-left text-[13px]">{a.name}</span>
+                          <span className="shrink-0 text-xs text-fg-subtle tabular-nums">{a.sizeMB}</span>
+                        </a>
+                      </Button>
+                    ))
+                  )}
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <p className="mt-5 text-center text-xs text-fg-subtle">
+        <a
+          href={RELEASES_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-medium text-fg-muted underline-offset-4 hover:text-fg hover:underline"
+        >
+          {t("desktopAllDownloads")}
+        </a>
+      </p>
+    </div>
+  );
+}

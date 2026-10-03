@@ -1,5 +1,5 @@
 import { API_URL } from "./config";
-import type { ApiResponse, Article, TestDetail, TestListItem } from "./types";
+import type { ApiResponse, Article, MockExamDetail, MockExamListItem, TestDetail, TestListItem } from "./types";
 
 /**
  * Ochiq (auth talab qilmaydigan) backend so'rovlari — rasmiy sayt uchun.
@@ -33,6 +33,7 @@ export const ARTICLES_TAG = "articles";
 export const GALLERY_TAG = "gallery";
 export const TEACHERS_TAG = "teachers";
 export const TESTS_TAG = "tests";
+export const MOCK_EXAMS_TAG = "mock-exams";
 
 /** So'nggi yangiliklar (rasmiy sayt bosh sahifasi uchun) */
 export async function getLatestArticles(limit = 3): Promise<Article[]> {
@@ -80,5 +81,27 @@ export async function getDemoTest(id: string): Promise<TestDetail | null> {
   return publicGet<TestDetail>(`/tests/${encodeURIComponent(id)}`, {
     revalidate: 60,
     tags: [TESTS_TAG],
+  });
+}
+
+/**
+ * Demo mock imtihonlar (Exam Builder'da "Visible as a public demo").
+ * Backend mehmonlarga allaqachon faqat demo qaytaradi, lekin xavfsizlik
+ * uchun client-side filtr ham bor.
+ */
+export async function getDemoMockExams(): Promise<MockExamListItem[]> {
+  const data = await publicGet<MockExamListItem[]>("/mock/exams", {
+    revalidate: 60,
+    tags: [MOCK_EXAMS_TAG],
+  });
+  if (!data) return [];
+  return data.filter((e) => e.isDemo);
+}
+
+/** Bitta demo mock imtihon tafsiloti — mehmonlar uchun (javobsiz shakl) */
+export async function getDemoMockExam(id: string): Promise<MockExamDetail | null> {
+  return publicGet<MockExamDetail>(`/mock/exams/${encodeURIComponent(id)}`, {
+    revalidate: 60,
+    tags: [MOCK_EXAMS_TAG],
   });
 }

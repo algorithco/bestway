@@ -4,9 +4,9 @@ import {
   BarChart3,
   CalendarCheck,
   FileCheck2,
+  GraduationCap,
   Mail,
   MapPin,
-  MessageCircle,
   Phone,
   Star,
   Wallet,
@@ -32,7 +32,7 @@ import { cn, formatPhone } from "@/lib/utils";
 const COURSES = [
   { key: "ielts", Icon: Award, tone: "brand" },
   { key: "multilevel", Icon: BarChart3, tone: "accent" },
-  { key: "general", Icon: MessageCircle, tone: "orange" },
+  { key: "sat", Icon: GraduationCap, tone: "orange" },
 ] as const;
 
 const FEATURES = [
@@ -64,7 +64,7 @@ const COURSE_PIXEL: Record<
 > = {
   ielts: { variant: "blue", gap: 12, speed: 32, colors: "#213416,#89F336,#B9FF83", active: "#89F336" },
   multilevel: { variant: "yellow", gap: 10, speed: 28, colors: "#3A3510,#FFED29,#FFF580", active: "#FFED29" },
-  general: { variant: "pink", gap: 10, speed: 55, colors: "#3C260D,#FF991C,#FFC268", active: "#FF991C" },
+  sat: { variant: "pink", gap: 10, speed: 55, colors: "#3C260D,#FF991C,#FFC268", active: "#FF991C" },
 };
 
 export default async function HomePage({ params }: { params: Promise<{ locale: string }> }) {
@@ -105,27 +105,27 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
+      <section className="marketing-section relative overflow-hidden">
         <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-          <div className="bg-grid absolute inset-0 opacity-50" />
-          <div className="anim-float absolute -top-24 left-[4%] size-56 rounded-full bg-brand/20 blur-3xl sm:size-72" />
-          <div className="anim-float-slow absolute top-8 right-[2%] hidden size-80 rounded-full bg-accent/25 blur-3xl sm:block" />
-          <div className="anim-float absolute -bottom-16 left-1/3 hidden size-64 rounded-full bg-highlight/20 blur-3xl sm:block" />
+          <div className="bg-grid absolute inset-0 opacity-40" />
+          <div className="anim-float absolute -top-24 left-[4%] size-56 rounded-full bg-brand/10 blur-3xl sm:size-72" />
+          <div className="anim-float-slow absolute top-8 right-[2%] hidden size-80 rounded-full bg-accent/10 blur-3xl sm:block" />
+          <div className="anim-float absolute -bottom-16 left-1/3 hidden size-64 rounded-full bg-highlight/10 blur-3xl sm:block" />
           <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand via-accent to-orange" />
         </div>
 
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 sm:px-6 sm:py-16 lg:grid-cols-[1fr_1.15fr] lg:gap-8 lg:py-24">
-          <div className="order-1 text-center lg:order-1 lg:text-left">
-            <h1 className="mt-5 min-h-[2.2em] overflow-visible pt-1 text-[2rem] leading-[1.1] font-bold tracking-tight text-balance text-fg sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
+        <div className="mx-auto grid max-w-6xl items-center gap-6 px-4 py-8 sm:gap-10 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_1fr] lg:gap-8 lg:py-24 xl:max-w-7xl">
+          <div className="order-2 text-center lg:order-1 lg:text-left">
+            <h1 className="mt-5 min-h-[2.2em] overflow-visible pt-1 text-[2rem] leading-[1.1] font-bold tracking-tight text-pretty text-fg sm:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
               <HeroTitle text={t("heroTitle")} />
             </h1>
             <Reveal delay={180}>
-              <p className="mx-auto mt-5 max-w-xl text-base text-pretty text-fg-muted sm:text-lg lg:mx-0">
+              <p className="mx-auto mt-5 max-w-xl text-base text-pretty text-fg-muted sm:text-lg lg:mx-0 lg:max-w-2xl">
                 {t("heroSubtitle")}
               </p>
             </Reveal>
             <Reveal delay={270}>
-              <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
+              <div className="mt-8 flex w-full flex-col flex-wrap items-center justify-center gap-3 sm:w-auto sm:flex-row lg:justify-start">
                 <HeroCta label={t("heroCta")} />
                 <Link
                   href="/demo"
@@ -140,7 +140,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Reveal>
 
             <Reveal delay={360}>
-              <dl className="mx-auto mt-12 grid max-w-md grid-cols-3 gap-2 sm:gap-4 lg:mx-0">
+              <dl className="mx-auto mt-12 grid max-w-md grid-cols-3 gap-2 sm:gap-4 lg:mx-0 lg:max-w-lg">
                 {STATS.map((s) => (
                   <div key={s.key}>
                     <dt className="bg-gradient-to-br from-brand to-accent bg-clip-text text-2xl font-bold text-transparent sm:text-3xl">
@@ -153,15 +153,17 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             </Reveal>
           </div>
 
-          {/* Learning progress visual — mobile: after stats; desktop: right column */}
-          <Reveal delay={120} className="relative order-2 lg:order-2">
+          {/* Learning progress visual — mobile: first (visible on main screen); desktop: right column.
+              Plain div (no Reveal): hero is above the fold, scroll-reveal keeps
+              opacity:0 until scrolled and hides the 3D logo on phones. */}
+          <div className="relative order-1 lg:order-2">
             <HeroShowcase />
-          </Reveal>
+          </div>
         </div>
       </section>
 
       {/* ── Kurslar ──────────────────────────────────────────────────────── */}
-      <section id="courses" className="scroll-mt-16 bg-bg-subtle">
+      <section id="courses" className="marketing-section marketing-section--tint scroll-mt-16">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <SectionHeading title={t("coursesTitle")} subtitle={t("coursesSubtitle")} />
@@ -207,7 +209,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </section>
 
       {/* ── O'qituvchilar (TeacherProfileCard carousel) ─────────────────────── */}
-      <section id="teachers" className="scroll-mt-16 overflow-x-clip">
+      <section id="teachers" className="marketing-section scroll-mt-16 overflow-x-clip">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <SectionHeading title={t("teachersTitle")} subtitle={t("teachersSubtitle")} />
@@ -221,7 +223,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       </section>
 
       {/* ── Nega biz ─────────────────────────────────────────────────────── */}
-      <section id="why" className="scroll-mt-16 bg-bg-subtle">
+      <section id="why" className="marketing-section marketing-section--tint scroll-mt-16">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <SectionHeading title={t("whyTitle")} subtitle={t("whySubtitle")} />
@@ -253,7 +255,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
 
       {/* ── Yangiliklar ──────────────────────────────────────────────────── */}
       {articles.length > 0 && (
-        <section id="news" className="scroll-mt-16">
+        <section id="news" className="marketing-section scroll-mt-16">
           <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
             <Reveal>
               <div className="flex flex-wrap items-end justify-between gap-4">
@@ -270,15 +272,15 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
             <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {articles.map((a, i) => (
                 <Reveal key={a.id} delay={i * 90}>
-                  <Link href={`/news/${a.id}`} className="group block h-full">
+                  <Link href={`/news/${a.id}`} className="group block h-full min-w-0">
                     <FancyCard>
                       {a.category && (
-                        <span className="text-xs font-semibold tracking-wide text-orange uppercase">
+                        <span className="block truncate text-xs font-semibold tracking-wide text-orange uppercase">
                           {a.category}
                         </span>
                       )}
-                      <h3 className="mt-2 line-clamp-2 text-lg font-semibold text-fg">{a.title}</h3>
-                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-fg-muted">{a.body}</p>
+                      <h3 className="mt-2 line-clamp-2 text-lg font-semibold break-words text-fg">{a.title}</h3>
+                      <p className="mt-2 line-clamp-3 text-sm leading-relaxed break-words text-fg-muted">{a.body}</p>
                       <time className="mt-4 block text-xs text-fg-subtle">
                         {format.dateTime(new Date(a.createdAt), { day: "numeric", month: "long", year: "numeric" })}
                       </time>
@@ -292,7 +294,7 @@ export default async function HomePage({ params }: { params: Promise<{ locale: s
       )}
 
       {/* ── Aloqa ────────────────────────────────────────────────────────── */}
-      <section id="contact" className="scroll-mt-16">
+      <section id="contact" className="marketing-section scroll-mt-16">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <SectionHeading title={t("contactTitle")} subtitle={t("contactSubtitle")} />

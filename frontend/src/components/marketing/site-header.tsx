@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, MonitorDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, useRouter } from "@/i18n/navigation";
 import { Brand } from "@/components/brand";
@@ -52,7 +52,12 @@ export function SiteHeader() {
   );
   const [activeIdx, setActiveIdx] = React.useState(0);
 
-  // Sync active pill with URL hash and visible section (scroll spy)
+  // Sync active pill with URL hash and visible section (scroll spy).
+  // Position-based (not IntersectionObserver): the active item is the last
+  // section whose top is above 40% of the viewport. Above the first section
+  // (hero) this yields index 0 instead of a stale section — the observer
+  // version never cleared, so scrolling back to hero kept e.g. "Benefits".
+  // Off the home page (no section elements in DOM) there is no selection.
   React.useEffect(() => {
     const fromHash = () => {
       const hash = window.location.hash.replace(/^#/, "");
@@ -62,25 +67,37 @@ export function SiteHeader() {
     fromHash();
     window.addEventListener("hashchange", fromHash);
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const idx = SECTIONS.findIndex((s) => s.hash === entry.target.id);
-            if (idx >= 0) setActiveIdx(idx);
-          }
+    let ticking = false;
+    const update = () => {
+      ticking = false;
+      const existing = SECTIONS.filter((s) => document.getElementById(s.hash));
+      if (existing.length === 0) {
+        setActiveIdx(-1);
+        return;
+      }
+      const line = window.scrollY + window.innerHeight * 0.4;
+      let idx = 0;
+      existing.forEach((s) => {
+        const el = document.getElementById(s.hash);
+        if (el && el.getBoundingClientRect().top + window.scrollY <= line) {
+          idx = SECTIONS.indexOf(s);
         }
-      },
-      { rootMargin: "-50% 0px -50% 0px", threshold: 0 },
-    );
-    SECTIONS.forEach((s) => {
-      const el = document.getElementById(s.hash);
-      if (el) observer.observe(el);
-    });
+      });
+      setActiveIdx(idx);
+    };
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
 
     return () => {
       window.removeEventListener("hashchange", fromHash);
-      observer.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
     };
   }, []);
 
@@ -127,7 +144,7 @@ export function SiteHeader() {
                 value: section.hash,
                 label: t(section.key),
               }))}
-              value={SECTIONS[activeIdx]?.hash ?? SECTIONS[0].hash}
+              value={SECTIONS[activeIdx]?.hash ?? ""}
               onChange={(hash, index) => {
                 setActiveIdx(index);
                 router.push(`/#${hash}`);
@@ -138,6 +155,11 @@ export function SiteHeader() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
+          <Button variant="ghost" size="icon-sm" asChild title={t("desktopApp")}>
+            <Link href="/desktop" aria-label={t("desktopApp")}>
+              <MonitorDown />
+            </Link>
+          </Button>
           <div className="hidden items-center gap-1.5 sm:flex">
             <LanguageSwitcher />
           </div>
@@ -207,6 +229,14 @@ export function SiteHeader() {
       {open && (
         <div className="anim-fade relative max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border bg-bg/95 backdrop-blur-md xl:hidden" data-state="open">
           <nav className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3 sm:px-6">
+            <Link
+              href="/desktop"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-[10px] px-3 py-2.5 text-sm font-medium text-fg-muted hover:bg-surface-hover hover:text-fg"
+            >
+              <MonitorDown className="size-4 shrink-0 text-brand" aria-hidden />
+              {t("desktopApp")}
+            </Link>
             {SECTIONS.map((s) => (
               <Link
                 key={s.hash}
